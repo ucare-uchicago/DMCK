@@ -1,0 +1,7 @@
+false ; 
+  node-0 state:1 with proposedLeader:1 key=/foo value=secondtry
+  node-1 state:2 with proposedLeader:1 key=/foo value=secondtry
+  node-2 state:2 with proposedLeader:2 key=/foo value=firsttry
+Replicas are inconsistent.
+There is more than one leader in the system.
+

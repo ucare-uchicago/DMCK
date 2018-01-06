@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+if [ ! $1 ]; then
+  echo 'Please specify node ID' > /dev/stderr
+  exit 1
+fi
+
+config=config
+if [ $2 ]; then
+  config=$2
+fi
+
+logfile=node$1
+if [ $3 ]; then
+  logfile=$3
+fi
+
+leader_election=/Users/tanakorn/Documents/workspace/AutoSamc/bin
+
+java -cp $CLASSPATH:$leader_election edu.uchicago.cs.ucare.example.election.LeaderElectionMain $1 $config > $logfile.out 2> $logfile.err &
+

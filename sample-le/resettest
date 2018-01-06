@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+if [ $# -lt 1 ]; then
+  echo "usage: resettest <num_node> <working_dir>"
+  exit 1
+fi
+
+num_node=$1
+working_dir=$2
+
+# hacking for testing
+if [ "$debug" = "1" ]; then
+  mkdir $working_dir/backup 2> /dev/null
+  id=`ls $working_dir/backup | wc -l`
+  id=`expr $id + 1`
+  cp -r $working_dir/log $working_dir/backup/$id
+fi
+
+#rm -r $working_dir/log $working_dir/data 2> /dev/null
+#mkdir $working_dir/log $working_dir/data
+#i=0
+#while [ $i -lt $num_node ]; do
+#  mkdir $working_dir/log/$i $working_dir/data/$i
+#  echo $i > $working_dir/data/$i/myid
+#  i=`expr $i + 1`
+#done

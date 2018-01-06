@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+scriptdir=`dirname $0`
+
+conf_file=$scriptdir/target-sys.conf
+
+vars="`set -o posix ; set`"; source $conf_file; other_vars="`grep -vFe "$vars" <<<"$(set -o posix ; set)" | grep -v ^vars=`"; unset vars;
+other_vars=`echo $other_vars | sed 's/working_dir=[a-zA-Z0-9\/\-]*//'`
+other_vars=`echo $other_vars | sed 's/ipc_dir=[a-zA-Z0-9\/\-]*//'`
+other_vars=`echo $other_vars | sed 's/num_node=[0-9]*//'`
+
+# prepare scm files
+rm -r $working_dir/* 2> /dev/null
+mkdir -p $working_dir
+cp $scriptdir/*.sh  $working_dir/
+chmod 755 $working_dir/*.sh
+cp $scriptdir/resettest $working_dir/resettest
+chmod 755 $working_dir/resettest
+cp $scriptdir/readconfig $working_dir/readconfig
+cp $scriptdir/dmck.conf $working_dir/dmck.conf
+cp $scriptdir/target-sys.conf $working_dir/target-sys.conf
+echo traversal_record_dir=$working_dir/state >> $working_dir/target-sys.conf
+echo test_record_dir=$working_dir/record >> $working_dir/target-sys.conf
+
+# prepare log directories & config file
+mkdir $working_dir/record
+mkdir $working_dir/state
+mkdir $working_dir/console
+mkdir $working_dir/log
+
+cp $scriptdir/scm_log.properties $working_dir/
+cp $scriptdir/mc_log.properties $working_dir/
+
+echo "DMCK is ready in $working_dir"
+
+# prepare ipc folders
+rm -r $ipc_dir/* 2> /dev/null
+mkdir -p $ipc_dir
+mkdir $ipc_dir/new
+mkdir $ipc_dir/send
+mkdir $ipc_dir/ack
+echo "IPC-File dirs for DMCK are ready in $ipc_dir"
+rm -r $ipc_dir-scm/* 2> /dev/null
+mkdir -p $ipc_dir-scm
+mkdir $ipc_dir-scm/new
+mkdir $ipc_dir-scm/send
+echo "IPC-File dirs for SCM are ready in $ipc_dir-scm"

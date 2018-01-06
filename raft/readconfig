@@ -1,0 +1,11 @@
+#!/bin/bash
+
+conf_file=./target-sys.conf
+
+if [ ! -f $conf_file ]; then
+  echo There is no such configuration file : $conf_file
+  exit 1
+fi
+conf_file=`echo $(cd $(dirname $conf_file); pwd)/$(basename $conf_file)`
+
+. $conf_file

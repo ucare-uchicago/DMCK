@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+rmiregistry -J-Djava.rmi.server.codebase=file:///Users/tanakorn/Documents/UChicago/SAMC/simc/bin/ &

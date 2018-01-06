@@ -1,0 +1,9 @@
+mc_name=DoSomething
+working_dir=~/ISSTA15/programmable
+exploring_strategy=edu.uchicago.cs.ucare.dmck.server.ProgrammableModelChecker
+verifier=edu.uchicago.cs.ucare.dmck.election.LeaderElectionVerifier
+workload_driver=edu.uchicago.cs.ucare.dmck.election.LeaderElectionEnsembleController
+num_node=3
+num_crash=0
+num_reboot=0
+program=~/ISSTA15/replay

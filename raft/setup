@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+scriptdir=`dirname $0`
+
+conf_file=$scriptdir/target-sys.conf
+
+vars="`set -o posix ; set`"; source $conf_file; other_vars="`grep -vFe "$vars" <<<"$(set -o posix ; set)" | grep -v ^vars=`"; unset vars;
+other_vars=`echo $other_vars | sed 's/working_dir=[a-zA-Z0-9\/\-]*//'`
+other_vars=`echo $other_vars | sed 's/ipc_dir=[a-zA-Z0-9\/\-]*//'`
+other_vars=`echo $other_vars | sed 's/num_node=[0-9]*//'`
+
+# raft files
+rm -r $working_dir/* 2> /dev/null
+mkdir -p $working_dir
+cp $scriptdir/*.sh $working_dir/
+chmod 755 $working_dir/*.sh
+cp $scriptdir/readconfig $working_dir/readconfig
+cp $scriptdir/*.conf $working_dir/
+echo traversal_record_dir=$working_dir/state >> $working_dir/target-sys.conf
+echo test_record_dir=$working_dir/record >> $working_dir/target-sys.conf
+cp -r $scriptdir/storage $working_dir/
+
+# prepare log directories & config file
+mkdir $working_dir/record
+mkdir $working_dir/state
+mkdir $working_dir/log
+
+cp $scriptdir/mc_log.properties $working_dir/
+
+
+#i=0
+#while [ $i -lt $num_node ]; do
+#	mkdir -p $working_dir/log/$i
+#	i=`expr $i + 1`
+#done
+
+echo "DMCK are ready in $working_dir.."
+
+
+# prepare ipc folders
+rm -r $ipc_dir/* 2> /dev/null
+mkdir -p $ipc_dir
+mkdir $ipc_dir/new
+mkdir $ipc_dir/send
+mkdir $ipc_dir/ack
+echo "IPC files are ready in $ipc_dir.."

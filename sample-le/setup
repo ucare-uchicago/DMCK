@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+scriptdir=`dirname $0`
+
+conf_file=$scriptdir/target-sys.conf
+if [ $# -eq 1 ]; then
+  conf_file=$1
+fi
+
+vars="`set -o posix ; set`"; source $conf_file; other_vars="`grep -vFe "$vars" <<<"$(set -o posix ; set)" | grep -v ^vars=`"; unset vars;
+other_vars=`echo $other_vars | sed 's/mc_name=[a-zA-Z0-9]*//'`
+other_vars=`echo $other_vars | sed 's/num_node=[0-9]*//'`
+other_vars=`echo $other_vars | sed 's/num_crash=[0-9]*//'`
+other_vars=`echo $other_vars | sed 's/exploring_strategy=[a-zA-Z0-9_.]*//'`
+other_vars=`echo $other_vars | sed 's/working_dir=[a-zA-Z0-9\/\-]*//'`
+other_vars=`echo $other_vars | sed 's/ipc_dir=[a-zA-Z0-9\/\-]*//'`
+
+$scriptdir/init $mc_name $num_node $num_crash $exploring_strategy $working_dir $ipc_dir "$other_vars"

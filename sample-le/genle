@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+if [ $# -lt 2 ]; then
+  echo "usage: genle <num_node> <working_dir>"
+  exit 1
+fi
+
+num_node=$1
+working_dir=$2
+conf_dir=$working_dir/conf
+
+scriptdir=`dirname $0`
+
+i=0
+test -f $conf_dir/config && rm $conf_dir/config
+while [ $i -lt $num_node ]; do
+  base_port1=8000
+  port1=`expr $base_port1 + $i`
+  echo $i=127.0.0.1:$port1 >> $conf_dir/config
+  mkdir -p $working_dir/log/$i
+  i=`expr $i + 1`
+done
+  

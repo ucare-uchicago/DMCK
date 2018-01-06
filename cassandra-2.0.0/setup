@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+
+scriptdir=`dirname $0`
+
+conf_file=$scriptdir/target-sys.conf
+
+vars="`set -o posix ; set`"; source $conf_file; other_vars="`grep -vFe "$vars" <<<"$(set -o posix ; set)" | grep -v ^vars=`"; unset vars;
+other_vars=`echo $other_vars | sed 's/working_dir=[a-zA-Z0-9\/\-]*//'`
+other_vars=`echo $other_vars | sed 's/ipc_dir=[a-zA-Z0-9\/\-]*//'`
+other_vars=`echo $other_vars | sed 's/num_node=[0-9]*//'`
+
+# prepare cassandra files
+rm -r $working_dir/* 2> /dev/null
+mkdir -p $working_dir
+cp $scriptdir/*.sh $working_dir/
+chmod 755 $working_dir/*.sh
+cp $scriptdir/readconfig $working_dir/readconfig
+cp $scriptdir/*.conf $working_dir/
+cp $scriptdir/resettest $working_dir/resettest
+chmod 755 $working_dir/resettest
+echo traversal_record_dir=$working_dir/state >> $working_dir/target-sys.conf
+echo test_record_dir=$working_dir/record >> $working_dir/target-sys.conf
+cp $scriptdir/ballot $working_dir/ballot
+cp $scriptdir/ballot $working_dir/ballot-copy
+
+# copy cassandra's data snapshot
+cp -r $scriptdir/data $working_dir/data
+cp -r $scriptdir/data $working_dir/data-copy
+
+# copy cassandra's workload
+cp -r $scriptdir/query $working_dir/
+
+# prepare log directories & config file
+mkdir $working_dir/record
+mkdir $working_dir/state
+mkdir $working_dir/console
+mkdir $working_dir/config
+mkdir $working_dir/log
+
+cp $scriptdir/mc_log.properties $working_dir/mc_log.properties
+cp $scriptdir/cass_log.properties $working_dir/cass_log.properties
+
+i=0
+while [ $i -lt $num_node ]; do
+  mkdir -p $working_dir/log/cass$i
+  mkdir -p $working_dir/config/cass$i
+
+  cp $scriptdir/config/* $working_dir/config/cass$i
+
+  echo $i > $working_dir/data/cass$i/myid
+
+  data_file_directories=$working_dir/data/cass$i/data
+  echo data_file_directories: >> $working_dir/config/cass$i/cassandra.yaml
+  echo "    - $data_file_directories" >> $working_dir/config/cass$i/cassandra.yaml
+
+  commitlog_directory=$working_dir/data/cass$i/commitlogs
+  echo commitlog_directory: $commitlog_directory >> $working_dir/config/cass$i/cassandra.yaml
+
+  saved_caches_directory=$working_dir/data/cass$i/saved_caches
+  echo saved_caches_directory: $saved_caches_directory >> $working_dir/config/cass$i/cassandra.yaml
+
+  num=`expr $i + 1`
+  sed -i -e "37s/.*/listen_address: 127.0.0.$num/" $working_dir/config/cass$i/cassandra.yaml
+  sed -i -e "53s/.*/rpc_address: 127.0.0.$num/" $working_dir/config/cass$i/cassandra.yaml
+
+  seeds="127.0.0.1"
+  j=2
+  while [ $j -le $num ]; do
+    seeds="$seeds, 127.0.0.$j"
+    j=`expr $j + 1`
+  done
+  sed -i -e "61s/.*/  - seeds: \"$seeds\"/" $working_dir/config/cass$i/cassandra.yaml
+
+  initial_token=`python2 -c "print(str(((2**64 / $num_node) * $i) - 2**63))"`
+  sed -i -e "32s/.*/initial_token: $initial_token/" $working_dir/config/cass$i/cassandra.yaml
+
+  i=`expr $i + 1`
+done
+
+echo "DMCK is ready in $working_dir"
+
+# prepare ipc folders
+rm -r $ipc_dir/* 2> /dev/null
+mkdir -p $ipc_dir
+mkdir $ipc_dir/new
+mkdir $ipc_dir/send
+mkdir $ipc_dir/ack
+echo "IPC-File dirs for DMCK are ready in $ipc_dir"

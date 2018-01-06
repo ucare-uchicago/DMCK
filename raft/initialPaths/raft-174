@@ -1,0 +1,19 @@
+nodecrash id=2
+packetsend tid=-1743732091 Event={eventMode=0, recvNode=0, term=3, hashId=1458422405, state=0, eventType=0, sendNode=0}
+packetsend tid=-1743738990 Event={eventMode=0, recvNode=1, term=2, hashId=1539221394, state=0, eventType=0, sendNode=1}
+packetsend tid=-1743753413 Event={eventMode=1, recvNode=0, term=3, hashId=1535405883, state=1, eventType=1, sendNode=1}
+packetsend tid=-1743734439 Event={eventMode=1, recvNode=2, term=3, hashId=1543485785, state=1, eventType=1, sendNode=1}
+packetsend tid=-1743727540 Event={eventMode=1, recvNode=1, term=4, hashId=1462686796, state=1, eventType=1, sendNode=0}
+packetsend tid=-1743750821 Event={eventMode=1, recvNode=2, term=4, hashId=1466726747, state=1, eventType=1, sendNode=0}
+nodestart id=2
+packetsend tid=-1743745858 Event={eventMode=0, recvNode=2, term=2, hashId=1620020414, state=0, eventType=0, sendNode=2} Obsolete=true
+packetsend tid=-1743745857 Event={eventMode=0, recvNode=2, term=2, hashId=1620020415, state=0, eventType=0, sendNode=2}
+packetsend tid=-1743737000 Event={eventMode=1, recvNode=0, term=3, hashId=1612164952, state=1, eventType=1, sendNode=2}
+packetsend tid=-1743760281 Event={eventMode=1, recvNode=1, term=3, hashId=1616204903, state=1, eventType=1, sendNode=2}
+packetsend tid=-1743733622 Event={eventMode=1, recvNode=2, term=4, hashId=1466940554, state=2, eventType=3, sendNode=0}
+packetsend tid=-1743733621 Event={eventMode=1, recvNode=2, term=4, hashId=1466940555, state=2, eventType=3, sendNode=0}
+nodecrash id=2
+nodestart id=2
+packetsend tid=-1743745796 Event={recvNode=2, eventMode=0, term=4, hashId=1620020476, state=0, eventType=0, sendNode=2} Obsolete=false
+packetsend tid=-1743736938 Event={recvNode=0, eventMode=1, term=5, hashId=1612165014, state=1, eventType=1, sendNode=2} Obsolete=false
+packetsend tid=-1743760219 Event={recvNode=1, eventMode=1, term=5, hashId=1616204965, state=1, eventType=1, sendNode=2} Obsolete=false

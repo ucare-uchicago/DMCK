@@ -1,0 +1,13 @@
+#!/bin/bash 
+
+if [ $# -eq 1 ]; then
+  ant clean && rm -f *.jar && ant && ./$1/setup
+elif [ $# -eq 2 ] && [ $2 == "all" ]; then
+  dmck_dir=`pwd`
+  cd ./$1 && . ./readconfig
+  cd $target_sys_dir && ./compile.sh
+  cd $dmck_dir && ant clean && rm -f *.jar && ant && ./$1/setup
+else
+  echo "usage: ./compile [choose one : scm / sample-le / cassandra-2.0.0 / raft / zookeeper-3.1.0 / zookeeper-3.3.1] [additional option: all]"
+  exit 1
+fi

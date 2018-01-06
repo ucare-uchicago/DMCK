@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+if [ $# -lt 2 ]; then
+  echo "usage: setlemc_testid <test_id> <working_dir>"
+  exit 1
+fi
+
+test_id=$1
+working_dir=$2
+conf_file=$2/lemc.conf
+
+awk -F= '/test_id=.*/ { print "test_id="'$test_id' } !/test_id=.*/ { print }' $conf_file > ${conf_file}.tmp
+mv ${conf_file}.tmp $conf_file
+mkdir $working_dir/branch/$test_id $working_dir/localstate/$test_id

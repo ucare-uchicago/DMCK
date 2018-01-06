@@ -1,0 +1,98 @@
+<?xml version="1.0"?>
+
+<project name="LeaderElection" default="jar">
+
+    <property name="Name" value="DMCK" />
+    <property name="name" value="dmck" />
+
+    <property environment="env"/>
+    
+    <property name="version" value="1.0" />
+    <property name="final.name" value="${name}-v${version}"/>
+    
+    <property name="javac.target" value="1.7" />
+    <property name="javac.source" value="1.7" />
+
+    <property name="src.dir" value="${basedir}/src" />
+    <property name="java.src.dir" value="${src.dir}" />
+
+    <property name="lib.dir" value="${basedir}/lib" />
+    <property name="lib.dir.includes" value="**/*.jar" />
+    <property name="lib.dir.excludes" value="**/excluded/" />
+
+    <property name="build.dir" value="${basedir}/bin" />
+    <property name="build.classes" value="${build.dir}"/>
+
+	  <path id="java.classpath">
+	      <fileset dir="${lib.dir}">
+	        <include name="${lib.dir.includes}" />
+	        <exclude name="${lib.dir.excludes}" />
+	      </fileset>
+        <fileset dir="${ant.home}/lib">
+          <include name="ant.jar" />
+        </fileset>
+	  </path>
+
+    <target name="clean">
+      <delete dir="${build.dir}"/>
+      <delete file="${basedir}/${final.name}.jar"/>
+    </target>
+
+    <target name="compile" >
+        <mkdir dir="${build.classes}" />
+        <javac srcdir="${java.src.dir}" destdir="${build.classes}" 
+               debug="true" debuglevel="lines,source"
+               target="${javac.target}" source="${javac.source}" includeantruntime="false">
+            <classpath refid="java.classpath"/>
+        </javac>
+    </target>
+
+    <target name="jar" depends="compile">
+        <exec executable="hostname" outputproperty="host.name"/>
+        <jar jarfile="${basedir}/${final.name}.jar">
+            <fileset dir="${build.classes}" excludes="**/.generated"/>
+            <fileset dir="${java.src.dir}"/>
+            <manifest>
+                <attribute name="Main-Class" value="edu.uchicago.cs.ucare.example.election.LeaderElectionMain" />
+                <attribute name="Built-By" value="${user.name}"/>
+                <attribute name="Built-At" value="${build.time}"/>
+                <attribute name="Built-On" value="${host.name}" />
+                <attribute name="Implementation-Title" value="edu.uchicago.cs.ucare.example.election"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <property name="build.dir.eclipse" value=".eclipse"/>
+    <property name="build.dir.eclipse-main-classes" value="${build.dir.eclipse}/classes-main"/>
+
+    <target name="eclipse"
+            description="Create eclipse project files">
+      <taskdef name="eclipse"
+               classname="prantl.ant.eclipse.EclipseTask"
+               classpath="antlib/ant-eclipse-1.0-jvm1.2.jar" />
+      <eclipse updatealways="true">
+        <settings>
+          <jdtcore compilercompliance="6.0" />
+          <resources encoding="UTF-8" />
+        </settings>
+        <project name="${ant.project.name}" />
+        <classpath>
+          <source path="${java.src.dir}"
+                  output="${build.dir.eclipse-main-classes}" />
+
+          <output path="${build.dir.eclipse-main-classes}" />
+          <library pathref="java.classpath" exported="true" />
+        </classpath>
+      </eclipse>
+    </target>
+
+    <target name="clean-eclipse" description="Clean eclipse files">
+      <delete file=".classpath" />
+      <delete file=".eclipse" />
+      <delete file=".project" />
+      <delete dir=".settings" />
+      <delete dir="${build.dir.eclipse}" />
+    </target>
+
+
+</project>

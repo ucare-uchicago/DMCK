@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+if [ $# -lt 6 ]; then
+  echo "usage: genmc <mc_name> <num_node> <num_crash> <strategy> <working_dir> <ipc_dir> [other_vars]"
+  exit 1
+fi
+
+mc_name=$1
+num_node=$2
+num_crash=$3
+strategy=$4
+working_dir=$5
+ipc_dir=$6
+other_vars=$7
+
+echo mc_name=$mc_name > $working_dir/target-sys.conf
+echo working_dir=$working_dir >> $working_dir/target-sys.conf
+echo traversal_record_dir=$working_dir/state >> $working_dir/target-sys.conf
+echo test_record_dir=$working_dir/record >> $working_dir/target-sys.conf
+echo exploring_strategy=$strategy >> $working_dir/target-sys.conf
+echo num_node=$num_node >> $working_dir/target-sys.conf
+echo num_crash=$num_crash >> $working_dir/target-sys.conf
+for var in $other_vars; do
+  echo $var >> $working_dir/target-sys.conf
+done
+echo ipc_dir=$ipc_dir >> $working_dir/target-sys.conf

@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ $# -ne 1 ]; then
+  echo "usage: resettest <testId>"
+  exit 1
+fi
+
+. ./readconfig
+
+testId=$1
+
+mkdir $working_dir/console/$testId

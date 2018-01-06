@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if [ $# -ne 1 ]; then
+  echo "usage: resettest <testId>"
+  exit 1
+fi
+
+. ./readconfig
+
+testId=$1
+
+mkdir $working_dir/console/$testId
+
+rm -rf $working_dir/data/*
+rm -rf $working_dir/log/cass*/*
+
+cp $working_dir/ballot-copy $working_dir/ballot
+cp -r $working_dir/data-copy/* $working_dir/data/

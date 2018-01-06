@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+if [ $# -lt 6 ]; then
+  echo "usage: init <mc_name> <num_node> <num_crash> <strategy> <working_dir> <ipc_dir> [other_vars]"
+  exit 1
+fi
+
+mc_name=$1
+num_node=$2
+num_crash=$3
+strategy=$4
+working_dir=$5
+ipc_dir=$6
+other_vars=$7
+
+rm -r $working_dir/* 2> /dev/null
+
+scriptdir=`dirname $0`
+
+mkdir -p $working_dir/conf 
+$scriptdir/genle $num_node $working_dir
+
+$scriptdir/draftlemc $mc_name $working_dir
+
+$scriptdir/genmc $mc_name $num_node $num_crash $strategy $working_dir $use_ipc $ipc_dir "$other_vars"
+
+mkdir $working_dir/record
+mkdir $working_dir/state
+mkdir $working_dir/console
+
+mkdir $working_dir/bin
+cp $scriptdir/resettest $working_dir/bin/resettest
+cp $scriptdir/setlemc_testid $working_dir/bin/setlemc_testid
+
+cp $scriptdir/dmck.conf $working_dir/dmck.conf
+cp $scriptdir/samc.conf $working_dir/samc.conf
+cp $scriptdir/readconfig $working_dir/readconfig
+
+#mkdir $working_dir/log
+
+cp $scriptdir/resource/le_log.properties $working_dir/
+cp $scriptdir/resource/runnode $working_dir/
+cp $scriptdir/resource/mc_log.properties $working_dir/
+sed "s:WORKING_DIR:$working_dir:" $scriptdir/resource/dmckRunner.sh > $working_dir/dmckRunner.sh
+chmod 755 $working_dir/dmckRunner.sh
+sed "s:WORKING_DIR:$working_dir:" $scriptdir/resource/startNode.sh > $working_dir/startNode.sh
+chmod 755 $working_dir/startNode.sh
+cp $scriptdir/resource/killNode.sh $working_dir/killNode.sh
+chmod 755 $working_dir/killNode.sh
+cp $scriptdir/dmck.conf $working_dir/dmck.conf
+cp $scriptdir/resource/monitorcheck.sh $working_dir/
+echo "DMCK is ready in $working_dir."
+
+# ipc
+rm -r $ipc_dir/* 2> /dev/null
+mkdir -p $ipc_dir
+mkdir $ipc_dir/new
+mkdir $ipc_dir/send
+mkdir $ipc_dir/ack
+echo "IPC-File dirs are ready in $ipc_dir.."
+

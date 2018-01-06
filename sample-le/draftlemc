@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+if [ $# -lt 2 ]; then
+  echo "usage: draftlemc <mc_name> <working_dir>"
+  exit 1
+fi
+
+mc_name=$1
+working_dir=$2
+
+scriptdir=`dirname $0`
+
+cp $scriptdir/resource/lemctemplate $working_dir/lemc.conf
+echo mc_name=$mc_name >> $working_dir/lemc.conf

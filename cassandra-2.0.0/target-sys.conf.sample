@@ -1,0 +1,84 @@
+# DMCK name
+#   Used to add specific rule for specific target system
+#   if needed. (Normally for hacking the DMCK)
+#   Default: targetSystemNameChecker
+dmck_name=cassChecker
+
+# DMCK Working Directory
+#   To avoid messing up with the DMCK main code,
+#   the DMCK code will be executed in this directory
+#   Default: /tmp/target-system-name
+working_dir=/tmp/cassandra-6023
+
+# DMCK File IPC Directory
+#   Used to store file communication between the DMCK and the target system
+#   Default: /tmp/ipc
+ipc_dir=/tmp/ipc
+
+# DMCK Main Directory
+#   Store the complete DMCK code
+#   Default: /home/yourusername/dmck
+dmck_dir=/home/jeff/Programs/dmck
+
+# Target System Directory (optional)
+#   Point this to the target system directory
+#   Default: /home/yourusername/target-system 
+target_sys_dir=/home/jeff/Programs/dmck-target-sys/cassandra-6023
+
+# DMCK File Watcher Class
+#   Point this to the FileWatcher class that you have made
+#   specific for your target system
+#   Default: edu.uchicago.cs.ucare.dmck.yourtargetsystem.YourTargetSystemFileWatcher
+initial_path=/home/jeff/Programs/dmck/cassandra-2.0.0/initialPaths/cass-6023
+
+# DMCK Expected Result Path (optional)
+#   If it is setup, the DMCK will stop its exploration
+#   once it sees that the latest execution path reach the specific result evaluation
+#   Default: /home/yourusername/dmck/target-system/expectedResultPaths/dcbugnumber-file
+expected_result_path=/home/jeff/Programs/dmck/cassandra-2.0.0/expectedResultPaths/cass-6023
+
+# DMCK Exploration Strategy Class
+#   Point this to the Exploration Strategy that you want to use.
+#   Options:
+#   - DFS    = edu.uchicago.cs.ucare.dmck.server.DfsTreeTravelModelChecker
+#   - Random = edu.uchicago.cs.ucare.dmck.server.RandomModelChecker
+#   - DPOR   = edu.uchicago.cs.ucare.dmck.server.DporModelChecker
+#   - SAMC   = edu.uchicago.cs.ucare.dmck.yourTargetSystem.YourTargetSystemSAMC
+exploring_strategy=edu.uchicago.cs.ucare.dmck.cassandra.CassSAMC
+
+# DMCK File Watcher Class
+#   Point this to the FileWatcher class that you have made
+#   specific for your target system
+#   Default: edu.uchicago.cs.ucare.dmck.yourtargetsystem.YourTargetSystemFileWatcher
+file_watcher=edu.uchicago.cs.ucare.dmck.cassandra.CassFileWatcher
+
+# DMCK Verification Class (Optional)
+#   Point this to the Verification Class that you made for your target system
+#   Default: edu.uchicago.cs.ucare.dmck.server.SpecVerifier
+verifier=edu.uchicago.cs.ucare.dmck.cassandra.CassVerifier
+
+# DMCK Workload Driver
+#   Point this to the Workload Driver class that you made
+#   that is used to start nodes, terminate nodes, and injecting
+#   additional target system admin/client operation(s) workload
+#   Default: edu.uchicago.cs.ucare.dmck.yourtargetsystem.YourTargetSystemWorkloadDriver
+workload_driver=edu.uchicago.cs.ucare.dmck.cassandra.CassWorkloadDriver
+
+# Workload Number of Nodes
+#   Mention how many target system nodes that are involved in your workload
+#   Default: 3
+num_node=3
+
+# Workload - Number of Crash(es) (Optional)
+#   Define how many crashes that you want to test in your workload
+#   Default: 0
+num_crash=0
+
+# Workload - Number of Reboot(s) (Optional)
+#   Define how many reboots that you want to test in your workload
+#   Default: 0
+num_reboot=0
+
+# Workload - Number of Client/Admin Operations Injected in the Initial Execution Path (Optional)
+#   Default: 0
+num_init_workload=1

@@ -1,0 +1,8 @@
+mc_name=SampleSysBruteForce
+working_dir=~/ISSTA15/bruteforce
+exploring_strategy=edu.uchicago.cs.ucare.dmck.server.DfsTreeTravelModelChecker
+verifier=edu.uchicago.cs.ucare.dmck.election.LeaderElectionVerifier
+workload_driver=edu.uchicago.cs.ucare.dmck.election.LeaderElectionEnsembleController
+num_node=3
+num_crash=0
+num_reboot=0

@@ -1,0 +1,77 @@
+authenticator: AllowAllAuthenticator
+authorizer: AllowAllAuthorizer
+auto_bootstrap: false
+auto_snapshot: true
+cas_contention_timeout_in_ms: 50 # 1000
+client_encryption_options:
+  enabled: false
+  keystore: conf/.keystore
+  keystore_password: cassandra
+cluster_name: test
+column_index_size_in_kb: 64
+# commitlog_directory: /home/kaiysh/.ccm/test/node1/commitlogs
+commitlog_segment_size_in_mb: 32
+commitlog_sync: periodic
+commitlog_sync_period_in_ms: 10000
+compaction_preheat_key_cache: true
+compaction_throughput_mb_per_sec: 16
+concurrent_reads: 32
+concurrent_writes: 32
+cross_node_timeout: false
+# data_file_directories:
+# - /home/kaiysh/.ccm/test/node1/data
+disk_failure_policy: stop
+dynamic_snitch_badness_threshold: 0.1
+dynamic_snitch_reset_interval_in_ms: 600000
+dynamic_snitch_update_interval_in_ms: 100
+endpoint_snitch: SimpleSnitch
+hinted_handoff_enabled: true
+hinted_handoff_throttle_in_kb: 1024
+in_memory_compaction_limit_in_mb: 64
+incremental_backups: false
+initial_token: -9223372036854775808
+inter_dc_tcp_nodelay: false
+internode_compression: all
+key_cache_save_period: 14400
+key_cache_size_in_mb: null
+listen_address: 127.0.0.1
+max_hint_window_in_ms: 10800000
+max_hints_delivery_threads: 2
+memtable_flush_queue_size: 4
+multithreaded_compaction: false
+native_transport_port: 9042
+num_tokens: 1
+partitioner: org.apache.cassandra.dht.Murmur3Partitioner
+permissions_validity_in_ms: 2000
+preheat_kernel_page_cache: false
+range_request_timeout_in_ms: 300000 # 10000
+read_request_timeout_in_ms: 300000 # 10000
+request_scheduler: org.apache.cassandra.scheduler.NoScheduler
+request_timeout_in_ms: 300000 # 10000
+row_cache_save_period: 0
+row_cache_size_in_mb: 0
+rpc_address: 127.0.0.1
+rpc_keepalive: true
+rpc_port: 9160
+rpc_server_type: sync
+# saved_caches_directory: /home/kaiysh/.ccm/test/node1/saved_caches
+seed_provider:
+- class_name: org.apache.cassandra.locator.SimpleSeedProvider
+  parameters:
+  - seeds: 127.0.0.1
+server_encryption_options:
+  internode_encryption: none
+  keystore: conf/.keystore
+  keystore_password: cassandra
+  truststore: conf/.truststore
+  truststore_password: cassandra
+snapshot_before_compaction: false
+ssl_storage_port: 7001
+start_native_transport: true
+start_rpc: true
+storage_port: 7000
+thrift_framed_transport_size_in_mb: 15
+trickle_fsync: false
+trickle_fsync_interval_in_kb: 10240
+truncate_request_timeout_in_ms: 1800000 # 60000
+write_request_timeout_in_ms: 300000 # 10000
