@@ -164,8 +164,8 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
 				} else {
 					transition = nextTransition(currentEnabledTransitions);
 				}
-				collectDebugNextTransition(transition);
 				if (transition != null) {
+					collectDebugNextTransition(transition);
 					if (recordPath) {
 						exploredBranchRecorder.createChild(transition.getTransitionId());
 						exploredBranchRecorder.traverseDownTo(transition.getTransitionId());

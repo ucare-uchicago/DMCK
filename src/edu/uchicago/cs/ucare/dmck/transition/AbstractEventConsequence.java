@@ -44,7 +44,7 @@ public class AbstractEventConsequence {
 		if (!ReductionAlgorithmsModelChecker.isIdenticalAbstractLocalStates(nodeStateBeforeEventExec, oldState)) {
 			return null;
 		}
-		
+
 		// check abstract event
 		if (!ReductionAlgorithmsModelChecker.isIdenticalAbstractEvent(event, ev)) {
 			return null;

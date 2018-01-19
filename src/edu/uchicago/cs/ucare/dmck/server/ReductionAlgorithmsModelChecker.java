@@ -317,7 +317,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 					hasFinishedAllExploration = true;
 				}
 			}
-			
+
 			if (this.enableSymmetryDoubleCheck && currentPath != null) {
 				if (!isSymmetricPath(currentPath)) {
 					break;
@@ -1043,8 +1043,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 						if (newLS != null) {
 							globalStates[nodeId] = newLS.clone();
 						} else {
-							LOG.debug("SYMMETRY CHECK: node with state=" + globalStates[nodeId].toString() + 
-									" executes " + ags.getEvent().toString() + " transform to unknown state");
+							LOG.debug("SYMMETRY CHECK: node with state=" + globalStates[nodeId].toString()
+									+ " executes " + ags.getEvent().toString() + " transform to unknown state");
 							return false;
 						}
 						break;

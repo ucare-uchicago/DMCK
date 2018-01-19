@@ -18,7 +18,7 @@ public class SleepTransition extends NodeOperationTransition {
 		}
 		return true;
 	}
-	
+
 	public long getSleepTime() {
 		return sleep;
 	}

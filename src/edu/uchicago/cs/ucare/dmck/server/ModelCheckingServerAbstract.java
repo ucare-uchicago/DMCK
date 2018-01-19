@@ -901,11 +901,11 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 			initialLS.setKeyValue("term", -1);
 		} else if (dmckName.startsWith("zkChecker")) {
 			initialLS.setKeyValue("state", 0);
-			initialLS.setKeyValue("proposedLeader", (long)nodeId);
-			initialLS.setKeyValue("proposedZxid", (long)-1);
-			initialLS.setKeyValue("logicalclock", (long)1);
+			initialLS.setKeyValue("proposedLeader", (long) nodeId);
+			initialLS.setKeyValue("proposedZxid", (long) -1);
+			initialLS.setKeyValue("logicalclock", (long) 1);
 			HashMap<Long, String> votesHash = new HashMap<Long, String>();
-			votesHash.put((long)nodeId, nodeId + ",-1");
+			votesHash.put((long) nodeId, nodeId + ",-1");
 			initialLS.setKeyValue("votesTable", votesHash);
 		}
 		return initialLS;
