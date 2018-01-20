@@ -50,20 +50,20 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 	public static String[] nonAbstractEventKeys;
 
 	// high priority
-	LinkedList<LinkedList<TransitionTuple>> importantInitialPaths;
-	LinkedList<LinkedList<TransitionTuple>> currentImportantInitialPaths;
+	LinkedList<Path> importantInitialPaths;
+	LinkedList<Path> currentImportantInitialPaths;
 	// normal priority
-	LinkedList<LinkedList<TransitionTuple>> initialPaths;
-	LinkedList<LinkedList<TransitionTuple>> currentInitialPaths;
+	LinkedList<Path> initialPaths;
+	LinkedList<Path> currentInitialPaths;
 	// low priority
-	LinkedList<LinkedList<TransitionTuple>> unnecessaryInitialPaths;
-	LinkedList<LinkedList<TransitionTuple>> currentUnnecessaryInitialPaths;
+	LinkedList<Path> unnecessaryInitialPaths;
+	LinkedList<Path> currentUnnecessaryInitialPaths;
 
 	HashSet<String> finishedInitialPaths;
 	HashSet<String> currentFinishedInitialPaths;
 	HashSet<String> initialPathSecondAttempt;
-	LinkedList<TransitionTuple> currentPath;
-	LinkedList<TransitionTuple> currentExploringPath = new LinkedList<TransitionTuple>();
+	Path currentPath;
+	Path currentExploringPath = new Path();
 
 	// record all transition global states before and after
 	LinkedList<AbstractGlobalStates> incompleteEventHistory;
@@ -101,12 +101,12 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 			int numReboot, String globalStatePathDir, String packetRecordDir, String workingDir,
 			WorkloadDriver workloadDriver, String ipcDir) {
 		super(dmckName, fileWatcher, numNode, globalStatePathDir, workingDir, workloadDriver, ipcDir);
-		importantInitialPaths = new LinkedList<LinkedList<TransitionTuple>>();
-		currentImportantInitialPaths = new LinkedList<LinkedList<TransitionTuple>>();
-		initialPaths = new LinkedList<LinkedList<TransitionTuple>>();
-		currentInitialPaths = new LinkedList<LinkedList<TransitionTuple>>();
-		unnecessaryInitialPaths = new LinkedList<LinkedList<TransitionTuple>>();
-		currentUnnecessaryInitialPaths = new LinkedList<LinkedList<TransitionTuple>>();
+		importantInitialPaths = new LinkedList<Path>();
+		currentImportantInitialPaths = new LinkedList<Path>();
+		initialPaths = new LinkedList<Path>();
+		currentInitialPaths = new LinkedList<Path>();
+		unnecessaryInitialPaths = new LinkedList<Path>();
+		currentUnnecessaryInitialPaths = new LinkedList<Path>();
 		finishedInitialPaths = new HashSet<String>();
 		currentFinishedInitialPaths = new HashSet<String>();
 		initialPathSecondAttempt = new HashSet<String>();
@@ -149,7 +149,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 		currentReboot = 0;
 		modelChecking = new PathTraversalWorker();
 		currentEnabledTransitions = new LinkedList<Transition>();
-		currentExploringPath = new LinkedList<TransitionTuple>();
+		currentExploringPath = new Path();
 		exploredBranchRecorder.resetTraversal();
 		prevOnlineStatus = new LinkedList<boolean[]>();
 		File waiting = new File(stateDir + "/.waiting");
@@ -204,17 +204,17 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
 	// load existing list of paths to particular queue
 	@SuppressWarnings("unchecked")
-	protected void loadPaths(LinkedList<LinkedList<TransitionTuple>> pathQueue, int numRecord, String fileName) {
+	protected void loadPaths(LinkedList<Path> pathQueue, int numRecord, String fileName) {
 		for (int record = 1; record <= numRecord; record++) {
 			File initialPathFile = new File(testRecordDirPath + "/" + record + "/" + fileName);
 			if (initialPathFile.exists()) {
 				ObjectInputStream ois;
 				try {
 					ois = new ObjectInputStream(new FileInputStream(initialPathFile));
-					LinkedList<LinkedList<TransitionTuple>> streamedInitialPaths = (LinkedList<LinkedList<TransitionTuple>>) ois
+					LinkedList<Path> streamedInitialPaths = (LinkedList<Path>) ois
 							.readObject();
-					for (LinkedList<TransitionTuple> dumbInitPath : streamedInitialPaths) {
-						LinkedList<TransitionTuple> initPath = new LinkedList<TransitionTuple>();
+					for (Path dumbInitPath : streamedInitialPaths) {
+						Path initPath = new Path();
 						for (TransitionTuple dumbTuple : dumbInitPath) {
 							initPath.add(TransitionTuple.getRealTransitionTuple(this, dumbTuple));
 						}
@@ -273,7 +273,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 							importantInitialPaths.remove(path);
 							unnecessaryInitialPaths.remove(path);
 						} else {
-							for (LinkedList<TransitionTuple> pathInQueue : initialPaths) {
+							for (Path pathInQueue : initialPaths) {
 								if (pathToString(pathInQueue).equals(path.trim())) {
 									initialPaths.remove(pathInQueue);
 									break;
@@ -440,7 +440,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 		return globalState2;
 	}
 
-	protected void convertExecutedAbstractTransitionToReal(LinkedList<TransitionTuple> executedPath) {
+	protected void convertExecutedAbstractTransitionToReal(Path executedPath) {
 		ListIterator<TransitionTuple> iter = executedPath.listIterator();
 		while (iter.hasNext()) {
 			TransitionTuple iterItem = iter.next();
@@ -460,7 +460,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 		}
 	}
 
-	protected String pathToString(LinkedList<TransitionTuple> initialPath) {
+	protected String pathToString(Path initialPath) {
 		String path = "";
 		for (int i = 0; i < initialPath.size(); i++) {
 			if (initialPath.get(i).transition instanceof PacketSendTransition) {
@@ -481,7 +481,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 		return path;
 	}
 
-	protected String pathToHistoryString(LinkedList<TransitionTuple> initialPath) {
+	protected String pathToHistoryString(Path initialPath) {
 		String result = "";
 		String[] path = new String[numNode];
 		for (TransitionTuple tuple : initialPath) {
@@ -507,7 +507,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 		return result;
 	}
 
-	protected void addPathToFinishedInitialPath(LinkedList<TransitionTuple> path) {
+	protected void addPathToFinishedInitialPath(Path path) {
 		String newHistoryPath = pathToString(path);
 		currentFinishedInitialPaths.add(newHistoryPath);
 	}
@@ -523,7 +523,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 		return true;
 	}
 
-	protected boolean pathExistInHistory(LinkedList<TransitionTuple> path) {
+	protected boolean pathExistInHistory(Path path) {
 		String currentPath = pathToString(path);
 		for (String finishedPath : currentFinishedInitialPaths) {
 			if (isIdenticalHistoricalPath(currentPath, finishedPath)) {
@@ -538,7 +538,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 		return false;
 	}
 
-	protected void addToInitialPathList(LinkedList<TransitionTuple> initialPath) {
+	protected void addToInitialPathList(Path initialPath) {
 		convertExecutedAbstractTransitionToReal(initialPath);
 		if (!pathExistInHistory(initialPath)) {
 			initialPaths.add(initialPath);
@@ -647,9 +647,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 	}
 
 	// focus on swapping the newTransition before oldTransition
-	protected LinkedList<TransitionTuple> reorderEvents(LocalState[] wasLocalStates,
-			LinkedList<TransitionTuple> initialPath, TransitionTuple oldTransition, TransitionTuple newTransition) {
-		LinkedList<TransitionTuple> reorderingEvents = new LinkedList<TransitionTuple>();
+	protected Path reorderEvents(LocalState[] wasLocalStates,
+			Path initialPath, TransitionTuple oldTransition, TransitionTuple newTransition) {
+		Path reorderingEvents = new Path();
 
 		// compare initial path with dependency path that includes initial path
 		if (newTransition.transition instanceof PacketSendTransition) {
@@ -683,18 +683,18 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 	}
 
 	@SuppressWarnings("unchecked")
-	protected boolean addNewInitialPath(LocalState[] wasLocalStates, LinkedList<TransitionTuple> initialPath,
+	protected boolean addNewInitialPath(LocalState[] wasLocalStates, Path initialPath,
 			TransitionTuple oldTransition, TransitionTuple newTransition) {
 		// mark the initial path plus the old event as explored
-		LinkedList<TransitionTuple> oldPath = (LinkedList<TransitionTuple>) initialPath.clone();
+		Path oldPath = (Path) initialPath.clone();
 		convertExecutedAbstractTransitionToReal(oldPath);
 		oldPath.add(new TransitionTuple(0, oldTransition.transition));
 		addPathToFinishedInitialPath(oldPath);
 
-		LinkedList<TransitionTuple> newInitialPath = (LinkedList<TransitionTuple>) initialPath.clone();
+		Path newInitialPath = (Path) initialPath.clone();
 		convertExecutedAbstractTransitionToReal(newInitialPath);
 
-		LinkedList<TransitionTuple> reorderedEvents = reorderEvents(wasLocalStates, newInitialPath, oldTransition,
+		Path reorderedEvents = reorderEvents(wasLocalStates, newInitialPath, oldTransition,
 				newTransition);
 
 		newInitialPath.addAll(reorderedEvents);
@@ -725,13 +725,13 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 	}
 
 	// save collection of paths to file
-	protected boolean savePaths(LinkedList<LinkedList<TransitionTuple>> pathsQueue, String fileName) {
+	protected boolean savePaths(LinkedList<Path> pathsQueue, String fileName) {
 		if (pathsQueue.size() > 0) {
 			try {
 				ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(idRecordDirPath + "/" + fileName));
-				LinkedList<LinkedList<TransitionTuple>> initialPathsList = new LinkedList<LinkedList<TransitionTuple>>();
-				for (LinkedList<TransitionTuple> initPath : pathsQueue) {
-					LinkedList<TransitionTuple> dumbPath = new LinkedList<TransitionTuple>();
+				LinkedList<Path> initialPathsList = new LinkedList<Path>();
+				for (Path initPath : pathsQueue) {
+					Path dumbPath = new Path();
 					for (TransitionTuple realTuple : initPath) {
 						dumbPath.add(realTuple.getSerializable(numNode));
 					}
@@ -780,10 +780,10 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 		LOG.info(logs);
 	}
 
-	protected void printPaths(String pathsName, LinkedList<LinkedList<TransitionTuple>> paths) {
+	protected void printPaths(String pathsName, LinkedList<Path> paths) {
 		String logs = pathsName + " consists of " + paths.size() + " paths:\n";
 		int i = 1;
-		for (LinkedList<TransitionTuple> path : paths) {
+		for (Path path : paths) {
 			logs += "Path " + i++ + ":\n";
 			for (TransitionTuple tuple : path) {
 				logs += tuple.toString() + "\n";
@@ -842,7 +842,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 	protected void evaluateParallelismInitialPaths() {
 		boolean evaluateAllInitialPaths = true;
 		LinkedList<ParallelPath> transformedInitialPaths = new LinkedList<ParallelPath>();
-		for (LinkedList<TransitionTuple> path : initialPaths) {
+		for (Path path : initialPaths) {
 			ParallelPath newPath = new ParallelPath(path, dependencies);
 			transformedInitialPaths.add(newPath);
 		}
@@ -920,7 +920,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
 	protected void calculateDependencyGraph() {
 		dependencies.clear();
-		List<TransitionTuple> realExecutionPath = new LinkedList<TransitionTuple>();
+		List<TransitionTuple> realExecutionPath = new Path();
 		for (TransitionTuple tuple : currentExploringPath) {
 			if (tuple.transition instanceof AbstractNodeCrashTransition) {
 				AbstractNodeCrashTransition abstractCrash = (AbstractNodeCrashTransition) tuple.transition;
@@ -1032,7 +1032,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
 	}
 
-	public boolean isSymmetricPath(LinkedList<TransitionTuple> initialPath) {
+	public boolean isSymmetricPath(Path initialPath) {
 		if (this.enableSymmetry) {
 			LocalState[] globalStates = getInitialGlobalStates();
 			for (TransitionTuple event : initialPath) {
@@ -1286,7 +1286,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 						currentFinishedPath += tuple.toString() + "\n";
 					}
 					LOG.info(currentFinishedPath);
-					LinkedList<TransitionTuple> finishedExploringPath = (LinkedList<TransitionTuple>) currentExploringPath
+					Path finishedExploringPath = (Path) currentExploringPath
 							.clone();
 					convertExecutedAbstractTransitionToReal(finishedExploringPath);
 					addPathToFinishedInitialPath(finishedExploringPath);

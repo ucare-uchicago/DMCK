@@ -126,7 +126,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
 	}
 
 	// return true = break loop, false = continue
-	protected boolean evaluatePairsOfTransitions(LinkedList<TransitionTuple> tmpPath, boolean[] wasOnlineNodes,
+	protected boolean evaluatePairsOfTransitions(Path tmpPath, boolean[] wasOnlineNodes,
 			LocalState[] wasLocalStates, TransitionTuple tuple, TransitionTuple lastTransition) {
 		if (lastTransition.transition instanceof PacketSendTransition) {
 			Event lastPacket = ((PacketSendTransition) lastTransition.transition).getPacket();
@@ -303,14 +303,14 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
 
 	// by CRS or RSS, we will eliminate symmetrical events
 	@SuppressWarnings({ "unchecked", "unlikely-arg-type" })
-	protected void reevaluateInitialPaths(LinkedList<TransitionTuple> initialPath, LocalState[] wasLocalStates,
+	protected void reevaluateInitialPaths(Path initialPath, LocalState[] wasLocalStates,
 			Transition lastEvent) {
 		if (lastEvent instanceof NodeCrashTransition || lastEvent instanceof AbstractNodeCrashTransition) {
-			LinkedList<LinkedList<TransitionTuple>> initialPathsClone = (LinkedList<LinkedList<TransitionTuple>>) initialPaths
+			LinkedList<Path> initialPathsClone = (LinkedList<Path>) initialPaths
 					.clone();
-			Iterator<LinkedList<TransitionTuple>> initialPathsCloneIterator = initialPathsClone.iterator();
+			Iterator<Path> initialPathsCloneIterator = initialPathsClone.iterator();
 			while (initialPathsCloneIterator.hasNext()) {
-				LinkedList<TransitionTuple> comparePath = initialPathsCloneIterator.next();
+				Path comparePath = initialPathsCloneIterator.next();
 				if (comparePath.contains(initialPath) && comparePath.size() == initialPath.size() + 1) {
 					Transition lastEventOfComparePath = comparePath.getLast().transition;
 					if (lastEventOfComparePath instanceof NodeCrashTransition) {
@@ -323,11 +323,11 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
 				}
 			}
 		} else if (lastEvent instanceof NodeStartTransition || lastEvent instanceof AbstractNodeStartTransition) {
-			LinkedList<LinkedList<TransitionTuple>> initialPathsClone = (LinkedList<LinkedList<TransitionTuple>>) initialPaths
+			LinkedList<Path> initialPathsClone = (LinkedList<Path>) initialPaths
 					.clone();
-			Iterator<LinkedList<TransitionTuple>> initialPathsCloneIterator = initialPathsClone.iterator();
+			Iterator<Path> initialPathsCloneIterator = initialPathsClone.iterator();
 			while (initialPathsCloneIterator.hasNext()) {
-				LinkedList<TransitionTuple> comparePath = initialPathsCloneIterator.next();
+				Path comparePath = initialPathsCloneIterator.next();
 				if (comparePath.contains(initialPath) && comparePath.size() == initialPath.size() + 1) {
 					Transition lastEventOfComparePath = comparePath.getLast().transition;
 					if (lastEventOfComparePath instanceof NodeStartTransition) {
@@ -352,7 +352,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
 			}
 			boolean[] oldOnlineStatus = prevOnlineStatus.removeLast();
 			LocalState[] oldLocalStates = prevLocalStates.removeLast();
-			LinkedList<TransitionTuple> tmpPath = (LinkedList<TransitionTuple>) currentExploringPath.clone();
+			Path tmpPath = currentExploringPath.clone();
 
 			// reevaluate InitialPaths with CRS and RSS
 			reevaluateInitialPaths(tmpPath, copyLocalState(oldLocalStates), lastTransition.transition);
@@ -367,7 +367,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
 					if (abstractNodeCrashTransition.id != t.id) {
 						// check CRS
 						if (isCRSDependent(oldOnlineStatus, oldLocalStates, t)) {
-							LinkedList<TransitionTuple> interestingPath = (LinkedList<TransitionTuple>) tmpPath.clone();
+							Path interestingPath = tmpPath.clone();
 							interestingPath.add(new TransitionTuple(0, t));
 							addToInitialPathList(interestingPath);
 							// if SAMC, record crash to history
@@ -385,7 +385,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
 					if (abstractNodeStartTransition.id != t.id) {
 						// check RSS
 						if (isRSSDependent(oldOnlineStatus, oldLocalStates, t)) {
-							LinkedList<TransitionTuple> interestingPath = (LinkedList<TransitionTuple>) tmpPath.clone();
+							Path interestingPath = tmpPath.clone();
 							interestingPath.add(new TransitionTuple(0, t));
 							addToInitialPathList(interestingPath);
 							// if SAMC, record reboot to history
