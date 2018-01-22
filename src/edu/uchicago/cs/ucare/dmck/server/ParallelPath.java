@@ -23,7 +23,7 @@ public class ParallelPath implements Serializable {
 
 	protected final Logger LOG = LoggerFactory.getLogger(this.getClass());
 
-	private LinkedList<TransitionTuple> path;
+	private Path path;
 	private ArrayList<Transition> reorderedEvents;
 	private ArrayList<Integer> reorderedNodes;
 
@@ -31,8 +31,8 @@ public class ParallelPath implements Serializable {
 	private Hashtable<Transition, List<Transition>> dependencies;
 
 	@SuppressWarnings("unchecked")
-	public ParallelPath(LinkedList<TransitionTuple> newPath, Hashtable<Transition, List<Transition>> dependencies) {
-		path = (LinkedList<TransitionTuple>) newPath.clone();
+	public ParallelPath(Path newPath, Hashtable<Transition, List<Transition>> dependencies) {
+		path = newPath.clone();
 
 		Transition oldTransition = newPath.get(newPath.size() - 1).transition;
 		Transition newTransition = newPath.get(newPath.size() - 2).transition;
@@ -53,7 +53,7 @@ public class ParallelPath implements Serializable {
 		this.dependencies = dependencies;
 	}
 
-	public ParallelPath(LinkedList<TransitionTuple> newPath, ArrayList<Transition> events, ArrayList<Integer> nodes,
+	public ParallelPath(Path newPath, ArrayList<Transition> events, ArrayList<Integer> nodes,
 			Hashtable<Transition, List<Transition>> dependencies) {
 		path = newPath;
 		reorderedEvents = events;
@@ -61,7 +61,7 @@ public class ParallelPath implements Serializable {
 		this.dependencies = dependencies;
 	}
 
-	public LinkedList<TransitionTuple> getPath() {
+	public Path getPath() {
 		return path;
 	}
 
@@ -81,7 +81,7 @@ public class ParallelPath implements Serializable {
 		return dependencies;
 	}
 
-	public void setPath(LinkedList<TransitionTuple> newPath) {
+	public void setPath(Path newPath) {
 		this.path = newPath;
 	}
 
@@ -138,7 +138,7 @@ public class ParallelPath implements Serializable {
 			}
 		}
 
-		LinkedList<TransitionTuple> combinePath = new LinkedList<TransitionTuple>();
+		Path combinePath = new Path();
 		int minimumPath = this.path.size() < otherPath.getPath().size() ? this.path.size() : otherPath.getPath().size();
 		int startingDiff = -1;
 		for (int k = 0; k < minimumPath; k++) {
@@ -283,7 +283,7 @@ public class ParallelPath implements Serializable {
 			} else {
 				ParallelPath newCombinedPath = new ParallelPath(this.getPath(), this.getReorderedEvents(),
 						this.getReorderedNodes(), this.getDependencies());
-				newCombinedPath.setPath((LinkedList<TransitionTuple>) combinePath.clone());
+				newCombinedPath.setPath(combinePath.clone());
 				newCombinedPath.addMoreReorderedNodes(otherPath.getReorderedNodes());
 				newCombinedPath.addMoreReorderedEvents(otherPath.getReorderedEvents());
 
@@ -317,7 +317,7 @@ public class ParallelPath implements Serializable {
 		 * this.reorderedNodes.toString() + " vs " +
 		 * otherPath.getReorderedNodes().toString()); return null; } } }
 		 * 
-		 * LinkedList<TransitionTuple> combinePath = new LinkedList<TransitionTuple>();
+		 * Path combinePath = new Path();
 		 * int minimumPath = this.path.size() < otherPath.getPath().size() ?
 		 * this.path.size() : otherPath.getPath().size(); int startingDiff = -1; for
 		 * (int k = 0; k < minimumPath; k++) { if
@@ -368,7 +368,7 @@ public class ParallelPath implements Serializable {
 		 * LOG.debug("Unsafe Paths Combination"); return null; } else { ParallelPath
 		 * newCombinedPath = new ParallelPath(this.getPath(), this.getReorderedEvents(),
 		 * this.getReorderedNodes(), this.getDependencies());
-		 * newCombinedPath.setPath((LinkedList<TransitionTuple>) combinePath.clone());
+		 * newCombinedPath.setPath(combinePath.clone());
 		 * newCombinedPath.addMoreReorderedNodes(otherPath.getReorderedNodes());
 		 * newCombinedPath.addMoreReorderedEvents(otherPath.getReorderedEvents() );
 		 * 
@@ -406,7 +406,7 @@ public class ParallelPath implements Serializable {
 	}
 
 	public ParallelPath getSerializable(int numNode) {
-		LinkedList<TransitionTuple> temp = new LinkedList<TransitionTuple>();
+		Path temp = new Path();
 		for (TransitionTuple t : this.path) {
 			temp.add(t.getSerializable(numNode));
 		}
@@ -426,7 +426,7 @@ public class ParallelPath implements Serializable {
 	}
 
 	public static ParallelPath deserialize(ModelCheckingServerAbstract mc, ParallelPath pp) {
-		LinkedList<TransitionTuple> temp = new LinkedList<TransitionTuple>();
+		Path temp = new Path();
 		for (TransitionTuple t : pp.getPath()) {
 			temp.add(TransitionTuple.getRealTransitionTuple(mc, t));
 		}
@@ -446,7 +446,7 @@ public class ParallelPath implements Serializable {
 		return new ParallelPath(temp, temp2, pp.getReorderedNodes(), temp3);
 	}
 
-	private void addEventIntoPath(LinkedList<TransitionTuple> path, TransitionTuple event) {
+	private void addEventIntoPath(Path path, TransitionTuple event) {
 		boolean exist = false;
 		for (TransitionTuple t : path) {
 			if (t.transition.getTransitionId() == event.transition.getTransitionId()) {
