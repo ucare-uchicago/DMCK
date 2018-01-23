@@ -11,9 +11,13 @@ import edu.uchicago.cs.ucare.dmck.transition.TransitionTuple;
 public class Path extends LinkedList<TransitionTuple> implements Serializable {
 
 	/**
-	 * 
+	 *
 	 */
 	private static final long serialVersionUID = 7359356166185399233L;
+
+  private int myId;
+
+  private int myParentId;
 
 	public Path() {
 		super();
@@ -26,6 +30,26 @@ public class Path extends LinkedList<TransitionTuple> implements Serializable {
 	public Path(Path transitionTuples) {
 		super(transitionTuples);
 	}
+
+	public void setId(int id) {
+		this.myId = id;
+	}
+
+	public int getId() {
+		return myId;
+	}
+
+	public void setParentId(int parentId) {
+		this.myParentId = parentId;
+	}
+
+	public int getParentId() {
+		return myParentId;
+	}
+
+  public PathMeta toPathMeta() {
+    return new PathMeta(myId, myParentId, Path.pathToString(this));
+  }
 
 	@Override
 	public Path clone() {
@@ -47,20 +71,21 @@ public class Path extends LinkedList<TransitionTuple> implements Serializable {
 		return Path.pathToString(this);
 	}
 
-	public static String pathToString(Path dporInitialPath) {
+	public static String pathToString(Path initialPath) {
 		String path = "";
-		for (int i = 0; i < dporInitialPath.size(); i++) {
-			if (dporInitialPath.get(i).transition instanceof PacketSendTransition) {
+		for (int i = 0; i < initialPath.size(); i++) {
+			if (initialPath.get(i).transition instanceof PacketSendTransition) {
 				if (i == 0) {
-					path = String.valueOf(dporInitialPath.get(i).transition.getTransitionId());
+					path = String.valueOf(initialPath.get(i).transition.getTransitionId());
 				} else {
-					path += "," + String.valueOf(dporInitialPath.get(i).transition.getTransitionId());
+					path += "," + String.valueOf(initialPath.get(i).transition.getTransitionId());
 				}
 			} else {
 				if (i == 0) {
-					path = ((NodeOperationTransition) dporInitialPath.get(i).transition).toStringForFutureExecution();
+					path = ((NodeOperationTransition) initialPath.get(i).transition).toStringForFutureExecution();
 				} else {
-					path += "," + ((NodeOperationTransition) dporInitialPath.get(i).transition).toStringForFutureExecution();
+					path += ","
+							+ ((NodeOperationTransition) initialPath.get(i).transition).toStringForFutureExecution();
 				}
 			}
 		}
