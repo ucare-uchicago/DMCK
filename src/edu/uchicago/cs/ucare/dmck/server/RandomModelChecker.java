@@ -131,6 +131,9 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
         updateSAMCQueue();
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
         if (terminationPoint && hasWaited) {
+          // Performance evaluation
+          collectPerformanceMetrics();
+
           boolean verifiedResult = verifier.verify();
           String detail = verifier.verificationDetail();
           saveResult(verifiedResult + " ; " + detail + "\n");

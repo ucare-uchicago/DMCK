@@ -147,6 +147,10 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
         if (terminationPoint && hasWaited) {
           LOG.info("---- End of a Path Execution ----");
+
+          // Performance evaluation
+          collectPerformanceMetrics();
+
           boolean verifiedResult = verifier.verify();
           String detail = verifier.verificationDetail();
           saveResult(verifiedResult + "; " + detail + "\n");

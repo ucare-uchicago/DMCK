@@ -1260,6 +1260,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         updateGlobalState2();
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
         if (terminationPoint && hasWaited) {
+          // Performance evaluation
+          collectPerformanceMetrics();
+
           boolean verifiedResult = verifier.verify();
           String detail = verifier.verificationDetail();
           saveResult(verifiedResult + " ; " + detail + "\n");

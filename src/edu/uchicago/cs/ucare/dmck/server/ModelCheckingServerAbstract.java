@@ -11,6 +11,7 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Collections;
@@ -45,6 +46,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   private static String PATH_FILE = "path";
   private static String LOCAL_FILE = "local";
   private static String DEBUG_FILE = "debug.log";
+  private static String PERF_FILE = "performance.log";
   private static String RESULT_FILE = "result";
 
   protected static Logger LOG = LoggerFactory.getLogger(ModelCheckingServerAbstract.class);
@@ -74,11 +76,13 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   protected String idRecordDirPath;
   protected String pathRecordFilePath;
   protected String localRecordFilePath;
-  protected String dmckDebugFilePath;
+  protected String performanceRecordFilePath;
+  protected String debugRecordFilePath;
   protected String resultFilePath;
   protected FileOutputStream pathRecordFile;
   protected FileOutputStream localRecordFile;
-  protected FileOutputStream dmckDebugFile;
+  protected FileOutputStream performanceRecordFile;
+  protected FileOutputStream debugRecordFile;
   protected FileOutputStream resultFile;
 
   protected WorkloadDriver workloadDriver;
@@ -132,9 +136,14 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   // reproducedBug
   protected String expectedResultFilePath;
 
+  // performance evaluation
+  public int currentStep;
+  public Timestamp lastTimeEnabledEvent;
+  public Timestamp lastTimeNewEventOrStateUpdate;
+
   @SuppressWarnings("unchecked")
-  public ModelCheckingServerAbstract(String dmckName, FileWatcher fileWatcher, int numNode, 
-      String testRecordDirPath, String workingDirPath, WorkloadDriver workloadDriver, String ipcDir) {
+  public ModelCheckingServerAbstract(String dmckName, FileWatcher fileWatcher, int numNode, String testRecordDirPath,
+      String workingDirPath, WorkloadDriver workloadDriver, String ipcDir) {
     LOG = LoggerFactory.getLogger(ModelCheckingServerAbstract.class + "." + dmckName);
     this.dmckName = dmckName;
     packetQueue = new LinkedBlockingQueue<Event>();
@@ -146,7 +155,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     this.verifier = workloadDriver.verifier;
     pathRecordFile = null;
     localRecordFile = null;
-    dmckDebugFile = null;
+    performanceRecordFile = null;
+    debugRecordFile = null;
     resultFile = null;
     isNodeOnline = new boolean[numNode];
     // +1 for crash or reboot injection
@@ -157,6 +167,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     hasInitWorkload = false;
     hasMidWorkload = false;
     this.ipcDir = ipcDir;
+    lastTimeEnabledEvent = new Timestamp(System.currentTimeMillis());
+    lastTimeNewEventOrStateUpdate = new Timestamp(System.currentTimeMillis());
     this.fileWatcher = fileWatcher;
     watcherThread = new Thread(this.fileWatcher);
     getDMCKConfig();
@@ -179,8 +191,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       waitEndExploration = Integer.parseInt(dmckConf.getProperty("waitEndExploration"));
 
       // optional config
-      workloadInjectionWaitingTime = Integer.parseInt(dmckConf.getProperty("waitBeforeWorkloadInjection", 
-          "0"));
+      workloadInjectionWaitingTime = Integer.parseInt(dmckConf.getProperty("waitBeforeWorkloadInjection", "0"));
       tcpParadigm = dmckConf.getProperty("tcpParadigm", "true").equals("true");
       if (dmckName.equals("raftModelChecker")) {
         leaderElectionTimeout = Integer.parseInt(dmckConf.getProperty("leaderElectionTimeout"));
@@ -404,7 +415,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     }
     pathRecordFilePath = idRecordDirPath + "/" + PATH_FILE;
     localRecordFilePath = idRecordDirPath + "/" + LOCAL_FILE;
-    dmckDebugFilePath = idRecordDirPath + "/" + DEBUG_FILE;
+    debugRecordFilePath = idRecordDirPath + "/" + DEBUG_FILE;
+    performanceRecordFilePath = idRecordDirPath + "/" + PERF_FILE;
     resultFilePath = idRecordDirPath + "/" + RESULT_FILE;
   }
 
@@ -443,7 +455,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     try {
       pathRecordFile = new FileOutputStream(pathRecordFilePath);
       localRecordFile = new FileOutputStream(localRecordFilePath);
-      dmckDebugFile = new FileOutputStream(dmckDebugFilePath);
+      performanceRecordFile = new FileOutputStream(performanceRecordFilePath);
+      debugRecordFile = new FileOutputStream(debugRecordFilePath);
     } catch (FileNotFoundException e) {
       LOG.error("", e);
     }
@@ -595,7 +608,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     }
     content += "------------------\n";
     try {
-      dmckDebugFile.write(content.getBytes());
+      debugRecordFile.write(content.getBytes());
     } catch (IOException e) {
       LOG.error("", e);
     }
@@ -605,7 +618,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     String content = "Next Event: " + transition.toString() + "\n";
     content += "------------------\n";
     try {
-      dmckDebugFile.write(content.getBytes());
+      debugRecordFile.write(content.getBytes());
     } catch (IOException e) {
       LOG.error("", e);
     }
@@ -615,7 +628,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     String content = "Execute Workload: " + event + "\n";
     content += "------------------\n";
     try {
-      dmckDebugFile.write(content.getBytes());
+      debugRecordFile.write(content.getBytes());
     } catch (IOException e) {
       LOG.error("", e);
     }
@@ -624,10 +637,33 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   public void collectDebug(String content) {
     content += "------------------\n";
     try {
-      dmckDebugFile.write(content.getBytes());
+      debugRecordFile.write(content.getBytes());
     } catch (IOException e) {
       LOG.error("", e);
     }
+  }
+
+  public void collectPerformanceMetrics() {
+    if (currentStep > 0) {
+      // Performance evaluation: Collect Round-trip time for DMCK in enabling an event
+      // and receiving next event(s) or/and node state update(s)
+      long maxRoundTripTime = lastTimeNewEventOrStateUpdate.getTime() - lastTimeEnabledEvent.getTime();
+
+      // If there is no new event or state that came after an event is enabled, then
+      // maxRoundTripTime will be < 0 milliseconds. At this condition, we can assume
+      // that the maxRoundTripTime is 0.
+      if (maxRoundTripTime < 0) {
+        maxRoundTripTime = 0;
+      }
+
+      String content = currentStep + " : max-roundtrip-time=" + maxRoundTripTime + "ms;\n";
+      try {
+        performanceRecordFile.write(content.getBytes());
+      } catch (Exception e) {
+        LOG.error("", e);
+      }
+    }
+    currentStep++;
   }
 
   public void updateVectorClock(Event packet) {
@@ -672,25 +708,26 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     boolean result;
     if (!packet.isObsolete()) {
       try {
-        try {
-          PrintWriter writer = new PrintWriter(ipcDir + "/new/" + packet.getValue(Event.FILENAME), "UTF-8");
-          writer.println("eventId=" + packet.getId());
-          writer.println("execute=true");
-          writer.close();
 
-          LOG.info("Enable event with ID : " + packet.getId());
+        PrintWriter writer = new PrintWriter(ipcDir + "/new/" + packet.getValue(Event.FILENAME), "UTF-8");
+        writer.println("eventId=" + packet.getId());
+        writer.println("execute=true");
+        writer.close();
 
-          Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " "
-              + ipcDir + "/ack/" + packet.getValue(Event.FILENAME));
-        } catch (Exception e) {
-          LOG.error("Error in creating commit file : " + packet.getValue(Event.FILENAME));
-        }
+        LOG.info("Enable event with ID : " + packet.getId());
+
+        Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " " + ipcDir + "/ack/"
+            + packet.getValue(Event.FILENAME));
+
+        // Performance evaluation
+        collectPerformanceMetrics();
+        lastTimeEnabledEvent = new Timestamp(System.currentTimeMillis());
 
         updateVectorClock(packet);
 
         result = true;
       } catch (Exception e) {
-        LOG.warn("There is an error when committing this packet, " + packet.toString());
+        LOG.error("Error when committing event=" + packet.toString());
         result = false;
       }
       if (result) {
@@ -701,7 +738,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       }
     } else {
       if (packet.getToId() == packet.getObsoleteBy()) {
-        // enable msg, but don't record it
+        // Enable an event, but DMCK does not record it
         try {
           PrintWriter writer = new PrintWriter(ipcDir + "/new/" + packet.getValue(Event.FILENAME), "UTF-8");
           writer.println("eventId=" + packet.getId());
@@ -710,8 +747,12 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
           LOG.info("Enable obsolete event with ID : " + packet.getId());
 
-          Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " "
-              + ipcDir + "/ack/" + packet.getValue(Event.FILENAME));
+          Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " " + ipcDir + "/ack/"
+              + packet.getValue(Event.FILENAME));
+
+          // Performance evaluation
+          collectPerformanceMetrics();
+          lastTimeEnabledEvent = new Timestamp(System.currentTimeMillis());
         } catch (Exception e) {
           LOG.error("Error in creating commit file : " + packet.getValue(Event.FILENAME));
         }
@@ -807,6 +848,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     fileWatcher.resetExecutionPathStats();
     messagesQueues = new ConcurrentLinkedQueue[numNode][numNode];
     testId = -1;
+    currentStep = 0;
     numCurrentCrash = 0;
     numCurrentReboot = 0;
     directedInitialPathCounter = 0;
@@ -838,9 +880,16 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
         LOG.error("", e);
       }
     }
-    if (dmckDebugFile != null) {
+    if (performanceRecordFile != null) {
       try {
-        dmckDebugFile.close();
+        performanceRecordFile.close();
+      } catch (IOException e) {
+        LOG.error("", e);
+      }
+    }
+    if (debugRecordFile != null) {
+      try {
+        debugRecordFile.close();
       } catch (IOException e) {
         LOG.error("", e);
       }
@@ -912,7 +961,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     }
     return initialLS;
   }
-  
+
   protected Transition transformInstructionToTransition(String[] instruction) {
     InstructionTransition i = null;
     if (instruction[0].equals("packetsend")) {
@@ -935,16 +984,16 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     } else if (instruction[0].equals("stop")) {
       i = new ExitInstructionTransaction();
     } else {
-      LOG.error("Instruction=" + instruction[0] + " is unknown. Please double check the guided path or" +
-          " update ModelCheckingServerAbstract-transformInstructionToTransition function");
+      LOG.error("Instruction=" + instruction[0] + " is unknown. Please double check the guided path or"
+          + " update ModelCheckingServerAbstract-transformInstructionToTransition function");
       return null;
     }
-    
+
     return i.getRealTransition(this);
   }
 
   protected Transition nextInitialTransition() {
-    
+
     if (directedInitialPath.size() == 0) {
       LOG.error("Initial Path Configuration is incorrect. Please check the target-sys.conf"
           + " and make sure that the initial path file exist.");
@@ -954,12 +1003,12 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
         + directedInitialPath.get(directedInitialPathCounter));
     String command = directedInitialPath.get(directedInitialPathCounter);
     String[] instruction = command.split(" ");
-    
+
     directedInitialPathCounter++;
     if (directedInitialPathCounter >= directedInitialPath.size()) {
       hasFinishedDirectedInitialPath = true;
     }
-    
+
     // Experiment: Try to speed up DMCK execution by setting steadyStateTimeout to 0
     // and, instead of a limited iterations of for loop, set a while true loop until
     // the expected event is seen in DMCK queue.
@@ -980,20 +1029,19 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       }
       updateSAMCQueue();
     }
-    
+
     if (transition instanceof SleepTransition) {
       return transition;
     } else if (transition == null) {
       throw new RuntimeException("Expected event cannot be found in DMCK Queue=" + command);
     }
-    
+
     int id = -1;
     for (int i = 0; i < currentEnabledTransitions.size(); i++) {
       // replace abstract with real one based on id
       Transition eventInQueue = currentEnabledTransitions.get(i);
       if ((transition instanceof NodeCrashTransition && eventInQueue instanceof AbstractNodeCrashTransition)
-          || (transition instanceof NodeStartTransition 
-              && eventInQueue instanceof AbstractNodeStartTransition)) {
+          || (transition instanceof NodeStartTransition && eventInQueue instanceof AbstractNodeStartTransition)) {
         NodeOperationTransition nodeOp = (NodeOperationTransition) transition;
         AbstractNodeOperationTransition abstractNodeOpInQueue = (AbstractNodeOperationTransition) eventInQueue;
         nodeOp.setVectorClock(abstractNodeOpInQueue.getPossibleVectorClock(nodeOp.getId()));
@@ -1060,8 +1108,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       }
 
       LOG.info(
-          "Node " + i + " state: " + localStates[i].getRaftStateName() + " term: "
-              + localStates[i].getValue("term"));
+          "Node " + i + " state: " + localStates[i].getRaftStateName() + " term: " + localStates[i].getValue("term"));
     }
     if (!allNodesHasTheSameTerm()) {
       diffTerm = true;

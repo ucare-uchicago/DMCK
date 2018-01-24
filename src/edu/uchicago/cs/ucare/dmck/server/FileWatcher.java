@@ -3,6 +3,7 @@ package edu.uchicago.cs.ucare.dmck.server;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.PrintWriter;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Properties;
@@ -87,6 +88,10 @@ public abstract class FileWatcher implements Runnable {
   public abstract void proceedEachFile(String filename, Properties ev);
 
   protected void removeProceedFile(String filename) {
+    // Performance evaluation: record last time the DMCK receives a new event or a
+    // new state.
+    dmck.lastTimeNewEventOrStateUpdate = new Timestamp(System.currentTimeMillis());
+
     try {
       Runtime.getRuntime().exec("rm " + path + "/" + filename).waitFor();
     } catch (Exception e) {
