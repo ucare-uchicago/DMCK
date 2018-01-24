@@ -35,7 +35,6 @@ import edu.uchicago.cs.ucare.dmck.transition.NodeStartTransition;
 import edu.uchicago.cs.ucare.dmck.transition.PacketSendTransition;
 import edu.uchicago.cs.ucare.dmck.transition.SleepTransition;
 import edu.uchicago.cs.ucare.dmck.transition.Transition;
-import edu.uchicago.cs.ucare.dmck.transition.TransitionTuple;
 import edu.uchicago.cs.ucare.dmck.util.ExploredBranchRecorder;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
 import edu.uchicago.cs.ucare.dmck.util.SqliteExploredBranchRecorder;
@@ -211,10 +210,10 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         try {
           ois = new ObjectInputStream(new FileInputStream(initialPathFile));
           LinkedList<Path> streamedInitialPaths = (LinkedList<Path>) ois.readObject();
-          for (Path dumbInitPath : streamedInitialPaths) {
+          for (Path savedInitPath : streamedInitialPaths) {
             Path initPath = new Path();
-            for (TransitionTuple dumbTuple : dumbInitPath) {
-              initPath.add(TransitionTuple.getRealTransitionTuple(this, dumbTuple));
+            for (Transition savedTransition : savedInitPath) {
+              initPath.add(Transition.getRealTransition(this, savedTransition));
             }
             pathQueue.add(initPath);
           }
@@ -322,8 +321,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         }
         recordPolicyEffectiveness("symmetry_double_check");
         String tmp = "Reduce Initial Path due to Symmetry Double Check reduction algorithm:\n";
-        for (TransitionTuple event : currentPath) {
-          tmp += event.transition.toString() + "\n";
+        for (Transition event : currentPath) {
+          tmp += event.toString() + "\n";
         }
         LOG.info(tmp);
         collectDebug(tmp);
@@ -436,19 +435,19 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   protected void convertExecutedAbstractTransitionToReal(Path executedPath) {
-    ListIterator<TransitionTuple> iter = executedPath.listIterator();
+    ListIterator<Transition> iter = executedPath.listIterator();
     while (iter.hasNext()) {
-      TransitionTuple iterItem = iter.next();
-      if (iterItem.transition instanceof AbstractNodeCrashTransition) {
-        AbstractNodeCrashTransition crash = (AbstractNodeCrashTransition) iterItem.transition;
+      Transition iterItem = iter.next();
+      if (iterItem instanceof AbstractNodeCrashTransition) {
+        AbstractNodeCrashTransition crash = (AbstractNodeCrashTransition) iterItem;
         NodeCrashTransition crashTransition = new NodeCrashTransition(ReductionAlgorithmsModelChecker.this, crash.id);
         crashTransition.setVectorClock(crash.getPossibleVectorClock(crash.getId()));
-        iter.set(new TransitionTuple(iterItem.state, crashTransition));
-      } else if (iterItem.transition instanceof AbstractNodeStartTransition) {
-        AbstractNodeStartTransition start = (AbstractNodeStartTransition) iterItem.transition;
+        iter.set(crashTransition);
+      } else if (iterItem instanceof AbstractNodeStartTransition) {
+        AbstractNodeStartTransition start = (AbstractNodeStartTransition) iterItem;
         NodeStartTransition startTransition = new NodeStartTransition(ReductionAlgorithmsModelChecker.this, start.id);
         startTransition.setVectorClock(start.getPossibleVectorClock(start.getId()));
-        iter.set(new TransitionTuple(iterItem.state, startTransition));
+        iter.set(startTransition);
       }
     }
   }
@@ -456,17 +455,17 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   protected String pathToString(Path initialPath) {
     String path = "";
     for (int i = 0; i < initialPath.size(); i++) {
-      if (initialPath.get(i).transition instanceof PacketSendTransition) {
+      if (initialPath.get(i) instanceof PacketSendTransition) {
         if (i == 0) {
-          path = String.valueOf(initialPath.get(i).transition.getTransitionId());
+          path = String.valueOf(initialPath.get(i).getTransitionId());
         } else {
-          path += "," + String.valueOf(initialPath.get(i).transition.getTransitionId());
+          path += "," + String.valueOf(initialPath.get(i).getTransitionId());
         }
       } else {
         if (i == 0) {
-          path = ((NodeOperationTransition) initialPath.get(i).transition).toStringForFutureExecution();
+          path = ((NodeOperationTransition) initialPath.get(i)).toStringForFutureExecution();
         } else {
-          path += "," + ((NodeOperationTransition) initialPath.get(i).transition).toStringForFutureExecution();
+          path += "," + ((NodeOperationTransition) initialPath.get(i)).toStringForFutureExecution();
         }
       }
     }
@@ -476,16 +475,16 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   protected String pathToHistoryString(Path initialPath) {
     String result = "";
     String[] path = new String[numNode];
-    for (TransitionTuple tuple : initialPath) {
-      if (tuple.transition instanceof PacketSendTransition) {
-        PacketSendTransition t = (PacketSendTransition) tuple.transition;
+    for (Transition transition : initialPath) {
+      if (transition instanceof PacketSendTransition) {
+        PacketSendTransition t = (PacketSendTransition) transition;
         if (path[t.getPacket().getToId()] == null) {
           path[t.getPacket().getToId()] = String.valueOf(t.getTransitionId());
         } else {
           path[t.getPacket().getToId()] += "," + String.valueOf(t.getTransitionId());
         }
-      } else if (tuple.transition instanceof NodeOperationTransition) {
-        NodeOperationTransition t = (NodeOperationTransition) tuple.transition;
+      } else if (transition instanceof NodeOperationTransition) {
+        NodeOperationTransition t = (NodeOperationTransition) transition;
         if (path[t.getId()] == null) {
           path[t.getId()] = String.valueOf(t.getTransitionId());
         } else {
@@ -639,20 +638,20 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   // focus on swapping the newTransition before oldTransition
-  protected Path reorderEvents(LocalState[] wasLocalStates, Path initialPath, TransitionTuple oldTransition,
-      TransitionTuple newTransition) {
+  protected Path reorderEvents(LocalState[] wasLocalStates, Path initialPath, Transition oldTransition,
+      Transition newTransition) {
     Path reorderingEvents = new Path();
 
     // compare initial path with dependency path that includes initial path
-    if (newTransition.transition instanceof PacketSendTransition) {
-      List<Transition> allBeforeTransitions = dependencies.get(newTransition.transition);
+    if (newTransition instanceof PacketSendTransition) {
+      List<Transition> allBeforeTransitions = dependencies.get(newTransition);
       ListIterator<Transition> beforeIter = allBeforeTransitions.listIterator();
-      Iterator<TransitionTuple> checkingIter = initialPath.iterator();
+      Iterator<Transition> checkingIter = initialPath.iterator();
       while (beforeIter.hasNext()) {
         Transition beforeTransition = beforeIter.next();
         boolean isFound = false;
         while (checkingIter.hasNext()) {
-          if (checkingIter.next().transition.equals(beforeTransition)) {
+          if (checkingIter.next().equals(beforeTransition)) {
             isFound = true;
             break;
           }
@@ -664,22 +663,22 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       }
       while (beforeIter.hasNext()) {
         Transition nextEvent = beforeIter.next();
-        reorderingEvents.add(new TransitionTuple(0, nextEvent));
+        reorderingEvents.addTransition(nextEvent);
       }
     }
 
-    reorderingEvents.add(newTransition);
-    reorderingEvents.add(new TransitionTuple(0, oldTransition.transition));
+    reorderingEvents.addTransition(newTransition);
+    reorderingEvents.addTransition(oldTransition);
 
     return reorderingEvents;
   }
 
-  protected boolean addNewInitialPath(LocalState[] wasLocalStates, Path initialPath, TransitionTuple oldTransition,
-      TransitionTuple newTransition) {
+  protected boolean addNewInitialPath(LocalState[] wasLocalStates, Path initialPath, Transition oldTransition,
+      Transition newTransition) {
     // mark the initial path plus the old event as explored
     Path oldPath = (Path) initialPath.clone();
     convertExecutedAbstractTransitionToReal(oldPath);
-    oldPath.add(new TransitionTuple(0, oldTransition.transition));
+    oldPath.addTransition(oldTransition);
     addPathToFinishedInitialPath(oldPath);
 
     Path newInitialPath = (Path) initialPath.clone();
@@ -695,8 +694,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
 
     if (!pathExistInHistory(newInitialPath)) {
-      LOG.info("Transition " + newTransition.transition + " is dependent with " + oldTransition.transition
-          + " at state " + oldTransition.state + " " + newInitialPath.hashCode());
+      LOG.info("Transition " + newTransition.getTransitionId() + " needs to be reordered with "
+          + oldTransition.getTransitionId());
       initialPaths.add(newInitialPath);
       if (!this.enableParallelism) {
         addPathToFinishedInitialPath(newInitialPath);
@@ -704,7 +703,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
       // add new initial path in debug.log
       String debugNewPath = "New Initial Path:\n";
-      for (TransitionTuple t : newInitialPath) {
+      for (Transition t : newInitialPath) {
         debugNewPath += t.toString() + "\n";
       }
       collectDebug(debugNewPath);
@@ -721,11 +720,11 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(idRecordDirPath + "/" + fileName));
         LinkedList<Path> initialPathsList = new LinkedList<Path>();
         for (Path initPath : pathsQueue) {
-          Path dumbPath = new Path();
-          for (TransitionTuple realTuple : initPath) {
-            dumbPath.add(realTuple.getSerializable(numNode));
+          Path toSavePath = new Path();
+          for (Transition transition : initPath) {
+            toSavePath.add(transition.getSerializable(numNode));
           }
-          initialPathsList.add(dumbPath);
+          initialPathsList.add(toSavePath);
         }
         oos.writeObject(initialPathsList);
         oos.close();
@@ -775,8 +774,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     int i = 1;
     for (Path path : paths) {
       logs += "Path " + i++ + ":\n";
-      for (TransitionTuple tuple : path) {
-        logs += tuple.toString() + "\n";
+      for (Transition transition : path) {
+        logs += transition.toString() + "\n";
       }
     }
     LOG.info(logs);
@@ -884,7 +883,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
         // add new initial path in debug.log
         String debugNewPath = "New Important Paths:\n";
-        for (TransitionTuple t : newPath.getPath()) {
+        for (Transition t : newPath.getPath()) {
           debugNewPath += t.toString() + "\n";
         }
         collectDebug(debugNewPath);
@@ -910,52 +909,50 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
   protected void calculateDependencyGraph() {
     dependencies.clear();
-    List<TransitionTuple> realExecutionPath = new Path();
-    for (TransitionTuple tuple : currentExploringPath) {
-      if (tuple.transition instanceof AbstractNodeCrashTransition) {
-        AbstractNodeCrashTransition abstractCrash = (AbstractNodeCrashTransition) tuple.transition;
+    Path realExecutionPath = new Path();
+    for (Transition transition : currentExploringPath) {
+      if (transition instanceof AbstractNodeCrashTransition) {
+        AbstractNodeCrashTransition abstractCrash = (AbstractNodeCrashTransition) transition;
         NodeCrashTransition realCrash = new NodeCrashTransition(this, abstractCrash.id);
         realCrash.setVectorClock(abstractCrash.getPossibleVectorClock(abstractCrash.id));
-        TransitionTuple realTuple = new TransitionTuple(tuple.state, realCrash);
-        realExecutionPath.add(realTuple);
-      } else if (tuple.transition instanceof AbstractNodeStartTransition) {
-        AbstractNodeStartTransition abstractStart = (AbstractNodeStartTransition) tuple.transition;
+        realExecutionPath.addTransition(realCrash);
+      } else if (transition instanceof AbstractNodeStartTransition) {
+        AbstractNodeStartTransition abstractStart = (AbstractNodeStartTransition) transition;
         NodeStartTransition realStart = new NodeStartTransition(this, abstractStart.id);
         realStart.setVectorClock(abstractStart.getPossibleVectorClock(abstractStart.id));
-        TransitionTuple realTuple = new TransitionTuple(tuple.state, realStart);
-        realExecutionPath.add(realTuple);
+        realExecutionPath.addTransition(realStart);
       } else {
-        realExecutionPath.add(tuple);
+        realExecutionPath.addTransition(transition);
       }
     }
-    ListIterator<TransitionTuple> currentIter = realExecutionPath.listIterator(realExecutionPath.size());
+    ListIterator<Transition> currentIter = (ListIterator<Transition>) realExecutionPath
+        .listIterator(realExecutionPath.size());
     while (currentIter.hasPrevious()) {
-      TransitionTuple current = currentIter.previous();
+      Transition current = currentIter.previous();
       LinkedList<Transition> partialOrder = new LinkedList<Transition>();
       if (currentIter.hasPrevious()) {
-        ListIterator<TransitionTuple> comparingIter = realExecutionPath.listIterator(currentIter.nextIndex());
+        ListIterator<Transition> comparingIter = realExecutionPath.listIterator(currentIter.nextIndex());
         while (comparingIter.hasPrevious()) {
-          TransitionTuple comparing = comparingIter.previous();
-          int compareResult = VectorClockUtil.isConcurrent(current.transition.getVectorClock(),
-              comparing.transition.getVectorClock());
+          Transition comparing = comparingIter.previous();
+          int compareResult = VectorClockUtil.isConcurrent(current.getVectorClock(), comparing.getVectorClock());
           if (compareResult == 1) {
             // hack solution for multiple client requests for
             // Cassandra system
-            if (dmckName.equals("cassChecker") && current.transition instanceof PacketSendTransition
-                && comparing.transition instanceof PacketSendTransition) {
-              PacketSendTransition lt = (PacketSendTransition) current.transition;
-              PacketSendTransition tt = (PacketSendTransition) comparing.transition;
+            if (dmckName.equals("cassChecker") && current instanceof PacketSendTransition
+                && comparing instanceof PacketSendTransition) {
+              PacketSendTransition lt = (PacketSendTransition) current;
+              PacketSendTransition tt = (PacketSendTransition) comparing;
               int lastCR1 = (int) lt.getPacket().getValue("clientRequest");
               int lastCR2 = (int) tt.getPacket().getValue("clientRequest");
               if (lastCR1 != lastCR2) {
                 continue;
               }
             }
-            partialOrder.addFirst(comparing.transition);
+            partialOrder.addFirst(comparing);
           }
         }
       }
-      dependencies.put(current.transition, partialOrder);
+      dependencies.put(current, partialOrder);
     }
   }
 
@@ -1025,8 +1022,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   public boolean isSymmetricPath(Path initialPath) {
     if (this.enableSymmetry) {
       LocalState[] globalStates = getInitialGlobalStates();
-      for (TransitionTuple event : initialPath) {
-        AbstractGlobalStates ags = new AbstractGlobalStates(globalStates, event.transition);
+      for (Transition event : initialPath) {
+        AbstractGlobalStates ags = new AbstractGlobalStates(globalStates, event);
         for (int nodeId = 0; nodeId < numNode; nodeId++) {
           if (isIdenticalAbstractLocalStates(globalStates[nodeId], ags.getExecutingNodeState())) {
             LocalState newLS = findLocalStateChange(globalStates[nodeId], ags.getEvent());
@@ -1204,18 +1201,18 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       if (currentPath != null && !currentPath.isEmpty()) {
         LOG.info("Start with existing initial path first.");
         String tmp = "Current Initial Path:\n";
-        for (TransitionTuple event : currentPath) {
-          tmp += event.transition.toString() + "\n";
+        for (Transition event : currentPath) {
+          tmp += event.toString() + "\n";
         }
         LOG.info(tmp);
         collectDebug(tmp);
-        int tupleCounter = 0;
-        for (TransitionTuple event : currentPath) {
-          tupleCounter++;
+        int transitionCounter = 0;
+        for (Transition event : currentPath) {
+          transitionCounter++;
           executeMidWorkload();
           updateSAMCQueue();
           updateGlobalState2();
-          Transition nextEvent = retrieveEventFromQueue(currentEnabledTransitions, event.transition);
+          Transition nextEvent = retrieveEventFromQueue(currentEnabledTransitions, event);
           for (int i = 0; i < 20; ++i) {
             if (nextEvent != null) {
               break;
@@ -1248,7 +1245,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             resetTest();
             return;
           } else {
-            executeEvent(nextEvent, tupleCounter <= directedInitialPath.size());
+            executeEvent(nextEvent, transitionCounter <= directedInitialPath.size());
           }
         }
       }
@@ -1269,8 +1266,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           exploredBranchRecorder.markBelowSubtreeFinished();
           calculateDependencyGraph();
           String currentFinishedPath = "Finished execution path\n";
-          for (TransitionTuple tuple : currentExploringPath) {
-            currentFinishedPath += tuple.toString() + "\n";
+          for (Transition transition : currentExploringPath) {
+            currentFinishedPath += transition.toString() + "\n";
           }
           LOG.info(currentFinishedPath);
           Path finishedExploringPath = (Path) currentExploringPath.clone();
@@ -1345,7 +1342,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         exploredBranchRecorder.traverseDownTo(nextEvent.getTransitionId());
       }
       try {
-        currentExploringPath.add(new TransitionTuple(globalState2, nextEvent));
+        currentExploringPath.add(nextEvent);
         prevOnlineStatus.add(isNodeOnline.clone());
         prevLocalStates.add(copyLocalState(localStates));
         saveLocalState();

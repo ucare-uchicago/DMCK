@@ -73,7 +73,8 @@ public class NodeStartTransition extends NodeOperationTransition {
     return "nodestart id=" + id;
   }
 
-  public NodeStartTransition clone() {
+  @Override
+  public synchronized NodeStartTransition clone() {
     return new NodeStartTransition(this.checker, this.id);
   }
 

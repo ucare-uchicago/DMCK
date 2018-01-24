@@ -124,13 +124,14 @@ public class Event implements Serializable {
     return true;
   }
 
-  public Event clone() {
+  public synchronized Event clone() {
     Event cloned = new Event((long) this.getValue(HASH_ID_KEY));
     for (String key : this.keyValuePairs.keySet()) {
       if (!key.equals(HASH_ID_KEY)) {
         cloned.addKeyValue(key, this.keyValuePairs.get(key));
       }
     }
+    cloned.setVectorClock(this.vectorClock);
     return cloned;
   }
 

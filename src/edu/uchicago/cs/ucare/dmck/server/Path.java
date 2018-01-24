@@ -4,11 +4,13 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.LinkedList;
 
+import edu.uchicago.cs.ucare.dmck.transition.NodeCrashTransition;
 import edu.uchicago.cs.ucare.dmck.transition.NodeOperationTransition;
+import edu.uchicago.cs.ucare.dmck.transition.NodeStartTransition;
 import edu.uchicago.cs.ucare.dmck.transition.PacketSendTransition;
-import edu.uchicago.cs.ucare.dmck.transition.TransitionTuple;
+import edu.uchicago.cs.ucare.dmck.transition.Transition;
 
-public class Path extends LinkedList<TransitionTuple> implements Serializable {
+public class Path extends LinkedList<Transition> implements Serializable {
 
   /**
    * 
@@ -19,12 +21,12 @@ public class Path extends LinkedList<TransitionTuple> implements Serializable {
     super();
   }
 
-  public Path(Collection<TransitionTuple> transitionTuples) {
-    super(transitionTuples);
+  public Path(Collection<Transition> transitions) {
+    super(transitions);
   }
 
-  public Path(Path transitionTuples) {
-    super(transitionTuples);
+  public Path(Path transitions) {
+    super(transitions);
   }
 
   @Override
@@ -33,13 +35,29 @@ public class Path extends LinkedList<TransitionTuple> implements Serializable {
   }
 
   public Path getSerializable(int numNode) {
-    Path retVal = new Path(new LinkedList<TransitionTuple>());
+    Path retVal = new Path(new LinkedList<Transition>());
 
-    for (TransitionTuple realTuple : this) {
-      retVal.add(realTuple.getSerializable(numNode));
+    for (Transition transition : this) {
+      retVal.add(transition.getSerializable(numNode));
     }
 
     return retVal;
+  }
+
+  // Current expected events to add into Path List are only
+  // PacketSendTransition, NodeCrashTransition, and NodeStartTransition.
+  // Otherwise, DMCK will throw exception, since we try to add unknown type of
+  // events.
+  public void addTransition(Transition ev) {
+    if (ev instanceof PacketSendTransition) {
+      this.add(((PacketSendTransition) ev).clone());
+    } else if (ev instanceof NodeCrashTransition) {
+      this.add(((NodeCrashTransition) ev).clone());
+    } else if (ev instanceof NodeStartTransition) {
+      this.add(((NodeStartTransition) ev).clone());
+    } else {
+      throw new RuntimeException("Add unknown transition ev=" + ev.toString());
+    }
   }
 
   @Override
@@ -47,23 +65,23 @@ public class Path extends LinkedList<TransitionTuple> implements Serializable {
     return Path.pathToString(this);
   }
 
-  public static String pathToString(Path dporInitialPath) {
-    String path = "";
-    for (int i = 0; i < dporInitialPath.size(); i++) {
-      if (dporInitialPath.get(i).transition instanceof PacketSendTransition) {
+  public static String pathToString(Path path) {
+    String result = "";
+    for (int i = 0; i < path.size(); i++) {
+      if (path.get(i) instanceof PacketSendTransition) {
         if (i == 0) {
-          path = String.valueOf(dporInitialPath.get(i).transition.getTransitionId());
+          result = String.valueOf(path.get(i).getTransitionId());
         } else {
-          path += "," + String.valueOf(dporInitialPath.get(i).transition.getTransitionId());
+          result += "," + String.valueOf(path.get(i).getTransitionId());
         }
       } else {
         if (i == 0) {
-          path = ((NodeOperationTransition) dporInitialPath.get(i).transition).toStringForFutureExecution();
+          result = ((NodeOperationTransition) path.get(i)).toStringForFutureExecution();
         } else {
-          path += "," + ((NodeOperationTransition) dporInitialPath.get(i).transition).toStringForFutureExecution();
+          result += "," + ((NodeOperationTransition) path.get(i)).toStringForFutureExecution();
         }
       }
     }
-    return path;
+    return result;
   }
 }

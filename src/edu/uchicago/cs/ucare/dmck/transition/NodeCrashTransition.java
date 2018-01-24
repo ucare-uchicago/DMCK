@@ -86,7 +86,8 @@ public class NodeCrashTransition extends NodeOperationTransition {
     return "nodecrash id=" + id;
   }
 
-  public NodeCrashTransition clone() {
+  @Override
+  public synchronized NodeCrashTransition clone() {
     return new NodeCrashTransition(this.checker, this.id);
   }
 

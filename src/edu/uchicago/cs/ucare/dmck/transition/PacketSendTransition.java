@@ -110,6 +110,7 @@ public class PacketSendTransition extends Transition implements Serializable {
     return packet.getVectorClock();
   }
 
+  @Override
   public synchronized PacketSendTransition clone() {
     return new PacketSendTransition(this.checker, this.packet.clone());
   }

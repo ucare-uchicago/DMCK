@@ -14,7 +14,6 @@ import edu.uchicago.cs.ucare.dmck.transition.NodeOperationTransition;
 import edu.uchicago.cs.ucare.dmck.transition.NodeStartTransition;
 import edu.uchicago.cs.ucare.dmck.transition.PacketSendTransition;
 import edu.uchicago.cs.ucare.dmck.transition.Transition;
-import edu.uchicago.cs.ucare.dmck.transition.TransitionTuple;
 import edu.uchicago.cs.ucare.dmck.util.VectorClockUtil;
 
 public class ParallelPath implements Serializable {
@@ -30,12 +29,11 @@ public class ParallelPath implements Serializable {
   // private LinkedList<EventCausality> eventCausality;
   private Hashtable<Transition, List<Transition>> dependencies;
 
-  @SuppressWarnings("unchecked")
   public ParallelPath(Path newPath, Hashtable<Transition, List<Transition>> dependencies) {
     path = newPath.clone();
 
-    Transition oldTransition = newPath.get(newPath.size() - 1).transition;
-    Transition newTransition = newPath.get(newPath.size() - 2).transition;
+    Transition oldTransition = newPath.get(newPath.size() - 1);
+    Transition newTransition = newPath.get(newPath.size() - 2);
     reorderedEvents = new ArrayList<Transition>();
     reorderedEvents.add(oldTransition);
     reorderedEvents.add(newTransition);
@@ -74,7 +72,7 @@ public class ParallelPath implements Serializable {
   }
 
   public Transition getEventTransition(int p) {
-    return path.get(p).transition;
+    return path.get(p);
   }
 
   public Hashtable<Transition, List<Transition>> getDependencies() {
@@ -93,7 +91,6 @@ public class ParallelPath implements Serializable {
     this.reorderedNodes.addAll(reorderedNodes);
   }
 
-  @SuppressWarnings("unchecked")
   public ParallelPath combineOtherPath(ParallelPath otherPath) {
 
     // filter 1: cannot combine paths with same reordered nodes
@@ -142,8 +139,8 @@ public class ParallelPath implements Serializable {
     int minimumPath = this.path.size() < otherPath.getPath().size() ? this.path.size() : otherPath.getPath().size();
     int startingDiff = -1;
     for (int k = 0; k < minimumPath; k++) {
-      if (this.path.get(k).transition.getTransitionId() == otherPath.getPath().get(k).transition.getTransitionId()) {
-        combinePath.add(this.path.get(k));
+      if (this.path.get(k).getTransitionId() == otherPath.getPath().get(k).getTransitionId()) {
+        combinePath.addTransition(this.path.get(k));
       } else {
         startingDiff = k;
         break;
@@ -244,22 +241,22 @@ public class ParallelPath implements Serializable {
           unsafeMix = true;
           break;
         } else if (this.reorderedEvents.contains(this.getEventTransition(k1))) {
-          combinePath.add(this.path.get(k1));
+          combinePath.addTransition(this.path.get(k1));
           k1++;
         } else if (otherPath.getReorderedEvents().contains(otherPath.getEventTransition(k2))) {
-          combinePath.add(otherPath.getPath().get(k2));
+          combinePath.addTransition(otherPath.getPath().get(k2));
           k2++;
         } else if (otherPath.getReorderedEvents().contains(this.getEventTransition(k1))) {
           k1++;
         } else if (this.reorderedEvents.contains(otherPath.getEventTransition(k2))) {
           k2++;
         } else if (this.getEventTransition(k1) == otherPath.getEventTransition(k2)) {
-          combinePath.add(this.path.get(k1));
+          combinePath.addTransition(this.path.get(k1));
           k1++;
           k2++;
         } else {
-          int isConcurrent = VectorClockUtil.isConcurrent(this.path.get(k1).transition.getVectorClock(),
-              otherPath.getPath().get(k2).transition.getVectorClock());
+          int isConcurrent = VectorClockUtil.isConcurrent(this.path.get(k1).getVectorClock(),
+              otherPath.getPath().get(k2).getVectorClock());
           if (isConcurrent == -1) {
             addEventIntoPath(combinePath, this.path.get(k1));
             k1++;
@@ -287,17 +284,17 @@ public class ParallelPath implements Serializable {
         newCombinedPath.addMoreReorderedEvents(otherPath.getReorderedEvents());
 
         String debugPath = "Path 1 to combine:\n";
-        for (TransitionTuple t : this.path) {
-          debugPath += t.transition.toString() + "\n";
+        for (Transition t : this.path) {
+          debugPath += t.toString() + "\n";
         }
         debugPath += "Path 2 to combine:\n";
-        for (TransitionTuple t : otherPath.getPath()) {
-          debugPath += t.transition.toString() + "\n";
+        for (Transition t : otherPath.getPath()) {
+          debugPath += t.toString() + "\n";
         }
 
         debugPath += "Combination Path:\n";
-        for (TransitionTuple t : newCombinedPath.getPath()) {
-          debugPath += t.transition.toString() + "\n";
+        for (Transition t : newCombinedPath.getPath()) {
+          debugPath += t.toString() + "\n";
         }
 
         LOG.debug(debugPath);
@@ -386,8 +383,8 @@ public class ParallelPath implements Serializable {
   }
 
   private boolean hasTransition(Transition t) {
-    for (TransitionTuple event : path) {
-      if (event.transition == t) {
+    for (Transition event : path) {
+      if (event == t) {
         return true;
       }
     }
@@ -396,7 +393,7 @@ public class ParallelPath implements Serializable {
 
   private int getIndexInPath(Transition t) {
     for (int i = 0; i < path.size(); i++) {
-      if (path.get(i).transition == t) {
+      if (path.get(i) == t) {
         return i;
       }
     }
@@ -405,7 +402,7 @@ public class ParallelPath implements Serializable {
 
   public ParallelPath getSerializable(int numNode) {
     Path temp = new Path();
-    for (TransitionTuple t : this.path) {
+    for (Transition t : this.path) {
       temp.add(t.getSerializable(numNode));
     }
     ArrayList<Transition> temp2 = new ArrayList<Transition>();
@@ -425,8 +422,8 @@ public class ParallelPath implements Serializable {
 
   public static ParallelPath deserialize(ModelCheckingServerAbstract mc, ParallelPath pp) {
     Path temp = new Path();
-    for (TransitionTuple t : pp.getPath()) {
-      temp.add(TransitionTuple.getRealTransitionTuple(mc, t));
+    for (Transition t : pp.getPath()) {
+      temp.add(Transition.getRealTransition(mc, t));
     }
     ArrayList<Transition> temp2 = new ArrayList<Transition>();
     for (Transition t : pp.reorderedEvents) {
@@ -444,16 +441,16 @@ public class ParallelPath implements Serializable {
     return new ParallelPath(temp, temp2, pp.getReorderedNodes(), temp3);
   }
 
-  private void addEventIntoPath(Path path, TransitionTuple event) {
+  private void addEventIntoPath(Path path, Transition event) {
     boolean exist = false;
-    for (TransitionTuple t : path) {
-      if (t.transition.getTransitionId() == event.transition.getTransitionId()) {
+    for (Transition t : path) {
+      if (t.getTransitionId() == event.getTransitionId()) {
         exist = true;
         break;
       }
     }
     if (!exist) {
-      path.add(event);
+      path.addTransition(event);
     }
   }
 
@@ -463,7 +460,7 @@ public class ParallelPath implements Serializable {
     LinkedList<EventCausality> eventCausality = new LinkedList<EventCausality>();
 
     for (int i = 0; i < path.size(); i++) {
-      EventCausality ev = new EventCausality(path.get(i).transition, dependencies.get(path.get(i).transition));
+      EventCausality ev = new EventCausality(path.get(i), dependencies.get(path.get(i)));
 
       if (ev.getPrevEvents().size() > 0) {
         LinkedList<Transition> directParents = (LinkedList<Transition>) ev.getPrevEvents().clone();
@@ -475,7 +472,7 @@ public class ParallelPath implements Serializable {
         }
         ev.setDirectParents(directParents);
       } else {
-        String tmp = "Direct Parents of " + path.get(i).transition.toString() + ": NONE\n";
+        String tmp = "Direct Parents of " + path.get(i).toString() + ": NONE\n";
         LOG.debug(tmp);
       }
 
