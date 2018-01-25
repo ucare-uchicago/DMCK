@@ -11,27 +11,27 @@ public abstract class AbstractNodeOperationTransition extends NodeOperationTrans
   protected final Random RANDOM = new Random(System.currentTimeMillis());
   protected boolean isRandom;
 
-  protected ModelCheckingServerAbstract checker;
+  protected ModelCheckingServerAbstract dmck;
 
-  public AbstractNodeOperationTransition(ModelCheckingServerAbstract checker) {
+  public AbstractNodeOperationTransition(ModelCheckingServerAbstract dmck) {
     id = -1;
-    this.checker = checker;
+    this.dmck = dmck;
     this.isRandom = false;
-    possibleVectorClocks = new int[checker.numNode][][];
+    possibleVectorClocks = new int[dmck.numNode][][];
   }
 
   public AbstractNodeOperationTransition(int numNode) {
     id = -1;
-    this.checker = null;
+    this.dmck = null;
     this.isRandom = false;
     possibleVectorClocks = new int[numNode][][];
   }
 
-  public AbstractNodeOperationTransition(ModelCheckingServerAbstract checker, boolean isRandom) {
+  public AbstractNodeOperationTransition(ModelCheckingServerAbstract dmck, boolean isRandom) {
     id = -1;
-    this.checker = checker;
+    this.dmck = dmck;
     this.isRandom = isRandom;
-    possibleVectorClocks = new int[checker.numNode][][];
+    possibleVectorClocks = new int[dmck.numNode][][];
   }
 
   public void setRandom(boolean isRandom) {

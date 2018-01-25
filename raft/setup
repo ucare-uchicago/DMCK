@@ -24,6 +24,7 @@ cp -r $scriptdir/storage $working_dir/
 mkdir $working_dir/record
 mkdir $working_dir/state
 mkdir $working_dir/log
+mkdir $working_dir/all-events-db
 
 cp $scriptdir/mc_log.properties $working_dir/
 

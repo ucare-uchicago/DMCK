@@ -12,16 +12,16 @@ public class AbstractNodeCrashTransition extends AbstractNodeOperationTransition
 
   private final static Logger LOG = LoggerFactory.getLogger(AbstractNodeCrashTransition.class);
 
-  public AbstractNodeCrashTransition(ModelCheckingServerAbstract checker) {
-    super(checker);
+  public AbstractNodeCrashTransition(ModelCheckingServerAbstract dmck) {
+    super(dmck);
   }
 
   public AbstractNodeCrashTransition(int numNode) {
     super(numNode);
   }
 
-  public AbstractNodeCrashTransition(ModelCheckingServerAbstract checker, boolean isRandom) {
-    super(checker, isRandom);
+  public AbstractNodeCrashTransition(ModelCheckingServerAbstract dmck, boolean isRandom) {
+    super(dmck, isRandom);
   }
 
   @Override
@@ -51,7 +51,7 @@ public class AbstractNodeCrashTransition extends AbstractNodeOperationTransition
 
   public NodeCrashTransition getRealNodeOperationTransition() {
     if (isRandom) {
-      LinkedList<NodeOperationTransition> allPossible = getAllRealNodeOperationTransitions(checker.isNodeOnline);
+      LinkedList<NodeOperationTransition> allPossible = getAllRealNodeOperationTransitions(dmck.isNodeOnline);
       if (allPossible.isEmpty()) {
         LOG.debug("Try to execute crash node event, but currently there is no online node");
         return null;
@@ -59,9 +59,9 @@ public class AbstractNodeCrashTransition extends AbstractNodeOperationTransition
       int i = RANDOM.nextInt(allPossible.size());
       return (NodeCrashTransition) allPossible.get(i);
     } else {
-      for (int i = 0; i < checker.numNode; ++i) {
-        if (checker.isNodeOnline(i)) {
-          NodeCrashTransition realCrash = new NodeCrashTransition(checker, i);
+      for (int i = 0; i < dmck.numNode; ++i) {
+        if (dmck.isNodeOnline(i)) {
+          NodeCrashTransition realCrash = new NodeCrashTransition(dmck, i);
           realCrash.setVectorClock(getPossibleVectorClock(i));
           return realCrash;
         }
@@ -73,8 +73,8 @@ public class AbstractNodeCrashTransition extends AbstractNodeOperationTransition
 
   @Override
   public NodeOperationTransition getRealNodeOperationTransition(int suggestExecuteNodeId) {
-    if (checker.isNodeOnline(suggestExecuteNodeId)) {
-      NodeCrashTransition realCrash = new NodeCrashTransition(checker, suggestExecuteNodeId);
+    if (dmck.isNodeOnline(suggestExecuteNodeId)) {
+      NodeCrashTransition realCrash = new NodeCrashTransition(dmck, suggestExecuteNodeId);
       realCrash.setVectorClock(getPossibleVectorClock(suggestExecuteNodeId));
       return realCrash;
     }
@@ -87,7 +87,7 @@ public class AbstractNodeCrashTransition extends AbstractNodeOperationTransition
     LinkedList<NodeOperationTransition> result = new LinkedList<NodeOperationTransition>();
     for (int i = 0; i < onlineStatus.length; ++i) {
       if (onlineStatus[i]) {
-        NodeCrashTransition realCrash = new NodeCrashTransition(checker, i);
+        NodeCrashTransition realCrash = new NodeCrashTransition(dmck, i);
         realCrash.setVectorClock(getPossibleVectorClock(i));
         result.add(realCrash);
       }
@@ -98,8 +98,8 @@ public class AbstractNodeCrashTransition extends AbstractNodeOperationTransition
   @Override
   public LinkedList<NodeOperationTransition> getAllRealNodeOperationTransitions() {
     LinkedList<NodeOperationTransition> result = new LinkedList<NodeOperationTransition>();
-    for (int i = 0; i < checker.numNode; ++i) {
-      NodeCrashTransition realCrash = new NodeCrashTransition(checker, i);
+    for (int i = 0; i < dmck.numNode; ++i) {
+      NodeCrashTransition realCrash = new NodeCrashTransition(dmck, i);
       realCrash.setVectorClock(getPossibleVectorClock(i));
       result.add(realCrash);
     }

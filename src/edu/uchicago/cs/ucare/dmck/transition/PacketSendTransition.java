@@ -26,11 +26,11 @@ public class PacketSendTransition extends Transition implements Serializable {
     }
   };
 
-  protected ModelCheckingServerAbstract checker;
+  protected ModelCheckingServerAbstract dmck;
   protected Event packet;
 
-  public PacketSendTransition(ModelCheckingServerAbstract checker, Event packet) {
-    this.checker = checker;
+  public PacketSendTransition(ModelCheckingServerAbstract dmck, Event packet) {
+    this.dmck = dmck;
     this.packet = packet;
   }
 
@@ -40,7 +40,7 @@ public class PacketSendTransition extends Transition implements Serializable {
       LOG.debug("Trying to commit obsolete packet");
     }
     try {
-      boolean result = checker.commitAndWait(packet);
+      boolean result = dmck.commitAndWait(packet);
       return result;
     } catch (InterruptedException e) {
       LOG.error(e.getMessage());
@@ -84,19 +84,19 @@ public class PacketSendTransition extends Transition implements Serializable {
     return "packetsend tid=" + getTransitionId() + " " + packet.toString();
   }
 
-  public static PacketSendTransition[] buildTransitions(ModelCheckingServerAbstract checker, Event[] packets) {
+  public static PacketSendTransition[] buildTransitions(ModelCheckingServerAbstract dmck, Event[] packets) {
     PacketSendTransition[] packetTransitions = new PacketSendTransition[packets.length];
     for (int i = 0; i < packets.length; ++i) {
-      packetTransitions[i] = new PacketSendTransition(checker, packets[i]);
+      packetTransitions[i] = new PacketSendTransition(dmck, packets[i]);
     }
     return packetTransitions;
   }
 
-  public static LinkedList<PacketSendTransition> buildTransitions(ModelCheckingServerAbstract checker,
+  public static LinkedList<PacketSendTransition> buildTransitions(ModelCheckingServerAbstract dmck,
       List<Event> packets) {
     LinkedList<PacketSendTransition> packetTransitions = new LinkedList<PacketSendTransition>();
     for (Event packet : packets) {
-      packetTransitions.add(new PacketSendTransition(checker, packet));
+      packetTransitions.add(new PacketSendTransition(dmck, packet));
     }
     return packetTransitions;
   }
@@ -112,7 +112,7 @@ public class PacketSendTransition extends Transition implements Serializable {
 
   @Override
   public synchronized PacketSendTransition clone() {
-    return new PacketSendTransition(this.checker, this.packet.clone());
+    return new PacketSendTransition(this.dmck, this.packet.clone());
   }
 
 }

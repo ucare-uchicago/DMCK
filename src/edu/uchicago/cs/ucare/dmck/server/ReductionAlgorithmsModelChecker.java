@@ -61,7 +61,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   HashSet<String> finishedInitialPaths;
   HashSet<String> currentFinishedInitialPaths;
   HashSet<String> initialPathSecondAttempt;
-  Path currentPath;
+  Path currentInitialPath;
   Path currentExploringPath = new Path();
 
   // record all transition global states before and after
@@ -134,7 +134,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
 
     getSAMCConfig();
-    loadInitialPathFromFile();
+    loadInitialPathsFromFile();
     resetTest();
   }
 
@@ -200,24 +200,41 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
   }
 
+  protected Hashtable<Long, Transition> loadAllEventsDB() {
+    // Load all events information from all-events-db directory
+    Hashtable<Long, Transition> allEvents = new Hashtable<Long, Transition>();
+    for (File evFile : allEventsDBDir.listFiles()) {
+      ObjectInputStream ois;
+      try {
+        ois = new ObjectInputStream(new FileInputStream(evFile));
+        Transition t = (Transition) ois.readObject();
+        allEvents.put(t.getTransitionId(), Transition.getRealTransition(this, t));
+        ois.close();
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
+    return allEvents;
+  }
+
   // load existing list of paths to particular queue
-  @SuppressWarnings("unchecked")
-  protected void loadPaths(LinkedList<Path> pathQueue, int numRecord, String fileName) {
+  protected void loadPaths(Hashtable<Long, Transition> allEventsDB, LinkedList<Path> pathQueue, int numRecord,
+      String fileName) {
     for (int record = 1; record <= numRecord; record++) {
       File initialPathFile = new File(testRecordDirPath + "/" + record + "/" + fileName);
       if (initialPathFile.exists()) {
-        ObjectInputStream ois;
         try {
-          ois = new ObjectInputStream(new FileInputStream(initialPathFile));
-          LinkedList<Path> streamedInitialPaths = (LinkedList<Path>) ois.readObject();
-          for (Path savedInitPath : streamedInitialPaths) {
+          BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(initialPathFile)));
+          String path;
+          while ((path = br.readLine()) != null) {
             Path initPath = new Path();
-            for (Transition savedTransition : savedInitPath) {
-              initPath.add(Transition.getRealTransition(this, savedTransition));
+            String[] eventIDs = path.trim().split(",");
+            for (String eventID : eventIDs) {
+              initPath.add(allEventsDB.get(Long.parseLong(eventID)));
             }
             pathQueue.add(initPath);
           }
-          ois.close();
+          br.close();
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -233,7 +250,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(listOfPathsFile)));
           String path;
           while ((path = br.readLine()) != null) {
-            pathQueue.add(path);
+            pathQueue.add(path.trim());
           }
           br.close();
         } catch (FileNotFoundException e) {
@@ -245,20 +262,22 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
   }
 
-  @SuppressWarnings("unlikely-arg-type")
-  protected void loadInitialPathFromFile() {
+  protected void loadInitialPathsFromFile() {
     try {
-      // grab the max record directory
+      // Grab the max record directory
       File recordDir = new File(testRecordDirPath);
       File[] listOfRecordDir = recordDir.listFiles();
       int numRecord = listOfRecordDir.length;
 
+      // Load all events DB
+      Hashtable<Long, Transition> allEventsDB = loadAllEventsDB();
+
       if (enableParallelism) {
-        loadPaths(importantInitialPaths, numRecord, "importantInitialPathsInQueue");
-        loadPaths(unnecessaryInitialPaths, numRecord, "unnecessaryInitialPathsInQueue");
+        loadPaths(allEventsDB, importantInitialPaths, numRecord, "importantInitialPathsInQueue");
+        loadPaths(allEventsDB, unnecessaryInitialPaths, numRecord, "unnecessaryInitialPathsInQueue");
       }
 
-      loadPaths(initialPaths, numRecord, "initialPathsInQueue");
+      loadPaths(allEventsDB, initialPaths, numRecord, "initialPathsInQueue");
 
       for (int i = 1; i <= numRecord; i++) {
         File initialPathFile = new File(testRecordDirPath + "/" + i + "/currentInitialPath");
@@ -266,13 +285,31 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(initialPathFile)));
           String path = null;
           while ((path = br.readLine()) != null) {
+            path = path.trim();
+            boolean hasRemovedPath = false;
             if (enableParallelism) {
-              importantInitialPaths.remove(path);
-              unnecessaryInitialPaths.remove(path);
-            } else {
-              for (Path pathInQueue : initialPaths) {
-                if (pathToString(pathInQueue).equals(path.trim())) {
-                  initialPaths.remove(pathInQueue);
+              for (Path p : importantInitialPaths) {
+                if (pathToString(p).equals(path)) {
+                  importantInitialPaths.remove(p);
+                  hasRemovedPath = true;
+                  break;
+                }
+              }
+            }
+            if (!hasRemovedPath) {
+              for (Path p : initialPaths) {
+                if (pathToString(p).equals(path)) {
+                  initialPaths.remove(p);
+                  hasRemovedPath = true;
+                  break;
+                }
+              }
+            }
+            if (enableParallelism && !hasRemovedPath) {
+              for (Path p : unnecessaryInitialPaths) {
+                if (pathToString(p).equals(path)) {
+                  unnecessaryInitialPaths.remove(p);
+                  hasRemovedPath = true;
                   break;
                 }
               }
@@ -300,11 +337,11 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   public void loadNextInitialPath(boolean markPrevPathFinished, boolean finishedExploredAll) {
     while (true) {
       if (importantInitialPaths.size() > 0) {
-        currentPath = importantInitialPaths.remove();
+        currentInitialPath = importantInitialPaths.remove();
       } else if (initialPaths.size() > 0) {
-        currentPath = initialPaths.remove();
+        currentInitialPath = initialPaths.remove();
       } else if (unnecessaryInitialPaths.size() > 0) {
-        currentPath = unnecessaryInitialPaths.remove();
+        currentInitialPath = unnecessaryInitialPaths.remove();
       } else {
         if (markPrevPathFinished) {
           exploredBranchRecorder.resetTraversal();
@@ -315,13 +352,13 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         }
       }
 
-      if (this.enableSymmetryDoubleCheck && currentPath != null) {
-        if (!isSymmetricPath(currentPath)) {
+      if (this.enableSymmetryDoubleCheck && currentInitialPath != null) {
+        if (!isSymmetricPath(currentInitialPath)) {
           break;
         }
         recordPolicyEffectiveness("symmetry_double_check");
         String tmp = "Reduce Initial Path due to Symmetry Double Check reduction algorithm:\n";
-        for (Transition event : currentPath) {
+        for (Transition event : currentInitialPath) {
           tmp += event.toString() + "\n";
         }
         LOG.info(tmp);
@@ -713,24 +750,51 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return false;
   }
 
-  // save collection of paths to file
+  protected void saveAllExecutedEvents() {
+    Iterator<Transition> currentExploredPathIter = currentExploringPath.iterator();
+    while (currentExploredPathIter.hasNext()) {
+      Transition transition = currentExploredPathIter.next();
+      // Check all-events-db current files
+      boolean isNewEv = true;
+      for (File evFile : allEventsDBDir.listFiles()) {
+        if (evFile.getName() == String.valueOf(transition.getTransitionId())) {
+          isNewEv = false;
+          break;
+        }
+      }
+      if (isNewEv) {
+        try {
+          // Save per event to all-events-db directory
+          ObjectOutputStream evStream = new ObjectOutputStream(
+              new FileOutputStream(allEventsDBDirPath + "/" + transition.getTransitionId()));
+          evStream.writeObject(transition.getSerializable(numNode));
+          evStream.close();
+        } catch (Exception e) {
+          LOG.error("", e);
+        }
+      }
+    }
+  }
+
+  // save collection of paths event IDs to file
   protected boolean savePaths(LinkedList<Path> pathsQueue, String fileName) {
     if (pathsQueue.size() > 0) {
       try {
-        ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(idRecordDirPath + "/" + fileName));
-        LinkedList<Path> initialPathsList = new LinkedList<Path>();
-        for (Path initPath : pathsQueue) {
-          Path toSavePath = new Path();
-          for (Transition transition : initPath) {
-            toSavePath.add(transition.getSerializable(numNode));
-          }
-          initialPathsList.add(toSavePath);
+        BufferedWriter bw = new BufferedWriter(
+            new OutputStreamWriter(new FileOutputStream(new File(idRecordDirPath + "/" + fileName))));
+        Iterator<Path> pathsQueueIter = pathsQueue.iterator();
+        String paths = "";
+        while (pathsQueueIter.hasNext()) {
+          Path path = pathsQueueIter.next();
+          paths += pathToString(path) + "\n";
         }
-        oos.writeObject(initialPathsList);
-        oos.close();
+        bw.write(paths);
+        bw.close();
 
         return true;
-      } catch (Exception e) {
+      } catch (FileNotFoundException e) {
+        LOG.error("", e);
+      } catch (IOException e) {
         LOG.error("", e);
       }
     }
@@ -751,7 +815,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
         return true;
       } catch (FileNotFoundException e) {
-        LOG.error("", e);
+
       } catch (IOException e) {
         LOG.error("", e);
       }
@@ -781,12 +845,12 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     LOG.info(logs);
   }
 
-  protected void saveInitialPaths() {
+  protected void saveGeneratedInitialPaths() {
     try {
-      if (currentPath != null) {
+      if (currentInitialPath != null) {
         BufferedWriter bw = new BufferedWriter(
             new OutputStreamWriter(new FileOutputStream(new File(idRecordDirPath + "/currentInitialPath"))));
-        bw.write(pathToString(currentPath));
+        bw.write(pathToString(currentInitialPath));
         bw.close();
       }
 
@@ -892,17 +956,18 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     initialPaths.clear();
   }
 
-  protected void findInitialPaths() {
-    calculateInitialPaths();
+  protected void evaluateExecutedPath() {
+    saveAllExecutedEvents();
     saveEventConsequences();
 
+    backtrackExecutedPath();
     printPaths("Initial Paths", initialPaths);
 
     if (this.enableParallelism) {
       evaluateParallelismInitialPaths();
     }
 
-    saveInitialPaths();
+    saveGeneratedInitialPaths();
   }
 
   Hashtable<Transition, List<Transition>> dependencies = new Hashtable<Transition, List<Transition>>();
@@ -1122,7 +1187,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return null;
   }
 
-  protected abstract void calculateInitialPaths();
+  protected abstract void backtrackExecutedPath();
 
   protected abstract int isRuntimeCrashRebootSymmetric(Transition nextTransition);
 
@@ -1198,16 +1263,16 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     @Override
     public void run() {
       int workloadRetry = 10;
-      if (currentPath != null && !currentPath.isEmpty()) {
+      if (currentInitialPath != null && !currentInitialPath.isEmpty()) {
         LOG.info("Start with existing initial path first.");
         String tmp = "Current Initial Path:\n";
-        for (Transition event : currentPath) {
+        for (Transition event : currentInitialPath) {
           tmp += event.toString() + "\n";
         }
         LOG.info(tmp);
         collectDebug(tmp);
         int transitionCounter = 0;
-        for (Transition event : currentPath) {
+        for (Transition event : currentInitialPath) {
           transitionCounter++;
           executeMidWorkload();
           updateSAMCQueue();
@@ -1233,12 +1298,12 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             } catch (IOException e) {
               LOG.error("", e);
             }
-            if (!initialPathSecondAttempt.contains(pathToString(currentPath))) {
-              currentUnnecessaryInitialPaths.addFirst(currentPath);
+            if (!initialPathSecondAttempt.contains(pathToString(currentInitialPath))) {
+              currentUnnecessaryInitialPaths.addFirst(currentInitialPath);
               LOG.warn("Try this initial path once again, but at low priority. Total Low Priority Initial Path="
                   + (unnecessaryInitialPaths.size() + currentUnnecessaryInitialPaths.size())
                   + " Total Initial Path Second Attempt=" + initialPathSecondAttempt.size());
-              initialPathSecondAttempt.add(pathToString(currentPath));
+              initialPathSecondAttempt.add(pathToString(currentInitialPath));
             }
             loadNextInitialPath(true, false);
             LOG.warn("---- Quit of Path Execution because an error ----");
@@ -1273,7 +1338,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           Path finishedExploringPath = (Path) currentExploringPath.clone();
           convertExecutedAbstractTransitionToReal(finishedExploringPath);
           addPathToFinishedInitialPath(finishedExploringPath);
-          findInitialPaths();
+          evaluateExecutedPath();
           loadNextInitialPath(true, true);
           LOG.info("---- End of Path Execution ----");
           resetTest();
@@ -1295,7 +1360,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         hasWaited = waitEndExploration == 0;
         Transition nextEvent;
         boolean isDirectedEvent = false;
-        if (hasDirectedInitialPath && !hasFinishedDirectedInitialPath && currentPath == null) {
+        if (hasDirectedInitialPath && !hasFinishedDirectedInitialPath && currentInitialPath == null) {
           nextEvent = nextInitialTransition();
           isDirectedEvent = true;
         } else {

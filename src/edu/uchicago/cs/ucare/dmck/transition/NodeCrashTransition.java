@@ -15,24 +15,24 @@ public class NodeCrashTransition extends NodeOperationTransition {
   public static final String ACTION = "nodecrash";
   private static final short ACTION_HASH = (short) ACTION.hashCode();
 
-  protected ModelCheckingServerAbstract checker;
+  protected ModelCheckingServerAbstract dmck;
 
-  public NodeCrashTransition(ModelCheckingServerAbstract checker, int id) {
-    this.checker = checker;
+  public NodeCrashTransition(ModelCheckingServerAbstract dmck, int id) {
+    this.dmck = dmck;
     this.id = id;
   }
 
   @Override
   public boolean apply() {
     LOG.info("Killing node " + id);
-    if (checker.killNode(id, vectorClock)) {
-      checker.numCurrentCrash++;
-      for (Transition t : checker.currentEnabledTransitions) {
+    if (dmck.killNode(id, vectorClock)) {
+      dmck.numCurrentCrash++;
+      for (Transition t : dmck.currentEnabledTransitions) {
         if (t instanceof AbstractNodeStartTransition) {
-          ((AbstractNodeStartTransition) t).setPossibleVectorClock(id, checker.getVectorClock(id, checker.numNode));
+          ((AbstractNodeStartTransition) t).setPossibleVectorClock(id, dmck.getVectorClock(id, dmck.numNode));
         } else if (t instanceof NodeStartTransition) {
           if (((NodeStartTransition) t).id == id) {
-            ((NodeStartTransition) t).setVectorClock(checker.getVectorClock(id, checker.numNode));
+            ((NodeStartTransition) t).setVectorClock(dmck.getVectorClock(id, dmck.numNode));
           }
         }
       }
@@ -88,7 +88,7 @@ public class NodeCrashTransition extends NodeOperationTransition {
 
   @Override
   public synchronized NodeCrashTransition clone() {
-    return new NodeCrashTransition(this.checker, this.id);
+    return new NodeCrashTransition(this.dmck, this.id);
   }
 
   // protected int[][] vectorClock;

@@ -11,7 +11,7 @@ import edu.uchicago.cs.ucare.dmck.transition.Transition;
 
 abstract class InstructionTransition {
 
-  abstract Transition getRealTransition(ModelCheckingServerAbstract checker);
+  abstract Transition getRealTransition(ModelCheckingServerAbstract dmck);
 
 }
 
@@ -26,8 +26,8 @@ class PacketSendInstructionTransition extends InstructionTransition {
   }
 
   @Override
-  Transition getRealTransition(ModelCheckingServerAbstract checker) {
-    for (Object t : checker.currentEnabledTransitions) {
+  Transition getRealTransition(ModelCheckingServerAbstract dmck) {
+    for (Object t : dmck.currentEnabledTransitions) {
       if (t instanceof PacketSendTransition) {
         PacketSendTransition p = (PacketSendTransition) t;
         if (p.getTransitionId() == packetId) {
@@ -49,8 +49,8 @@ class NodeCrashInstructionTransition extends InstructionTransition {
   }
 
   @Override
-  Transition getRealTransition(ModelCheckingServerAbstract checker) {
-    return new NodeCrashTransition(checker, id);
+  Transition getRealTransition(ModelCheckingServerAbstract dmck) {
+    return new NodeCrashTransition(dmck, id);
   }
 
 }
@@ -64,8 +64,8 @@ class NodeStartInstructionTransition extends InstructionTransition {
   }
 
   @Override
-  Transition getRealTransition(ModelCheckingServerAbstract checker) {
-    return new NodeStartTransition(checker, id);
+  Transition getRealTransition(ModelCheckingServerAbstract dmck) {
+    return new NodeStartTransition(dmck, id);
   }
 
 }
@@ -79,7 +79,7 @@ class SleepInstructionTransition extends InstructionTransition {
   }
 
   @Override
-  Transition getRealTransition(ModelCheckingServerAbstract checker) {
+  Transition getRealTransition(ModelCheckingServerAbstract dmck) {
     return new SleepTransition(sleep);
   }
 
@@ -89,7 +89,7 @@ class ExitInstructionTransaction extends InstructionTransition {
 
   @SuppressWarnings("serial")
   @Override
-  Transition getRealTransition(ModelCheckingServerAbstract checker) {
+  Transition getRealTransition(ModelCheckingServerAbstract dmck) {
     return new Transition() {
 
       @Override

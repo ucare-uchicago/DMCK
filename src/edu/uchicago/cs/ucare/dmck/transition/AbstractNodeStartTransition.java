@@ -12,16 +12,16 @@ public class AbstractNodeStartTransition extends AbstractNodeOperationTransition
 
   private final static Logger LOG = LoggerFactory.getLogger(AbstractNodeStartTransition.class);
 
-  public AbstractNodeStartTransition(ModelCheckingServerAbstract checker) {
-    super(checker);
+  public AbstractNodeStartTransition(ModelCheckingServerAbstract dmck) {
+    super(dmck);
   }
 
   public AbstractNodeStartTransition(int numNode) {
     super(numNode);
   }
 
-  public AbstractNodeStartTransition(ModelCheckingServerAbstract checker, boolean isRandom) {
-    super(checker, isRandom);
+  public AbstractNodeStartTransition(ModelCheckingServerAbstract dmck, boolean isRandom) {
+    super(dmck, isRandom);
   }
 
   @Override
@@ -52,7 +52,7 @@ public class AbstractNodeStartTransition extends AbstractNodeOperationTransition
   @Override
   public NodeStartTransition getRealNodeOperationTransition() {
     if (isRandom) {
-      LinkedList<NodeOperationTransition> allPossible = getAllRealNodeOperationTransitions(checker.isNodeOnline);
+      LinkedList<NodeOperationTransition> allPossible = getAllRealNodeOperationTransitions(dmck.isNodeOnline);
       if (allPossible.isEmpty()) {
         LOG.debug("Try to execute start node event, but currently there is no offline node");
         return null;
@@ -60,9 +60,9 @@ public class AbstractNodeStartTransition extends AbstractNodeOperationTransition
       int i = RANDOM.nextInt(allPossible.size());
       return (NodeStartTransition) allPossible.get(i);
     } else {
-      for (int i = 0; i < checker.numNode; ++i) {
-        if (!checker.isNodeOnline(i)) {
-          NodeStartTransition realStart = new NodeStartTransition(checker, i);
+      for (int i = 0; i < dmck.numNode; ++i) {
+        if (!dmck.isNodeOnline(i)) {
+          NodeStartTransition realStart = new NodeStartTransition(dmck, i);
           realStart.setVectorClock(getPossibleVectorClock(i));
           return realStart;
         }
@@ -74,8 +74,8 @@ public class AbstractNodeStartTransition extends AbstractNodeOperationTransition
 
   @Override
   public NodeOperationTransition getRealNodeOperationTransition(int suggestExecuteNodeId) {
-    if (!checker.isNodeOnline(suggestExecuteNodeId)) {
-      NodeStartTransition realStart = new NodeStartTransition(checker, suggestExecuteNodeId);
+    if (!dmck.isNodeOnline(suggestExecuteNodeId)) {
+      NodeStartTransition realStart = new NodeStartTransition(dmck, suggestExecuteNodeId);
       realStart.setVectorClock(getPossibleVectorClock(suggestExecuteNodeId));
       return realStart;
     }
@@ -89,7 +89,7 @@ public class AbstractNodeStartTransition extends AbstractNodeOperationTransition
     LinkedList<NodeOperationTransition> result = new LinkedList<NodeOperationTransition>();
     for (int i = 0; i < onlineStatus.length; ++i) {
       if (!onlineStatus[i]) {
-        NodeStartTransition realStart = new NodeStartTransition(checker, i);
+        NodeStartTransition realStart = new NodeStartTransition(dmck, i);
         realStart.setVectorClock(getPossibleVectorClock(i));
         result.add(realStart);
       }
@@ -100,8 +100,8 @@ public class AbstractNodeStartTransition extends AbstractNodeOperationTransition
   @Override
   public LinkedList<NodeOperationTransition> getAllRealNodeOperationTransitions() {
     LinkedList<NodeOperationTransition> result = new LinkedList<NodeOperationTransition>();
-    for (int i = 0; i < checker.numNode; ++i) {
-      NodeStartTransition realStart = new NodeStartTransition(checker, i);
+    for (int i = 0; i < dmck.numNode; ++i) {
+      NodeStartTransition realStart = new NodeStartTransition(dmck, i);
       realStart.setVectorClock(getPossibleVectorClock(i));
       result.add(realStart);
     }

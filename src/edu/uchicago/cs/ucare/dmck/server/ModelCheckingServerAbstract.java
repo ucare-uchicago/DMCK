@@ -73,12 +73,14 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   protected int globalState;
 
   protected String testRecordDirPath;
+  protected String allEventsDBDirPath;
   protected String idRecordDirPath;
   protected String pathRecordFilePath;
   protected String localRecordFilePath;
   protected String performanceRecordFilePath;
   protected String debugRecordFilePath;
   protected String resultFilePath;
+  protected File allEventsDBDir;
   protected FileOutputStream pathRecordFile;
   protected FileOutputStream localRecordFile;
   protected FileOutputStream performanceRecordFile;
@@ -151,6 +153,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     this.numNode = numNode;
     this.testRecordDirPath = testRecordDirPath;
     this.workingDirPath = workingDirPath;
+    this.allEventsDBDirPath = this.workingDirPath + "/" + "all-events-db";
+    this.allEventsDBDir = new File(this.allEventsDBDirPath);
     this.workloadDriver = workloadDriver;
     this.verifier = workloadDriver.verifier;
     pathRecordFile = null;
@@ -781,7 +785,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       if (!isStarted && isSystemSteady()) {
         isStarted = true;
         initGlobalState();
-        LOG.debug("First system steady state, start model checker thread.");
+        LOG.debug("First system steady state, start dmck thread.");
         modelChecking.start();
       }
     }
@@ -1176,10 +1180,10 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
   abstract protected static class Explorer extends Thread {
 
-    protected ModelCheckingServerAbstract checker;
+    protected ModelCheckingServerAbstract dmck;
 
-    public Explorer(ModelCheckingServerAbstract checker) {
-      this.checker = checker;
+    public Explorer(ModelCheckingServerAbstract dmck) {
+      this.dmck = dmck;
     }
 
   }

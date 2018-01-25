@@ -43,8 +43,8 @@ public class GuideModelChecker extends ModelCheckingServerAbstract {
 
   class ProgramExecutor extends ModelCheckingServerAbstract.Explorer {
 
-    public ProgramExecutor(ModelCheckingServerAbstract checker) {
-      super(checker);
+    public ProgramExecutor(ModelCheckingServerAbstract dmck) {
+      super(dmck);
     }
 
     @Override
@@ -67,7 +67,7 @@ public class GuideModelChecker extends ModelCheckingServerAbstract {
           }
         }
 
-        Transition transition = instruction.getRealTransition(checker);
+        Transition transition = instruction.getRealTransition(dmck);
         if (transition == null) {
           break;
         }
@@ -92,7 +92,7 @@ public class GuideModelChecker extends ModelCheckingServerAbstract {
         String detail = verifier.verificationDetail();
         saveResult(verifiedResult + " ; " + detail + "\n");
 
-        checker.stopEnsemble();
+        dmck.stopEnsemble();
         System.exit(0);
       }
     }
@@ -103,7 +103,7 @@ public class GuideModelChecker extends ModelCheckingServerAbstract {
 
     BufferedReader programReader;
 
-    public ProgramParser(ModelCheckingServerAbstract checker, File program) throws FileNotFoundException {
+    public ProgramParser(ModelCheckingServerAbstract dmck, File program) throws FileNotFoundException {
       this.programReader = new BufferedReader(new FileReader(program));
     }
 

@@ -15,10 +15,10 @@ public class NodeStartTransition extends NodeOperationTransition {
   public static final String ACTION = "nodestart";
   private static final short ACTION_HASH = (short) ACTION.hashCode();
 
-  ModelCheckingServerAbstract checker;
+  ModelCheckingServerAbstract dmck;
 
-  public NodeStartTransition(ModelCheckingServerAbstract checker, int id) {
-    this.checker = checker;
+  public NodeStartTransition(ModelCheckingServerAbstract dmck, int id) {
+    this.dmck = dmck;
     this.id = id;
   }
 
@@ -39,8 +39,8 @@ public class NodeStartTransition extends NodeOperationTransition {
   @Override
   public boolean apply() {
     LOG.info("Start node " + id);
-    if (checker.runNode(id, vectorClock)) {
-      checker.numCurrentReboot++;
+    if (dmck.runNode(id, vectorClock)) {
+      dmck.numCurrentReboot++;
       return true;
     }
     return false;
@@ -75,7 +75,7 @@ public class NodeStartTransition extends NodeOperationTransition {
 
   @Override
   public synchronized NodeStartTransition clone() {
-    return new NodeStartTransition(this.checker, this.id);
+    return new NodeStartTransition(this.dmck, this.id);
   }
 
   // protected int[][] vectorClock;

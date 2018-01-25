@@ -36,6 +36,7 @@ mkdir $working_dir/state
 mkdir $working_dir/console
 mkdir $working_dir/config
 mkdir $working_dir/log
+mkdir $working_dir/all-events-db
 
 cp $scriptdir/mc_log.properties $working_dir/mc_log.properties
 cp $scriptdir/cass_log.properties $working_dir/cass_log.properties

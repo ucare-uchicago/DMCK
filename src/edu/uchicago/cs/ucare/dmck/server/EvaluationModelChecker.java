@@ -324,7 +324,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
   }
 
   @Override
-  protected void calculateInitialPaths() {
+  protected void backtrackExecutedPath() {
     Transition lastTransition;
     while ((lastTransition = currentExploringPath.pollLast()) != null) {
       if (hasDirectedInitialPath && currentExploringPath.size() < directedInitialPath.size()) {
