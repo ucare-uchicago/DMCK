@@ -10,40 +10,40 @@ import edu.uchicago.cs.ucare.dmck.transition.Transition;
 
 public class EventCausality {
 
-	protected final Logger LOG = LoggerFactory.getLogger(this.getClass());
+  protected final Logger LOG = LoggerFactory.getLogger(this.getClass());
 
-	private LinkedList<Transition> prevEvents;
-	private LinkedList<Transition> directParents;
-	private Transition child;
+  private LinkedList<Transition> prevEvents;
+  private LinkedList<Transition> directParents;
+  private Transition child;
 
-	public EventCausality(Transition event, List<Transition> list) {
-		child = event;
-		prevEvents = (LinkedList<Transition>) list;
+  public EventCausality(Transition event, List<Transition> list) {
+    child = event;
+    prevEvents = (LinkedList<Transition>) list;
 
-		if (prevEvents == null) {
-			directParents = null;
-		}
-	}
+    if (prevEvents == null) {
+      directParents = null;
+    }
+  }
 
-	public LinkedList<Transition> getPrevEvents() {
-		return prevEvents;
-	}
+  public LinkedList<Transition> getPrevEvents() {
+    return prevEvents;
+  }
 
-	public LinkedList<Transition> getDirectParents() {
-		return directParents;
-	}
+  public LinkedList<Transition> getDirectParents() {
+    return directParents;
+  }
 
-	public Transition getChild() {
-		return child;
-	}
+  public Transition getChild() {
+    return child;
+  }
 
-	public void setDirectParents(List<Transition> list) {
-		directParents = (LinkedList<Transition>) list;
+  public void setDirectParents(List<Transition> list) {
+    directParents = (LinkedList<Transition>) list;
 
-		String tmp = "Direct Parents of " + child.toString() + ":\n";
-		for (Transition t : directParents) {
-			tmp += t.toString() + "\n";
-		}
-		LOG.debug(tmp);
-	}
+    String tmp = "Direct Parents of " + child.toString() + ":\n";
+    for (Transition t : directParents) {
+      tmp += t.toString() + "\n";
+    }
+    LOG.debug(tmp);
+  }
 }

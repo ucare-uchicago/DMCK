@@ -4,91 +4,109 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.LinkedList;
 
+import edu.uchicago.cs.ucare.dmck.transition.NodeCrashTransition;
 import edu.uchicago.cs.ucare.dmck.transition.NodeOperationTransition;
+import edu.uchicago.cs.ucare.dmck.transition.NodeStartTransition;
 import edu.uchicago.cs.ucare.dmck.transition.PacketSendTransition;
-import edu.uchicago.cs.ucare.dmck.transition.TransitionTuple;
+import edu.uchicago.cs.ucare.dmck.transition.Transition;
 
-public class Path extends LinkedList<TransitionTuple> implements Serializable {
+public class Path extends LinkedList<Transition> implements Serializable {
 
-	/**
-	 *
-	 */
-	private static final long serialVersionUID = 7359356166185399233L;
+  /**
+   *
+   */
+  private static final long serialVersionUID = 7359356166185399233L;
 
   private int myId;
 
   private int myParentId;
 
-	public Path() {
-		super();
-	}
+  public Path() {
+    super();
+  }
 
-	public Path(Collection<TransitionTuple> transitionTuples) {
-		super(transitionTuples);
-	}
 
-	public Path(Path transitionTuples) {
-		super(transitionTuples);
-	}
+  public Path(Collection<Transition> transitions) {
+    super(transitions);
+  }
 
-	public void setId(int id) {
-		this.myId = id;
-	}
+  public Path(Path transitions) {
+    super(transitions);
+  }
 
-	public int getId() {
-		return myId;
-	}
+  public void setId(int id) {
+    this.myId = id;
+  }
 
-	public void setParentId(int parentId) {
-		this.myParentId = parentId;
-	}
+  public int getId() {
+    return myId;
+  }
 
-	public int getParentId() {
-		return myParentId;
-	}
+  public void setParentId(int parentId) {
+    this.myParentId = parentId;
+  }
+
+  public int getParentId() {
+    return myParentId;
+  }
 
   public PathMeta toPathMeta() {
     return new PathMeta(myId, myParentId, Path.pathToString(this));
   }
 
-	@Override
-	public Path clone() {
-		return new Path(this);
-	}
+  @Override
+  public Path clone() {
+    return new Path(this);
+  }
 
-	public Path getSerializable(int numNode) {
-		Path retVal = new Path(new LinkedList<TransitionTuple>());
+  public Path getSerializable(int numNode) {
+    Path retVal = new Path(new LinkedList<Transition>());
 
-		for (TransitionTuple realTuple : this) {
-			retVal.add(realTuple.getSerializable(numNode));
-		}
+    for (Transition transition : this) {
+      retVal.add(transition.getSerializable(numNode));
+    }
 
-		return retVal;
-	}
+    return retVal;
+  }
 
-	@Override
-	public String toString() {
-		return Path.pathToString(this);
-	}
+  // Current expected events to add into Path List are only
+  // PacketSendTransition, NodeCrashTransition, and NodeStartTransition.
+  // Otherwise, DMCK will throw exception, since we try to add unknown type of
+  // events.
+  public void addTransition(Transition ev) {
+    if (ev instanceof PacketSendTransition) {
+      this.add(((PacketSendTransition) ev).clone());
+    } else if (ev instanceof NodeCrashTransition) {
+      this.add(((NodeCrashTransition) ev).clone());
+    } else if (ev instanceof NodeStartTransition) {
+      this.add(((NodeStartTransition) ev).clone());
+    } else {
+      throw new RuntimeException("Add unknown transition ev=" + ev.toString());
+    }
+  }
 
-	public static String pathToString(Path initialPath) {
-		String path = "";
-		for (int i = 0; i < initialPath.size(); i++) {
-			if (initialPath.get(i).transition instanceof PacketSendTransition) {
-				if (i == 0) {
-					path = String.valueOf(initialPath.get(i).transition.getTransitionId());
-				} else {
-					path += "," + String.valueOf(initialPath.get(i).transition.getTransitionId());
-				}
-			} else {
-				if (i == 0) {
-					path = ((NodeOperationTransition) initialPath.get(i).transition).toStringForFutureExecution();
-				} else {
-					path += ","
-							+ ((NodeOperationTransition) initialPath.get(i).transition).toStringForFutureExecution();
-				}
-			}
-		}
-		return path;
-	}
+  @Override
+  public String toString() {
+    return Path.pathToString(this);
+  }
+
+  public static String pathToString(Path path) {
+    String result = "";
+    for (int i = 0; i < path.size(); i++) {
+      if (path.get(i) instanceof PacketSendTransition) {
+        if (i == 0) {
+          result = String.valueOf(path.get(i).getTransitionId());
+        } else {
+          result += "," + String.valueOf(path.get(i).getTransitionId());
+        }
+      } else {
+        if (i == 0) {
+          result = ((NodeOperationTransition) path.get(i)).toStringForFutureExecution();
+        } else {
+          result += "," + ((NodeOperationTransition) path.get(i)).toStringForFutureExecution();
+        }
+      }
+    }
+    return result;
+  }
 }

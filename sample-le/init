@@ -27,6 +27,7 @@ $scriptdir/genmc $mc_name $num_node $num_crash $strategy $working_dir $use_ipc $
 mkdir $working_dir/record
 mkdir $working_dir/state
 mkdir $working_dir/console
+mkdir $working_dir/all-events-db
 
 mkdir $working_dir/bin
 cp $scriptdir/resettest $working_dir/bin/resettest

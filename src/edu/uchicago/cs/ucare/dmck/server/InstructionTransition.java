@@ -11,129 +11,103 @@ import edu.uchicago.cs.ucare.dmck.transition.Transition;
 
 abstract class InstructionTransition {
 
-	abstract Transition getRealTransition(ModelCheckingServerAbstract checker);
+  abstract Transition getRealTransition(ModelCheckingServerAbstract dmck);
 
 }
 
 class PacketSendInstructionTransition extends InstructionTransition {
 
-	protected final Logger LOG = LoggerFactory.getLogger(this.getClass());;
+  protected final Logger LOG = LoggerFactory.getLogger(this.getClass());;
 
-	long packetId;
+  long packetId;
 
-	public PacketSendInstructionTransition(long packetId) {
-		this.packetId = packetId;
-	}
+  public PacketSendInstructionTransition(long packetId) {
+    this.packetId = packetId;
+  }
 
-	@Override
-	Transition getRealTransition(ModelCheckingServerAbstract checker) {
-		if (packetId == 0) {
-			return (Transition) checker.currentEnabledTransitions.peekFirst();
-		}
-		for (int i = 0; i < 20; ++i) {
-			for (Object t : checker.currentEnabledTransitions) {
-				if (t instanceof PacketSendTransition) {
-					PacketSendTransition p = (PacketSendTransition) t;
-					if (p.getTransitionId() == packetId) {
-						return p;
-					}
-				}
-			}
-			try {
-				Thread.sleep(checker.steadyStateTimeout / 2);
-				checker.updateSAMCQueue();
-			} catch (InterruptedException e) {
-				LOG.error("", e);
-			}
-		}
-		throw new RuntimeException("No expected enabled packet for " + packetId);
-	}
+  @Override
+  Transition getRealTransition(ModelCheckingServerAbstract dmck) {
+    for (Object t : dmck.currentEnabledTransitions) {
+      if (t instanceof PacketSendTransition) {
+        PacketSendTransition p = (PacketSendTransition) t;
+        if (p.getTransitionId() == packetId) {
+          return p;
+        }
+      }
+    }
+    return null;
+  }
 
 }
 
 class NodeCrashInstructionTransition extends InstructionTransition {
 
-	int id;
+  int id;
 
-	protected NodeCrashInstructionTransition(int id) {
-		this.id = id;
-	}
+  protected NodeCrashInstructionTransition(int id) {
+    this.id = id;
+  }
 
-	@Override
-	Transition getRealTransition(ModelCheckingServerAbstract checker) {
-		return new NodeCrashTransition(checker, id);
-	}
+  @Override
+  Transition getRealTransition(ModelCheckingServerAbstract dmck) {
+    return new NodeCrashTransition(dmck, id);
+  }
 
 }
 
 class NodeStartInstructionTransition extends InstructionTransition {
 
-	int id;
+  int id;
 
-	protected NodeStartInstructionTransition(int id) {
-		this.id = id;
-	}
+  protected NodeStartInstructionTransition(int id) {
+    this.id = id;
+  }
 
-	@Override
-	Transition getRealTransition(ModelCheckingServerAbstract checker) {
-		return new NodeStartTransition(checker, id);
-	}
+  @Override
+  Transition getRealTransition(ModelCheckingServerAbstract dmck) {
+    return new NodeStartTransition(dmck, id);
+  }
 
 }
 
 class SleepInstructionTransition extends InstructionTransition {
 
-	long sleep;
+  long sleep;
 
-	protected SleepInstructionTransition(long sleep) {
-		this.sleep = sleep;
-	}
+  protected SleepInstructionTransition(long sleep) {
+    this.sleep = sleep;
+  }
 
-	@Override
-	Transition getRealTransition(ModelCheckingServerAbstract checker) {
-		return new SleepTransition(sleep);
-		/*
-		 * return new Transition() {
-		 * 
-		 * @Override public boolean apply() { try { Thread.sleep(sleep); } catch
-		 * (InterruptedException e) { return false; } return true; }
-		 * 
-		 * @Override public int getTransitionId() { return 0; }
-		 * 
-		 * @Override public String toString(){ return "Sleep=" + sleep; }
-		 * 
-		 * @Override public int[][] getVectorClock() { throw new
-		 * UnsupportedOperationException("Not implemented"); }
-		 * 
-		 * };
-		 */
-	}
+  @Override
+  Transition getRealTransition(ModelCheckingServerAbstract dmck) {
+    return new SleepTransition(sleep);
+  }
 
 }
 
 class ExitInstructionTransaction extends InstructionTransition {
 
-	@SuppressWarnings("serial")
-	@Override
-	Transition getRealTransition(ModelCheckingServerAbstract checker) {
-		return new Transition() {
+  @SuppressWarnings("serial")
+  @Override
+  Transition getRealTransition(ModelCheckingServerAbstract dmck) {
+    return new Transition() {
 
-			@Override
-			public long getTransitionId() {
-				return 0;
-			}
+      @Override
+      public long getTransitionId() {
+        return 0;
+      }
 
-			@Override
-			public boolean apply() {
-				System.exit(0);
-				return true;
-			}
+      @Override
+      public boolean apply() {
+        System.exit(0);
+        return true;
+      }
 
-			@Override
-			public int[][] getVectorClock() {
-				throw new UnsupportedOperationException("Not implemented");
-			}
-		};
-	}
+      @Override
+      public int[][] getVectorClock() {
+        throw new UnsupportedOperationException("Not implemented");
+      }
+    };
+  }
 
 }
