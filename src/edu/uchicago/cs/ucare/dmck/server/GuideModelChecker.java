@@ -10,7 +10,6 @@ import java.util.LinkedList;
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.transition.PacketSendTransition;
 import edu.uchicago.cs.ucare.dmck.transition.Transition;
-import edu.uchicago.cs.ucare.dmck.util.WorkloadDriver;
 
 public class GuideModelChecker extends ModelCheckingServerAbstract {
 

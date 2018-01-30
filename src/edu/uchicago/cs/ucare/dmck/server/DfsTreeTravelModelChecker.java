@@ -4,7 +4,6 @@ import java.util.LinkedList;
 import java.util.ListIterator;
 
 import edu.uchicago.cs.ucare.dmck.transition.Transition;
-import edu.uchicago.cs.ucare.dmck.util.WorkloadDriver;
 
 public class DfsTreeTravelModelChecker extends TreeTravelModelChecker {
 

@@ -1,4 +1,4 @@
-package edu.uchicago.cs.ucare.dmck.util;
+package edu.uchicago.cs.ucare.dmck.server;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

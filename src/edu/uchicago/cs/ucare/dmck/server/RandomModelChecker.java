@@ -13,7 +13,6 @@ import edu.uchicago.cs.ucare.dmck.transition.NodeOperationTransition;
 import edu.uchicago.cs.ucare.dmck.transition.Transition;
 import edu.uchicago.cs.ucare.dmck.util.ExploredBranchRecorder;
 import edu.uchicago.cs.ucare.dmck.util.SqliteExploredBranchRecorder;
-import edu.uchicago.cs.ucare.dmck.util.WorkloadDriver;
 
 public class RandomModelChecker extends ModelCheckingServerAbstract {
 

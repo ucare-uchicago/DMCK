@@ -5,7 +5,7 @@ import java.util.Properties;
 
 import org.apache.log4j.Logger;
 
-import edu.uchicago.cs.ucare.dmck.util.SpecVerifier;
+import edu.uchicago.cs.ucare.dmck.server.SpecVerifier;
 
 public class CassVerifier extends SpecVerifier {
 

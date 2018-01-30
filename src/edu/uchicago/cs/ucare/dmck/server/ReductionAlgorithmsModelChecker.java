@@ -39,7 +39,6 @@ import edu.uchicago.cs.ucare.dmck.util.ExploredBranchRecorder;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
 import edu.uchicago.cs.ucare.dmck.util.SqliteExploredBranchRecorder;
 import edu.uchicago.cs.ucare.dmck.util.VectorClockUtil;
-import edu.uchicago.cs.ucare.dmck.util.WorkloadDriver;
 
 public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServerAbstract {
 

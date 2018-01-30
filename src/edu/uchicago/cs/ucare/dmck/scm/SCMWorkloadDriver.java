@@ -3,9 +3,10 @@ package edu.uchicago.cs.ucare.dmck.scm;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.io.IOException;
 
-import edu.uchicago.cs.ucare.dmck.util.WorkloadDriver;
+import edu.uchicago.cs.ucare.dmck.server.WorkloadDriver;
+
+import java.io.IOException;
 
 public class SCMWorkloadDriver extends WorkloadDriver {
 

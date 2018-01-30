@@ -37,8 +37,6 @@ import edu.uchicago.cs.ucare.dmck.transition.PacketSendTransition;
 import edu.uchicago.cs.ucare.dmck.transition.SleepTransition;
 import edu.uchicago.cs.ucare.dmck.transition.Transition;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
-import edu.uchicago.cs.ucare.dmck.util.SpecVerifier;
-import edu.uchicago.cs.ucare.dmck.util.WorkloadDriver;
 import edu.uchicago.cs.ucare.example.election.LeaderElectionMain;
 
 public abstract class ModelCheckingServerAbstract implements ModelCheckingServer {

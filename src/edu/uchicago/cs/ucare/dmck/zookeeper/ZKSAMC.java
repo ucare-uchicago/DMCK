@@ -5,12 +5,12 @@ import java.util.HashMap;
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.server.EvaluationModelChecker;
 import edu.uchicago.cs.ucare.dmck.server.FileWatcher;
+import edu.uchicago.cs.ucare.dmck.server.WorkloadDriver;
 import edu.uchicago.cs.ucare.dmck.transition.NodeCrashTransition;
 import edu.uchicago.cs.ucare.dmck.transition.NodeOperationTransition;
 import edu.uchicago.cs.ucare.dmck.transition.NodeStartTransition;
 import edu.uchicago.cs.ucare.dmck.transition.Transition;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
-import edu.uchicago.cs.ucare.dmck.util.WorkloadDriver;
 
 public class ZKSAMC extends EvaluationModelChecker {
 

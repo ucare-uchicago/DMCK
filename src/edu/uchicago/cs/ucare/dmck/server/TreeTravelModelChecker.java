@@ -11,7 +11,6 @@ import edu.uchicago.cs.ucare.dmck.transition.NodeStartTransition;
 import edu.uchicago.cs.ucare.dmck.transition.Transition;
 import edu.uchicago.cs.ucare.dmck.util.ExploredBranchRecorder;
 import edu.uchicago.cs.ucare.dmck.util.SqliteExploredBranchRecorder;
-import edu.uchicago.cs.ucare.dmck.util.WorkloadDriver;
 
 public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract {
 

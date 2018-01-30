@@ -8,9 +8,6 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.uchicago.cs.ucare.dmck.util.SpecVerifier;
-import edu.uchicago.cs.ucare.dmck.util.WorkloadDriver;
-
 public class DMCKRunner {
 
   final static Logger LOG = LoggerFactory.getLogger(DMCKRunner.class);
@@ -74,7 +71,6 @@ public class DMCKRunner {
       targetSysDir = targetSysConfig.getProperty("target_sys_dir");
       explorationStrategy = targetSysConfig.getProperty("exploring_strategy");
       fileWatcherClass = targetSysConfig.getProperty("file_watcher");
-      verifierClass = targetSysConfig.getProperty("verifier");
       workloadDriverClass = targetSysConfig.getProperty("workload_driver");
       testRecordDir = targetSysConfig.getProperty("test_record_dir");
       traversalRecordDir = targetSysConfig.getProperty("traversal_record_dir");
@@ -82,6 +78,7 @@ public class DMCKRunner {
 
       // optional configuration in target-sys.conf
       ipcDir = targetSysConfig.getProperty("ipc_dir", "/tmp/ipc");
+      verifierClass = targetSysConfig.getProperty("verifier", "edu.uchicago.cs.ucare.dmck.server.SpecVerifier");
       directedInitialPath = targetSysConfig.getProperty("initial_path", "");
       expectedResultPath = targetSysConfig.getProperty("expected_result_path", "");
       numCrash = Integer.parseInt(targetSysConfig.getProperty("num_crash", "0"));

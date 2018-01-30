@@ -1,6 +1,6 @@
 package edu.uchicago.cs.ucare.dmck.cassandra;
 
-import edu.uchicago.cs.ucare.dmck.util.WorkloadDriver;
+import edu.uchicago.cs.ucare.dmck.server.WorkloadDriver;
 
 public class CassWorkloadDriver extends WorkloadDriver {
 

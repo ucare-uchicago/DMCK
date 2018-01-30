@@ -4,8 +4,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
+import edu.uchicago.cs.ucare.dmck.server.SpecVerifier;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
-import edu.uchicago.cs.ucare.dmck.util.SpecVerifier;
 import edu.uchicago.cs.ucare.example.election.LeaderElectionMain;
 
 public class LeaderElectionVerifier extends SpecVerifier {

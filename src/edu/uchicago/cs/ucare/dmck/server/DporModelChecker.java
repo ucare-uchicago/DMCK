@@ -5,7 +5,6 @@ import edu.uchicago.cs.ucare.dmck.transition.NodeCrashTransition;
 import edu.uchicago.cs.ucare.dmck.transition.NodeOperationTransition;
 import edu.uchicago.cs.ucare.dmck.transition.Transition;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
-import edu.uchicago.cs.ucare.dmck.util.WorkloadDriver;
 
 public class DporModelChecker extends EvaluationModelChecker {
 

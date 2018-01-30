@@ -1,6 +1,6 @@
 package edu.uchicago.cs.ucare.dmck.zookeeper;
 
-import edu.uchicago.cs.ucare.dmck.util.WorkloadDriver;
+import edu.uchicago.cs.ucare.dmck.server.WorkloadDriver;
 
 public class ZKWorkloadDriver extends WorkloadDriver {
 

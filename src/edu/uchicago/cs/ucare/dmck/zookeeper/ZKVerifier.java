@@ -5,8 +5,8 @@ import java.util.Properties;
 
 import org.apache.log4j.Logger;
 
+import edu.uchicago.cs.ucare.dmck.server.SpecVerifier;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
-import edu.uchicago.cs.ucare.dmck.util.SpecVerifier;
 
 public class ZKVerifier extends SpecVerifier {
 

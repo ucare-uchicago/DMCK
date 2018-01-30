@@ -1,8 +1,6 @@
-package edu.uchicago.cs.ucare.dmck.util;
+package edu.uchicago.cs.ucare.dmck.server;
 
-import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
-
-public abstract class SpecVerifier {
+public class SpecVerifier {
 
   public ModelCheckingServerAbstract modelCheckingServer;
 

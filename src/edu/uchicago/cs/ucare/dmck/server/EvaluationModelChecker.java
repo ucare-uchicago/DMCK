@@ -14,7 +14,6 @@ import edu.uchicago.cs.ucare.dmck.transition.NodeStartTransition;
 import edu.uchicago.cs.ucare.dmck.transition.PacketSendTransition;
 import edu.uchicago.cs.ucare.dmck.transition.Transition;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
-import edu.uchicago.cs.ucare.dmck.util.WorkloadDriver;
 
 public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChecker {
 
