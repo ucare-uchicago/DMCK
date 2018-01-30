@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [ $# -ne 1 ]; then
+  echo "usage: resettest <test_id>"
+  exit 1
+fi
+
+. ./readconfig
+
+test_id=$1
+
+last_node_id=`expr $num_node - 1`
+
+for i in `seq 0 $last_node_id`; do
+  mkdir -p $working_dir/log/$test_id/node-$i
+done
+

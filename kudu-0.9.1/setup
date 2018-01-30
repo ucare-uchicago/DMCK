@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+script_dir=`dirname $0`
+
+conf_file=$script_dir/target-sys.conf
+
+vars="`set -o posix ; set`"; source $conf_file; other_vars="`grep -vFe "$vars" <<<"$(set -o posix ; set)" | grep -v ^vars=`"; unset vars;
+other_vars=`echo $other_vars | sed 's/working_dir=[a-zA-Z0-9\/\-]*//'`
+other_vars=`echo $other_vars | sed 's/ipc_dir=[a-zA-Z0-9\/\-]*//'`
+other_vars=`echo $other_vars | sed 's/num_node=[0-9]*//'`
+
+# prepare kudu files
+rm -r $working_dir/* 2> /dev/null
+mkdir -p $working_dir
+cp $script_dir/*.sh $working_dir/
+chmod 755 $working_dir/*.sh
+cp $script_dir/readconfig $working_dir/readconfig
+cp $script_dir/*.conf $working_dir/
+cp $script_dir/resettest $working_dir/resettest
+chmod 755 $working_dir/resettest
+echo traversal_record_dir=$working_dir/state >> $working_dir/target-sys.conf
+echo test_record_dir=$working_dir/record >> $working_dir/target-sys.conf
+
+# prepare log directories & config file
+mkdir $working_dir/record
+mkdir $working_dir/state
+mkdir $working_dir/data
+mkdir $working_dir/wal
+mkdir $working_dir/log
+mkdir $working_dir/all-events-db
+
+cp $script_dir/mc_log.properties $working_dir/
+
+# specific preparation for each node
+i=0
+while [ $i -lt $num_node ]; do
+  mkdir -p $working_dir/data/node-$i
+  mkdir -p $working_dir/wal/node-$i
+  i=`expr $i + 1`
+done
+
+echo "DMCK is ready in $working_dir"
+
+# prepare ipc folders
+rm -r $ipc_dir/* 2> /dev/null
+mkdir -p $ipc_dir
+mkdir $ipc_dir/new
+mkdir $ipc_dir/send
+mkdir $ipc_dir/ack
+echo "IPC-File dirs for DMCK are ready in $ipc_dir"
