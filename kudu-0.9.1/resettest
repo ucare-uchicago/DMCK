@@ -9,9 +9,16 @@ fi
 
 test_id=$1
 
+# Reset log dir
 last_node_id=`expr $num_node - 1`
-
 for i in `seq 0 $last_node_id`; do
   mkdir -p $working_dir/log/$test_id/node-$i
 done
 
+# Reset data dir
+rm -r $working_dir/data
+cp -r $dmck_dir/kudu-0.9.1/data $working_dir/
+
+# Reset wal dir
+rm -r $working_dir/wal
+cp -r $dmck_dir/kudu-0.9.1/wal $working_dir/

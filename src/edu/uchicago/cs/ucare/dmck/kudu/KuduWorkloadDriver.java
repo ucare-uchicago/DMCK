@@ -10,12 +10,17 @@ public class KuduWorkloadDriver extends WorkloadDriver {
 
   @Override
   public void startWorkload() {
-    
+    try {
+      LOG.debug("Start Kudu Workload");
+      Runtime.getRuntime().exec(workingDir + "/startWorkload.sh " + testId);
+    } catch (Exception e) {
+      LOG.error("Error in executing startWorkload.sh");
+    }
   }
 
   @Override
   public void stopWorkload() {
-    
+    // Nothing
   }
 
 }
