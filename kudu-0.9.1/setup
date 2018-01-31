@@ -21,11 +21,13 @@ chmod 755 $working_dir/resettest
 echo traversal_record_dir=$working_dir/state >> $working_dir/target-sys.conf
 echo test_record_dir=$working_dir/record >> $working_dir/target-sys.conf
 
+# copy initial KUDU data and wal dirs
+cp -r $script_dir/data $working_dir/
+cp -r $script_dir/wal $working_dir/
+
 # prepare log directories & config file
 mkdir $working_dir/record
 mkdir $working_dir/state
-mkdir $working_dir/data
-mkdir $working_dir/wal
 mkdir $working_dir/log
 mkdir $working_dir/all-events-db
 
