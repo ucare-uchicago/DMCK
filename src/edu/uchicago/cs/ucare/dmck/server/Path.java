@@ -13,13 +13,18 @@ import edu.uchicago.cs.ucare.dmck.transition.Transition;
 public class Path extends LinkedList<Transition> implements Serializable {
 
   /**
-   * 
+   *
    */
   private static final long serialVersionUID = 7359356166185399233L;
+
+  private int myId;
+
+  private int myParentId;
 
   public Path() {
     super();
   }
+
 
   public Path(Collection<Transition> transitions) {
     super(transitions);
@@ -27,6 +32,26 @@ public class Path extends LinkedList<Transition> implements Serializable {
 
   public Path(Path transitions) {
     super(transitions);
+  }
+
+  public void setId(int id) {
+    this.myId = id;
+  }
+
+  public int getId() {
+    return myId;
+  }
+
+  public void setParentId(int parentId) {
+    this.myParentId = parentId;
+  }
+
+  public int getParentId() {
+    return myParentId;
+  }
+
+  public PathMeta toPathMeta() {
+    return new PathMeta(myId, myParentId, Path.pathToString(this));
   }
 
   @Override

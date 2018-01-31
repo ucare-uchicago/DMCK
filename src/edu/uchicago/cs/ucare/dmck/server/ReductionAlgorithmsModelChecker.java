@@ -57,9 +57,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   LinkedList<Path> unnecessaryInitialPaths;
   LinkedList<Path> currentUnnecessaryInitialPaths;
 
-  HashSet<String> finishedInitialPaths;
-  HashSet<String> currentFinishedInitialPaths;
-  HashSet<String> initialPathSecondAttempt;
+  HashSet<PathMeta> finishedInitialPaths;
+  HashSet<PathMeta> currentFinishedInitialPaths;
+  HashSet<PathMeta> initialPathSecondAttempt;
   Path currentInitialPath;
   Path currentExploringPath = new Path();
 
@@ -105,9 +105,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     currentInitialPaths = new LinkedList<Path>();
     unnecessaryInitialPaths = new LinkedList<Path>();
     currentUnnecessaryInitialPaths = new LinkedList<Path>();
-    finishedInitialPaths = new HashSet<String>();
-    currentFinishedInitialPaths = new HashSet<String>();
-    initialPathSecondAttempt = new HashSet<String>();
+    finishedInitialPaths = new HashSet<PathMeta>();
+    currentFinishedInitialPaths = new HashSet<PathMeta>();
+    initialPathSecondAttempt = new HashSet<PathMeta>();
     incompleteEventHistory = new LinkedList<AbstractGlobalStates>();
     eventHistory = new LinkedList<AbstractGlobalStates>();
     eventImpacts = new LinkedList<AbstractEventConsequence>();
@@ -241,7 +241,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
   }
 
-  protected void loadEventIDsPaths(Collection<String> pathQueue, int numRecord, String fileName) {
+  protected void loadEventIDsPaths(Collection<PathMeta> pathQueue, int numRecord, String fileName) {
     for (int i = 1; i <= numRecord; i++) {
       File listOfPathsFile = new File(testRecordDirPath + "/" + i + "/" + fileName);
       if (listOfPathsFile.exists()) {
@@ -249,7 +249,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(listOfPathsFile)));
           String path;
           while ((path = br.readLine()) != null) {
-            pathQueue.add(path.trim());
+            pathQueue.add(new PathMeta(path.trim()));
           }
           br.close();
         } catch (FileNotFoundException e) {
@@ -536,7 +536,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
   protected void addPathToFinishedInitialPath(Path path) {
     String newHistoryPath = pathToString(path);
-    currentFinishedInitialPaths.add(newHistoryPath);
+    currentFinishedInitialPaths.add(new PathMeta(newHistoryPath));
   }
 
   protected boolean isIdenticalHistoricalPath(String currentPath, String historicalPathNodes) {
@@ -551,14 +551,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   protected boolean pathExistInHistory(Path path) {
-    String currentPath = pathToString(path);
-    for (String finishedPath : currentFinishedInitialPaths) {
-      if (isIdenticalHistoricalPath(currentPath, finishedPath)) {
+    PathMeta currentPath = path.toPathMeta();
+    for (PathMeta finishedPath : currentFinishedInitialPaths) {
+      if (isIdenticalHistoricalPath(currentPath.getPathString(), finishedPath.getPathString())) {
         return true;
       }
     }
-    for (String finishedPath : finishedInitialPaths) {
-      if (isIdenticalHistoricalPath(currentPath, finishedPath)) {
+    for (PathMeta finishedPath : finishedInitialPaths) {
+      if (isIdenticalHistoricalPath(currentPath.getPathString(), finishedPath.getPathString())) {
         return true;
       }
     }
@@ -800,14 +800,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return false;
   }
 
-  protected boolean saveEventIDsPaths(Collection<String> pathsQueue, String fileName) {
+  protected boolean saveEventIDsPaths(Collection<PathMeta> pathsQueue, String fileName) {
     if (pathsQueue.size() > 0) {
       try {
         BufferedWriter bw = new BufferedWriter(
             new OutputStreamWriter(new FileOutputStream(new File(idRecordDirPath + "/" + fileName))));
         String paths = "";
-        for (String path : pathsQueue) {
-          paths += path + "\n";
+        for (PathMeta path : pathsQueue) {
+          paths += path.getPathString() + "\n";
         }
         bw.write(paths);
         bw.close();
@@ -1302,7 +1302,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
               LOG.warn("Try this initial path once again, but at low priority. Total Low Priority Initial Path="
                   + (unnecessaryInitialPaths.size() + currentUnnecessaryInitialPaths.size())
                   + " Total Initial Path Second Attempt=" + initialPathSecondAttempt.size());
-              initialPathSecondAttempt.add(pathToString(currentInitialPath));
+              initialPathSecondAttempt.add(currentInitialPath.toPathMeta());
             }
             loadNextInitialPath(true, false);
             LOG.warn("---- Quit of Path Execution because an error ----");
