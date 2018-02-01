@@ -107,7 +107,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   protected boolean tcpParadigm;
 
   // dmck vars for Cass
-  public HashMap<Integer, String> isApplied;
+  public HashMap<Integer, String> workloadHasApplied;
 
   // dmck vars for Raft
   protected int leaderElectionTimeout;
@@ -140,6 +140,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   public int currentStep;
   public Timestamp lastTimeEnabledEvent;
   public Timestamp lastTimeNewEventOrStateUpdate;
+  public Timestamp startTimePathExecution;
+  public Timestamp endTimePathExecution;
 
   @SuppressWarnings("unchecked")
   public ModelCheckingServerAbstract(String dmckName, FileWatcher fileWatcher, int numNode, String testRecordDirPath,
@@ -510,6 +512,9 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   }
 
   public boolean startEnsemble() {
+    // Performance metrics
+    startTimePathExecution = new Timestamp(System.currentTimeMillis());
+
     for (int i = 0; i < numNode; ++i) {
       setNodeOnline(i, true);
     }
@@ -645,7 +650,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     }
   }
 
-  public void collectPerformanceMetrics() {
+  public void collectPerformancePerEventMetrics() {
     if (currentStep > 0) {
       // Performance evaluation: Collect Round-trip time for DMCK in enabling an event
       // and receiving next event(s) or/and node state update(s)
@@ -666,6 +671,22 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       }
     }
     currentStep++;
+  }
+
+  public void collectPerformancePerPathMetrics() {
+    // Performance evaluation: Collect time spent to execute a single path
+    endTimePathExecution = new Timestamp(System.currentTimeMillis());
+    long totalPathExecutionTime = endTimePathExecution.getTime() - startTimePathExecution.getTime();
+
+    String content = "-------\n";
+    content += "SUMMARY\n";
+    content += "-------\n";
+    content += " : max-roundtrip-time=" + totalPathExecutionTime + "ms;\n";
+    try {
+      performanceRecordFile.write(content.getBytes());
+    } catch (Exception e) {
+      LOG.error("", e);
+    }
   }
 
   public void updateVectorClock(Event packet) {
@@ -722,7 +743,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
             + packet.getValue(Event.FILENAME));
 
         // Performance evaluation
-        collectPerformanceMetrics();
+        collectPerformancePerEventMetrics();
         lastTimeEnabledEvent = new Timestamp(System.currentTimeMillis());
 
         updateVectorClock(packet);
@@ -753,7 +774,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
               + packet.getValue(Event.FILENAME));
 
           // Performance evaluation
-          collectPerformanceMetrics();
+          collectPerformancePerEventMetrics();
           lastTimeEnabledEvent = new Timestamp(System.currentTimeMillis());
         } catch (Exception e) {
           LOG.error("Error in creating commit file : " + packet.getValue(Event.FILENAME));
@@ -930,7 +951,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
     // system specific
     if (dmckName.equals("cassChecker")) {
-      this.isApplied = new HashMap<Integer, String>();
+      this.workloadHasApplied = new HashMap<Integer, String>();
     }
   }
 

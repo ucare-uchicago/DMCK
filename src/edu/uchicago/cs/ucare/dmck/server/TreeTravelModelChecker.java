@@ -148,7 +148,8 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
           LOG.info("---- End of a Path Execution ----");
 
           // Performance evaluation
-          collectPerformanceMetrics();
+          collectPerformancePerEventMetrics();
+          collectPerformancePerPathMetrics();
 
           boolean verifiedResult = verifier.verify();
           String detail = verifier.verificationDetail();
@@ -174,8 +175,8 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
               break;
             }
           }
+          LOG.info("---- End of Path Evaluation ----");
           if (!hasExploredAll) {
-            LOG.debug("Reset Test");
             resetTest();
           } else if (exploredBranchRecorder.getCurrentDepth() == 0) {
             hasFinishedAllExploration = true;

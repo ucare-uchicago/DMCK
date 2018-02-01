@@ -130,15 +130,18 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
         updateSAMCQueue();
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
         if (terminationPoint && hasWaited) {
+          LOG.info("---- End of Path Execution ----");
+
           // Performance evaluation
-          collectPerformanceMetrics();
+          collectPerformancePerEventMetrics();
+          collectPerformancePerPathMetrics();
 
           boolean verifiedResult = verifier.verify();
           String detail = verifier.verificationDetail();
           saveResult(verifiedResult + " ; " + detail + "\n");
           recordTestId();
           exploredBranchRecorder.markBelowSubtreeFinished();
-          LOG.info("---- End of Path Execution ----");
+          LOG.info("---- End of Path Evaluation ----");
           resetTest();
           break;
         } else if (terminationPoint) {

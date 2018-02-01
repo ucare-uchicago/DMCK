@@ -55,9 +55,11 @@ public class CassVerifier extends SpecVerifier {
       value_1 = kv.getProperty("value_1");
       value_2 = kv.getProperty("value_2");
 
-      applied_1 = this.modelCheckingServer.isApplied.containsKey(1) ? this.modelCheckingServer.isApplied.get(1)
+      applied_1 = this.modelCheckingServer.workloadHasApplied.containsKey(1)
+          ? this.modelCheckingServer.workloadHasApplied.get(1)
           : "false";
-      applied_2 = this.modelCheckingServer.isApplied.containsKey(2) ? this.modelCheckingServer.isApplied.get(2)
+      applied_2 = this.modelCheckingServer.workloadHasApplied.containsKey(2)
+          ? this.modelCheckingServer.workloadHasApplied.get(2)
           : "false";
 
       if (value_1.equals("A") && (value_2.equals("B"))) {

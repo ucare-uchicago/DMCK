@@ -11,6 +11,7 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -456,12 +457,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       Transition iterItem = iter.next();
       if (iterItem instanceof AbstractNodeCrashTransition) {
         AbstractNodeCrashTransition crash = (AbstractNodeCrashTransition) iterItem;
-        NodeCrashTransition crashTransition = new NodeCrashTransition(ReductionAlgorithmsModelChecker.this, crash.getId());
+        NodeCrashTransition crashTransition = new NodeCrashTransition(ReductionAlgorithmsModelChecker.this,
+            crash.getId());
         crashTransition.setVectorClock(crash.getPossibleVectorClock(crash.getId()));
         iter.set(crashTransition);
       } else if (iterItem instanceof AbstractNodeStartTransition) {
         AbstractNodeStartTransition start = (AbstractNodeStartTransition) iterItem;
-        NodeStartTransition startTransition = new NodeStartTransition(ReductionAlgorithmsModelChecker.this, start.getId());
+        NodeStartTransition startTransition = new NodeStartTransition(ReductionAlgorithmsModelChecker.this,
+            start.getId());
         startTransition.setVectorClock(start.getPossibleVectorClock(start.getId()));
         iter.set(startTransition);
       }
@@ -1301,8 +1304,12 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         updateGlobalState2();
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
         if (terminationPoint && hasWaited) {
+          LOG.info("---- End of Path Execution ----");
+
           // Performance evaluation
-          collectPerformanceMetrics();
+          endTimePathExecution = new Timestamp(System.currentTimeMillis());
+          collectPerformancePerEventMetrics();
+          collectPerformancePerPathMetrics();
 
           boolean verifiedResult = verifier.verify();
           String detail = verifier.verificationDetail();
@@ -1319,7 +1326,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           addPathToFinishedInitialPath(finishedExploringPath);
           evaluateExecutedPath();
           loadNextInitialPath(true, true);
-          LOG.info("---- End of Path Execution ----");
+          LOG.info("---- End of Path Evaluation ----");
           resetTest();
           break;
         } else if (terminationPoint) {

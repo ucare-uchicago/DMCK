@@ -92,7 +92,7 @@ public class CassFileWatcher extends FileWatcher {
       int id = Integer.parseInt(ev.getProperty("id"));
       String isApplied = ev.getProperty("isApplied");
 
-      dmck.isApplied.put(id, isApplied);
+      dmck.workloadHasApplied.put(id, isApplied);
 
       LOG.debug("DMCK receives Cass Workload Accomplishment Update filename-" + filename);
     }
