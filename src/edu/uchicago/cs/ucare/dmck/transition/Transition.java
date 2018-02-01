@@ -3,7 +3,6 @@ package edu.uchicago.cs.ucare.dmck.transition;
 import java.io.Serializable;
 import java.util.Comparator;
 import java.util.List;
-
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
 
 @SuppressWarnings("serial")

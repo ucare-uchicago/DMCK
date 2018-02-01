@@ -5,10 +5,8 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.transition.NodeCrashTransition;
 import edu.uchicago.cs.ucare.dmck.transition.NodeOperationTransition;
 import edu.uchicago.cs.ucare.dmck.transition.NodeStartTransition;
@@ -129,14 +127,16 @@ public class ParallelPath implements Serializable {
             return null;
           }
 
-          LOG.debug("Cannot combine paths because the reordered events are dependent to one another.");
+          LOG.debug(
+              "Cannot combine paths because the reordered events are dependent to one another.");
           return null;
         }
       }
     }
 
     Path combinePath = new Path();
-    int minimumPath = this.path.size() < otherPath.getPath().size() ? this.path.size() : otherPath.getPath().size();
+    int minimumPath = this.path.size() < otherPath.getPath().size() ? this.path.size()
+        : otherPath.getPath().size();
     int startingDiff = -1;
     for (int k = 0; k < minimumPath; k++) {
       if (this.path.get(k).getTransitionId() == otherPath.getPath().get(k).getTransitionId()) {
@@ -161,8 +161,10 @@ public class ParallelPath implements Serializable {
           for (int e2 = otherPath.getPath().size() - 1; e2 >= startingDiff; e2--) {
             Transition tempE1 = this.getEventTransition(e1);
             Transition tempE2 = otherPath.getEventTransition(e2);
-            if (VectorClockUtil.isConcurrent(tempE1.getVectorClock(), tempE2.getVectorClock()) == 1) {
-              if (tempE1 instanceof PacketSendTransition && tempE2 instanceof PacketSendTransition) {
+            if (VectorClockUtil.isConcurrent(tempE1.getVectorClock(),
+                tempE2.getVectorClock()) == 1) {
+              if (tempE1 instanceof PacketSendTransition
+                  && tempE2 instanceof PacketSendTransition) {
                 PacketSendTransition msg1 = (PacketSendTransition) tempE1;
                 PacketSendTransition msg2 = (PacketSendTransition) tempE2;
                 try {
@@ -200,8 +202,10 @@ public class ParallelPath implements Serializable {
           for (int e1 = this.path.size() - 1; e1 >= startingDiff; e1--) {
             Transition tempE2 = otherPath.getEventTransition(e2);
             Transition tempE1 = this.getEventTransition(e1);
-            if (VectorClockUtil.isConcurrent(tempE2.getVectorClock(), tempE1.getVectorClock()) == 1) {
-              if (tempE1 instanceof PacketSendTransition && tempE2 instanceof PacketSendTransition) {
+            if (VectorClockUtil.isConcurrent(tempE2.getVectorClock(),
+                tempE1.getVectorClock()) == 1) {
+              if (tempE1 instanceof PacketSendTransition
+                  && tempE2 instanceof PacketSendTransition) {
                 PacketSendTransition msg2 = (PacketSendTransition) tempE2;
                 PacketSendTransition msg1 = (PacketSendTransition) tempE1;
                 try {
@@ -306,79 +310,71 @@ public class ParallelPath implements Serializable {
       return null;
     }
     /*
-     * // filter 1: cannot combine paths with same reordered nodes for (int
-     * otherNode : otherPath.getReorderedNodes()) { for (int myNode :
-     * this.reorderedNodes) { if (otherNode == myNode) { LOG.
-     * debug("Cannot combine paths because they are processed in the same node: " +
-     * this.reorderedNodes.toString() + " vs " +
-     * otherPath.getReorderedNodes().toString()); return null; } } }
+     * // filter 1: cannot combine paths with same reordered nodes for (int otherNode :
+     * otherPath.getReorderedNodes()) { for (int myNode : this.reorderedNodes) { if (otherNode ==
+     * myNode) { LOG. debug("Cannot combine paths because they are processed in the same node: " +
+     * this.reorderedNodes.toString() + " vs " + otherPath.getReorderedNodes().toString()); return
+     * null; } } }
      * 
      * Path combinePath = new Path(); int minimumPath = this.path.size() <
-     * otherPath.getPath().size() ? this.path.size() : otherPath.getPath().size();
-     * int startingDiff = -1; for (int k = 0; k < minimumPath; k++) { if
-     * (this.path.get(k).transition.getTransitionId() ==
-     * otherPath.getPath().get(k).transition .getTransitionId()) {
-     * combinePath.add(this.path.get(k)); } else { startingDiff = k; break; } }
+     * otherPath.getPath().size() ? this.path.size() : otherPath.getPath().size(); int startingDiff
+     * = -1; for (int k = 0; k < minimumPath; k++) { if
+     * (this.path.get(k).transition.getTransitionId() == otherPath.getPath().get(k).transition
+     * .getTransitionId()) { combinePath.add(this.path.get(k)); } else { startingDiff = k; break; }
+     * }
      * 
-     * // Filter 2: reordered events cannot be dependent events in the other //
-     * reordered path for (Transition t1 : this.reorderedEvents) { for (Transition
-     * t2 : otherPath.getReorderedEvents()) { if ((dependencies.get(t1) != null &&
-     * dependencies.get(t1).contains(t2)) || (otherPath.getDependencies().get(t2) !=
-     * null && otherPath.getDependencies().get(t2).contains(t1))) { LOG.
-     * debug("One of the reordered pairs are dependency events of the other reordered paths."
-     * ); return null; } else if (t1 instanceof NodeOperationTransition || t2
-     * instanceof NodeOperationTransition) { LOG.debug(
+     * // Filter 2: reordered events cannot be dependent events in the other // reordered path for
+     * (Transition t1 : this.reorderedEvents) { for (Transition t2 : otherPath.getReorderedEvents())
+     * { if ((dependencies.get(t1) != null && dependencies.get(t1).contains(t2)) ||
+     * (otherPath.getDependencies().get(t2) != null &&
+     * otherPath.getDependencies().get(t2).contains(t1))) { LOG.
+     * debug("One of the reordered pairs are dependency events of the other reordered paths." );
+     * return null; } else if (t1 instanceof NodeOperationTransition || t2 instanceof
+     * NodeOperationTransition) { LOG.debug(
      * "One of the reordered pairs are crash/reboot events. Have not figured out how to handle it"
      * ); return null; } } }
      * 
-     * // starting to mix the 2 different path boolean unsafeMix = false; if
-     * (startingDiff > -1) { int k1 = startingDiff; int k2 = startingDiff;
+     * // starting to mix the 2 different path boolean unsafeMix = false; if (startingDiff > -1) {
+     * int k1 = startingDiff; int k2 = startingDiff;
      * 
      * while (k1 < this.path.size() || k2 < otherPath.getPath().size()) { if (k1 >=
-     * this.path.size()) { addEventIntoPath(combinePath,
-     * otherPath.getPath().get(k2)); k2++; } else if (k2 >=
-     * otherPath.getPath().size()) { addEventIntoPath(combinePath,
-     * this.path.get(k1)); k1++; } else if
-     * (otherPath.getReorderedEvents().contains(this.getEventTransition(k1)) &&
-     * this.reorderedEvents.contains(otherPath.getEventTransition(k2))) { unsafeMix
-     * = true; break; } else if
-     * (this.reorderedEvents.contains(this.getEventTransition(k1))) {
+     * this.path.size()) { addEventIntoPath(combinePath, otherPath.getPath().get(k2)); k2++; } else
+     * if (k2 >= otherPath.getPath().size()) { addEventIntoPath(combinePath, this.path.get(k1));
+     * k1++; } else if (otherPath.getReorderedEvents().contains(this.getEventTransition(k1)) &&
+     * this.reorderedEvents.contains(otherPath.getEventTransition(k2))) { unsafeMix = true; break; }
+     * else if (this.reorderedEvents.contains(this.getEventTransition(k1))) {
      * combinePath.add(this.path.get(k1)); k1++; } else if
-     * (otherPath.getReorderedEvents().contains(otherPath.getEventTransition (k2)))
-     * { combinePath.add(otherPath.getPath().get(k2)); k2++; } else if
-     * (otherPath.getReorderedEvents().contains(this.getEventTransition(k1)) ) {
-     * k1++; } else if
-     * (this.reorderedEvents.contains(otherPath.getEventTransition(k2))) { k2++; }
-     * else if (this.getEventTransition(k1) == otherPath.getEventTransition(k2)) {
+     * (otherPath.getReorderedEvents().contains(otherPath.getEventTransition (k2))) {
+     * combinePath.add(otherPath.getPath().get(k2)); k2++; } else if
+     * (otherPath.getReorderedEvents().contains(this.getEventTransition(k1)) ) { k1++; } else if
+     * (this.reorderedEvents.contains(otherPath.getEventTransition(k2))) { k2++; } else if
+     * (this.getEventTransition(k1) == otherPath.getEventTransition(k2)) {
      * combinePath.add(this.path.get(k1)); k1++; k2++; } else { int isConcurrent =
      * VectorClockUtil.isConcurrent(this.path.get(k1).transition. getVectorClock(),
-     * otherPath.getPath().get(k2).transition.getVectorClock()); if (isConcurrent ==
-     * -1) { addEventIntoPath(combinePath, this.path.get(k1)); k1++; } else if
-     * (isConcurrent == 1) { addEventIntoPath(combinePath,
-     * otherPath.getPath().get(k2)); k2++; } else { addEventIntoPath(combinePath,
-     * this.path.get(k1)); addEventIntoPath(combinePath,
+     * otherPath.getPath().get(k2).transition.getVectorClock()); if (isConcurrent == -1) {
+     * addEventIntoPath(combinePath, this.path.get(k1)); k1++; } else if (isConcurrent == 1) {
+     * addEventIntoPath(combinePath, otherPath.getPath().get(k2)); k2++; } else {
+     * addEventIntoPath(combinePath, this.path.get(k1)); addEventIntoPath(combinePath,
      * otherPath.getPath().get(k2)); k1++; k2++; } } }
      * 
      * // Filter 3: if it is unsafe to mix the paths if (unsafeMix) {
-     * LOG.debug("Unsafe Paths Combination"); return null; } else { ParallelPath
-     * newCombinedPath = new ParallelPath(this.getPath(), this.getReorderedEvents(),
-     * this.getReorderedNodes(), this.getDependencies());
-     * newCombinedPath.setPath(combinePath.clone());
+     * LOG.debug("Unsafe Paths Combination"); return null; } else { ParallelPath newCombinedPath =
+     * new ParallelPath(this.getPath(), this.getReorderedEvents(), this.getReorderedNodes(),
+     * this.getDependencies()); newCombinedPath.setPath(combinePath.clone());
      * newCombinedPath.addMoreReorderedNodes(otherPath.getReorderedNodes());
      * newCombinedPath.addMoreReorderedEvents(otherPath.getReorderedEvents() );
      * 
-     * String debugPath = "Path 1 to combine:\n"; for (TransitionTuple t :
-     * this.path) { debugPath += t.transition.toString() + "\n"; } debugPath +=
-     * "Path 2 to combine:\n"; for (TransitionTuple t : otherPath.getPath()) {
-     * debugPath += t.transition.toString() + "\n"; }
+     * String debugPath = "Path 1 to combine:\n"; for (TransitionTuple t : this.path) { debugPath +=
+     * t.transition.toString() + "\n"; } debugPath += "Path 2 to combine:\n"; for (TransitionTuple t
+     * : otherPath.getPath()) { debugPath += t.transition.toString() + "\n"; }
      * 
-     * debugPath += "Combination Path:\n"; for (TransitionTuple t :
-     * newCombinedPath.getPath()) { debugPath += t.transition.toString() + "\n"; }
+     * debugPath += "Combination Path:\n"; for (TransitionTuple t : newCombinedPath.getPath()) {
+     * debugPath += t.transition.toString() + "\n"; }
      * 
      * LOG.debug(debugPath);
      * 
-     * return newCombinedPath; } } else {
-     * LOG.debug("Paths that are compared are identical."); return null; }
+     * return newCombinedPath; } } else { LOG.debug("Paths that are compared are identical.");
+     * return null; }
      */
   }
 

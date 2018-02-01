@@ -9,9 +9,7 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
 import static java.nio.file.StandardCopyOption.*;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,13 +43,15 @@ public class FileIpc implements SamcIpc {
     if (!channelNewDir.exists()) {
       channelNewDir.mkdir();
     } else if (!channelNewDir.isDirectory()) {
-      throw new RuntimeException(channelNewDir.getAbsolutePath() + " exists, and is not a directory");
+      throw new RuntimeException(
+          channelNewDir.getAbsolutePath() + " exists, and is not a directory");
     }
     channelSendDir = new File(channelDir, "send");
     if (!channelSendDir.exists()) {
       channelSendDir.mkdir();
     } else if (!channelSendDir.isDirectory()) {
-      throw new RuntimeException(channelSendDir.getAbsolutePath() + " exists, and is not a directory");
+      throw new RuntimeException(
+          channelSendDir.getAbsolutePath() + " exists, and is not a directory");
     }
   }
 
@@ -108,7 +108,8 @@ public class FileIpc implements SamcIpc {
   @Override
   public Map<String, Map<String, String>> receive() throws Exception {
     String[] allMsgNames;
-    for (allMsgNames = channelSendDir.list(); allMsgNames.length == 0; allMsgNames = channelSendDir.list()) {
+    for (allMsgNames = channelSendDir.list(); allMsgNames.length == 0; allMsgNames =
+        channelSendDir.list()) {
       Thread.sleep(ROUND_SLEEP);
     }
     Map<String, Map<String, String>> allMsgs = new HashMap<String, Map<String, String>>();

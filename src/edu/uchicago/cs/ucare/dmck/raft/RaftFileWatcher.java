@@ -1,7 +1,6 @@
 package edu.uchicago.cs.ucare.dmck.raft;
 
 import java.util.Properties;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.server.FileWatcher;
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
@@ -46,11 +45,13 @@ public class RaftFileWatcher extends FileWatcher {
             dmck.initTimeoutEnabling[sendNode] = true;
           }
 
-          LOG.debug("DMCK receives raft local event at node-" + sendNode + " hashId-" + hashId + " eventType-"
-              + eventType + " currentTerm-" + currentTerm + " currentState-" + sendNodeState + " filename-" + filename);
-          appendReceivedUpdates("New Event: filename=" + filename + " sendNode=" + sendNode + " recvNode=" + recvNode
-              + " sendNodeState=" + senderStateInt + " eventMode=" + eventMode + " eventType=" + eventType
-              + " currentTerm=" + currentTerm + " hashId=" + hashId);
+          LOG.debug("DMCK receives raft local event at node-" + sendNode + " hashId-" + hashId
+              + " eventType-" + eventType + " currentTerm-" + currentTerm + " currentState-"
+              + sendNodeState + " filename-" + filename);
+          appendReceivedUpdates(
+              "New Event: filename=" + filename + " sendNode=" + sendNode + " recvNode=" + recvNode
+                  + " sendNodeState=" + senderStateInt + " eventMode=" + eventMode + " eventType="
+                  + eventType + " currentTerm=" + currentTerm + " hashId=" + hashId);
 
           dmck.offerLocalEvent(event);
           dmck.timeoutEventCounter[sendNode] = 0;
@@ -61,12 +62,14 @@ public class RaftFileWatcher extends FileWatcher {
           dmck.timeoutEventCounter[sendNode] = 0;
           ignoreEvent(filename);
         } else {
-          LOG.debug("DMCK receives raft msg event from sendNode-" + sendNode + " recvNode-" + recvNode + " hashId-"
-              + hashId + " eventMode-" + eventMode + " eventType-" + eventType + " currentTerm-" + currentTerm
-              + " currentState-" + sendNodeState + " filename-" + filename);
-          appendReceivedUpdates("New Event: filename=" + filename + " sendNode=" + sendNode + " recvNode=" + recvNode
-              + " sendNodeState=" + senderStateInt + " eventMode=" + eventMode + " eventType=" + eventType
-              + " currentTerm=" + currentTerm + " hashId=" + hashId);
+          LOG.debug("DMCK receives raft msg event from sendNode-" + sendNode + " recvNode-"
+              + recvNode + " hashId-" + hashId + " eventMode-" + eventMode + " eventType-"
+              + eventType + " currentTerm-" + currentTerm + " currentState-" + sendNodeState
+              + " filename-" + filename);
+          appendReceivedUpdates(
+              "New Event: filename=" + filename + " sendNode=" + sendNode + " recvNode=" + recvNode
+                  + " sendNodeState=" + senderStateInt + " eventMode=" + eventMode + " eventType="
+                  + eventType + " currentTerm=" + currentTerm + " hashId=" + hashId);
 
           dmck.offerPacket(event);
         }
@@ -77,9 +80,10 @@ public class RaftFileWatcher extends FileWatcher {
       int senderStateInt = Integer.parseInt(ev.getProperty("sendNodeStateInt"));
       int currentTerm = Integer.parseInt(ev.getProperty("currentTerm"));
 
-      LOG.info("Update state at node-" + sendNode + " state-" + sendNodeState + " term-" + currentTerm);
-      appendReceivedUpdates("New Update: filename=" + filename + " sendNode=" + sendNode + " sendNodeState="
-          + senderStateInt + " currentTerm=" + currentTerm);
+      LOG.info(
+          "Update state at node-" + sendNode + " state-" + sendNodeState + " term-" + currentTerm);
+      appendReceivedUpdates("New Update: filename=" + filename + " sendNode=" + sendNode
+          + " sendNodeState=" + senderStateInt + " currentTerm=" + currentTerm);
 
       dmck.localStates[sendNode].setKeyValue("state", senderStateInt);
       dmck.localStates[sendNode].setKeyValue("term", currentTerm);

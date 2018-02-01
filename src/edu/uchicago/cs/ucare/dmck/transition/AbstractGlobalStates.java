@@ -2,10 +2,8 @@ package edu.uchicago.cs.ucare.dmck.transition;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.server.ReductionAlgorithmsModelChecker;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
 
@@ -29,7 +27,8 @@ public class AbstractGlobalStates implements Serializable {
     } else if (event instanceof AbstractNodeOperationTransition) {
       int nodeId = ((AbstractNodeOperationTransition) event).id;
       if (nodeId > -1) {
-        this.event = ((AbstractNodeOperationTransition) event).getRealNodeOperationTransition(nodeId);
+        this.event =
+            ((AbstractNodeOperationTransition) event).getRealNodeOperationTransition(nodeId);
       } else {
         this.event = ((AbstractNodeOperationTransition) event).getRealNodeOperationTransition();
       }
@@ -43,7 +42,8 @@ public class AbstractGlobalStates implements Serializable {
       executingNodeState = abstractGlobalStateBefore[nodeId];
       this.event = ((NodeStartTransition) event).clone();
     } else {
-      LOG.error("Event=" + event.toString() + " cannot be abstracted yet. Event class=" + event.getClass());
+      LOG.error("Event=" + event.toString() + " cannot be abstracted yet. Event class="
+          + event.getClass());
     }
     abstractGlobalStateAfter = new LocalState[globalStates.length];
   }
@@ -71,7 +71,8 @@ public class AbstractGlobalStates implements Serializable {
     }
 
     // check per event type
-    if (event instanceof PacketSendTransition && otherAGS.getEvent() instanceof PacketSendTransition) {
+    if (event instanceof PacketSendTransition
+        && otherAGS.getEvent() instanceof PacketSendTransition) {
       PacketSendTransition msg1 = (PacketSendTransition) event;
       PacketSendTransition msg2 = (PacketSendTransition) otherAGS.getEvent();
       for (String eventKey : msg1.getPacket().getAllKeys()) {
@@ -98,9 +99,11 @@ public class AbstractGlobalStates implements Serializable {
           return false;
         }
       }
-    } else if (event instanceof NodeCrashTransition && otherAGS.getEvent() instanceof NodeCrashTransition) {
+    } else if (event instanceof NodeCrashTransition
+        && otherAGS.getEvent() instanceof NodeCrashTransition) {
       // continue comparison
-    } else if (event instanceof NodeStartTransition && otherAGS.getEvent() instanceof NodeStartTransition) {
+    } else if (event instanceof NodeStartTransition
+        && otherAGS.getEvent() instanceof NodeStartTransition) {
       // continue comparison
     } else {
       return false;
@@ -116,8 +119,8 @@ public class AbstractGlobalStates implements Serializable {
     for (int curNodeId = 0; curNodeId < numNode; curNodeId++) {
       boolean stateExist = false;
       for (int otherNodeId = 0; otherNodeId < numNode; otherNodeId++) {
-        if (!identical.contains(otherNodeId)
-            && abstractGlobalStateBefore[curNodeId].toString().equals(otherAGS[otherNodeId].toString())) {
+        if (!identical.contains(otherNodeId) && abstractGlobalStateBefore[curNodeId].toString()
+            .equals(otherAGS[otherNodeId].toString())) {
           stateExist = true;
           identical.add(otherNodeId);
           break;
@@ -145,7 +148,8 @@ public class AbstractGlobalStates implements Serializable {
         }
       }
       if (!identicalState) {
-        return new AbstractEventConsequence(executingNodeState, event, abstractGlobalStateAfter[afterNodeId]);
+        return new AbstractEventConsequence(executingNodeState, event,
+            abstractGlobalStateAfter[afterNodeId]);
       }
     }
     return new AbstractEventConsequence(executingNodeState, event, executingNodeState);

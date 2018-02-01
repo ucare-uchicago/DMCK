@@ -3,7 +3,6 @@ package edu.uchicago.cs.ucare.example.election.interposition;
 import java.rmi.Naming;
 import java.util.HashMap;
 import java.util.Map;
-
 import edu.uchicago.cs.ucare.dmck.election.LeaderElectionAspectProperties;
 import edu.uchicago.cs.ucare.dmck.election.LeaderElectionPacketGenerator;
 import edu.uchicago.cs.ucare.dmck.event.Event;
@@ -45,7 +44,8 @@ public class LeaderElectionInterposition {
       isBound = false;
       localState = new LocalState();
       try {
-        modelCheckingServer = (ModelCheckingServer) Naming.lookup(LeaderElectionAspectProperties.getInterceptorName());
+        modelCheckingServer = (ModelCheckingServer) Naming
+            .lookup(LeaderElectionAspectProperties.getInterceptorName());
       } catch (Exception e) {
         System.err.println("Cannot find model checking server, switch to no-SAMC mode");
         SAMC_ENABLED = false;

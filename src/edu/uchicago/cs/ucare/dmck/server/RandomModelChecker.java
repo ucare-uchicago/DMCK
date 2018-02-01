@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.Random;
 import com.almworks.sqlite4java.SQLiteException;
-
 import edu.uchicago.cs.ucare.dmck.transition.AbstractNodeCrashTransition;
 import edu.uchicago.cs.ucare.dmck.transition.AbstractNodeOperationTransition;
 import edu.uchicago.cs.ucare.dmck.transition.AbstractNodeStartTransition;
@@ -24,9 +23,9 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
   String stateDir;
   Random random;
 
-  public RandomModelChecker(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash, int numReboot,
-      String globalStatePathDir, String packetRecordDir, String workingDir, WorkloadDriver workloadDriver,
-      String ipcDir) {
+  public RandomModelChecker(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash,
+      int numReboot, String globalStatePathDir, String packetRecordDir, String workingDir,
+      WorkloadDriver workloadDriver, String ipcDir) {
     super(dmckName, fileWatcher, numNode, globalStatePathDir, workingDir, workloadDriver, ipcDir);
     this.numCrash = numCrash;
     this.numReboot = numReboot;
@@ -146,7 +145,8 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
           break;
         } else if (terminationPoint) {
           try {
-            if (dmckName.equals("raftModelChecker") && waitForNextLE && waitedForNextLEInDiffTermCounter < 20) {
+            if (dmckName.equals("raftModelChecker") && waitForNextLE
+                && waitedForNextLEInDiffTermCounter < 20) {
               Thread.sleep(leaderElectionTimeout);
             } else {
               hasWaited = true;
@@ -177,8 +177,10 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
           }
           try {
             if (transition instanceof AbstractNodeOperationTransition) {
-              AbstractNodeOperationTransition nodeOperationTransition = (AbstractNodeOperationTransition) transition;
-              transition = ((AbstractNodeOperationTransition) transition).getRealNodeOperationTransition();
+              AbstractNodeOperationTransition nodeOperationTransition =
+                  (AbstractNodeOperationTransition) transition;
+              transition =
+                  ((AbstractNodeOperationTransition) transition).getRealNodeOperationTransition();
               if (transition == null) {
                 currentEnabledTransitions.add(nodeOperationTransition);
                 continue;

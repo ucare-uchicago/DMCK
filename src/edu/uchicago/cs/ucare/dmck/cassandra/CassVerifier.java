@@ -2,9 +2,7 @@ package edu.uchicago.cs.ucare.dmck.cassandra;
 
 import java.io.FileInputStream;
 import java.util.Properties;
-
 import org.apache.log4j.Logger;
-
 import edu.uchicago.cs.ucare.dmck.server.SpecVerifier;
 
 public class CassVerifier extends SpecVerifier {
@@ -46,10 +44,12 @@ public class CassVerifier extends SpecVerifier {
   private boolean checkDataConsistency() {
     try {
       LOG.debug("Executing checkDataConsistency script.");
-      Runtime.getRuntime().exec(modelCheckingServer.workingDirPath + "/checkConsistency.sh").waitFor();
+      Runtime.getRuntime().exec(modelCheckingServer.workingDirPath + "/checkConsistency.sh")
+          .waitFor();
 
       LOG.debug("Read DataConsistency file.");
-      FileInputStream verifyInputStream = new FileInputStream(modelCheckingServer.workingDirPath + "/temp-verify");
+      FileInputStream verifyInputStream =
+          new FileInputStream(modelCheckingServer.workingDirPath + "/temp-verify");
       kv.load(verifyInputStream);
       owner = kv.getProperty("owner");
       value_1 = kv.getProperty("value_1");

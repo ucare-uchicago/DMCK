@@ -2,7 +2,6 @@ package edu.uchicago.cs.ucare.dmck.election;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
 import edu.uchicago.cs.ucare.dmck.server.SpecVerifier;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
@@ -86,7 +85,8 @@ public class LeaderElectionVerifier extends SpecVerifier {
         if ((int) localState.getValue("role") == LeaderElectionMain.LEADING) {
           strBuilder.append("node " + i + " is LEADING ; ");
         } else if ((int) localState.getValue("role") == LeaderElectionMain.FOLLOWING) {
-          strBuilder.append("node " + i + " is FOLLOWING to " + localState.getValue("leader") + " ; ");
+          strBuilder
+              .append("node " + i + " is FOLLOWING to " + localState.getValue("leader") + " ; ");
         } else if ((int) localState.getValue("role") == LeaderElectionMain.LOOKING) {
           strBuilder.append("node " + i + " is still LOOKING ; ");
         }

@@ -2,7 +2,6 @@ package edu.uchicago.cs.ucare.dmck.transition;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.server.ReductionAlgorithmsModelChecker;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
 
@@ -41,7 +40,8 @@ public class AbstractEventConsequence {
   }
 
   public LocalState getTransformationState(LocalState oldState, Transition ev) {
-    if (!ReductionAlgorithmsModelChecker.isIdenticalAbstractLocalStates(nodeStateBeforeEventExec, oldState)) {
+    if (!ReductionAlgorithmsModelChecker.isIdenticalAbstractLocalStates(nodeStateBeforeEventExec,
+        oldState)) {
       return null;
     }
 

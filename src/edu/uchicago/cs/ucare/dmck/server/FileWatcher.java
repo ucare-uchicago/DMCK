@@ -7,10 +7,8 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Properties;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 
 public abstract class FileWatcher implements Runnable {
@@ -110,7 +108,8 @@ public abstract class FileWatcher implements Runnable {
       writer.println("execute=false");
       writer.close();
 
-      Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + filename + " " + ipcDir + "/ack/" + filename);
+      Runtime.getRuntime()
+          .exec("mv " + ipcDir + "/new/" + filename + " " + ipcDir + "/ack/" + filename);
     } catch (Exception e) {
       LOG.error("Error in ignoring event with file : " + filename);
     }
@@ -137,15 +136,16 @@ public abstract class FileWatcher implements Runnable {
 
   public void commonEnablingSignal(Event packet) {
     try {
-      PrintWriter writer = new PrintWriter(ipcDir + "/new/" + packet.getValue(Event.FILENAME), "UTF-8");
+      PrintWriter writer =
+          new PrintWriter(ipcDir + "/new/" + packet.getValue(Event.FILENAME), "UTF-8");
       writer.println("eventId=" + packet.getId());
       writer.println("execute=true");
       writer.close();
 
       LOG.info("Enable event with ID : " + packet.getId());
 
-      Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " " + ipcDir + "/ack/"
-          + packet.getValue(Event.FILENAME));
+      Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " "
+          + ipcDir + "/ack/" + packet.getValue(Event.FILENAME));
     } catch (Exception e) {
       LOG.error("Error when enabling event in common way=" + packet.toString());
     }

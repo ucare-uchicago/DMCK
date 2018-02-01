@@ -6,7 +6,6 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.LinkedList;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.transition.PacketSendTransition;
 import edu.uchicago.cs.ucare.dmck.transition.Transition;
@@ -18,9 +17,11 @@ public class GuideModelChecker extends ModelCheckingServerAbstract {
   protected Thread afterProgramModelChecker;
   protected File program;
 
-  public GuideModelChecker(String interceptorName, FileWatcher fileWatcher, int numNode, String globalStatePathDir,
-      File program, String workingDir, WorkloadDriver workloadDriver, String ipcDir) throws FileNotFoundException {
-    super(interceptorName, fileWatcher, numNode, globalStatePathDir, workingDir, workloadDriver, ipcDir);
+  public GuideModelChecker(String interceptorName, FileWatcher fileWatcher, int numNode,
+      String globalStatePathDir, File program, String workingDir, WorkloadDriver workloadDriver,
+      String ipcDir) throws FileNotFoundException {
+    super(interceptorName, fileWatcher, numNode, globalStatePathDir, workingDir, workloadDriver,
+        ipcDir);
     this.program = program;
     afterProgramModelChecker = null;
     resetTest();
@@ -56,7 +57,8 @@ public class GuideModelChecker extends ModelCheckingServerAbstract {
         if (dmckName.equals("raftModelChecker")) {
           while (checkTerminationPoint(currentEnabledTransitions)) {
             try {
-              if (dmckName.equals("raftModelChecker") && waitForNextLE && waitedForNextLEInDiffTermCounter < 20) {
+              if (dmckName.equals("raftModelChecker") && waitForNextLE
+                  && waitedForNextLEInDiffTermCounter < 20) {
                 Thread.sleep(leaderElectionTimeout);
               }
               break;
@@ -102,7 +104,8 @@ public class GuideModelChecker extends ModelCheckingServerAbstract {
 
     BufferedReader programReader;
 
-    public ProgramParser(ModelCheckingServerAbstract dmck, File program) throws FileNotFoundException {
+    public ProgramParser(ModelCheckingServerAbstract dmck, File program)
+        throws FileNotFoundException {
       this.programReader = new BufferedReader(new FileReader(program));
     }
 

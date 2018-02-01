@@ -2,7 +2,6 @@ package edu.uchicago.cs.ucare.dmck.server;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.transition.NodeCrashTransition;
 import edu.uchicago.cs.ucare.dmck.transition.NodeStartTransition;
 import edu.uchicago.cs.ucare.dmck.transition.PacketSendTransition;
@@ -14,6 +13,7 @@ abstract class InstructionTransition {
   abstract Transition getRealTransition(ModelCheckingServerAbstract dmck);
 
 }
+
 
 class PacketSendInstructionTransition extends InstructionTransition {
 
@@ -40,6 +40,7 @@ class PacketSendInstructionTransition extends InstructionTransition {
 
 }
 
+
 class NodeCrashInstructionTransition extends InstructionTransition {
 
   int id;
@@ -54,6 +55,7 @@ class NodeCrashInstructionTransition extends InstructionTransition {
   }
 
 }
+
 
 class NodeStartInstructionTransition extends InstructionTransition {
 
@@ -70,6 +72,7 @@ class NodeStartInstructionTransition extends InstructionTransition {
 
 }
 
+
 class SleepInstructionTransition extends InstructionTransition {
 
   long sleep;
@@ -84,6 +87,7 @@ class SleepInstructionTransition extends InstructionTransition {
   }
 
 }
+
 
 class ExitInstructionTransaction extends InstructionTransition {
 

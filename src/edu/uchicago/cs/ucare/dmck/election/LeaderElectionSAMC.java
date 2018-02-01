@@ -2,7 +2,6 @@ package edu.uchicago.cs.ucare.dmck.election;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.server.EvaluationModelChecker;
 import edu.uchicago.cs.ucare.dmck.server.FileWatcher;
@@ -15,11 +14,11 @@ import edu.uchicago.cs.ucare.example.election.LeaderElectionMain;
 
 public class LeaderElectionSAMC extends EvaluationModelChecker {
 
-  public LeaderElectionSAMC(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash, int numReboot,
-      String globalStatePathDir, String packetRecordDir, String workingDir, WorkloadDriver workloadDriver,
-      String ipcDir) {
-    super(dmckName, fileWatcher, numNode, numCrash, numReboot, globalStatePathDir, packetRecordDir, workingDir,
-        workloadDriver, ipcDir);
+  public LeaderElectionSAMC(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash,
+      int numReboot, String globalStatePathDir, String packetRecordDir, String workingDir,
+      WorkloadDriver workloadDriver, String ipcDir) {
+    super(dmckName, fileWatcher, numNode, numCrash, numReboot, globalStatePathDir, packetRecordDir,
+        workingDir, workloadDriver, ipcDir);
   }
 
   public boolean isLMDependent(LocalState state, Event e1, Event e2) {
@@ -38,10 +37,9 @@ public class LeaderElectionSAMC extends EvaluationModelChecker {
     }
 
     /*
-     * OLD SAMC if ((int)state.getValue("role") == LeaderElectionMain.LOOKING) { if
-     * ((int) state.getValue("leader") < (int)e1.getValue("leader") || (int)
-     * state.getValue("leader") < (int)e2.getValue("leader")) { return true; } else
-     * if (isFinished(state)) { return true; } }
+     * OLD SAMC if ((int)state.getValue("role") == LeaderElectionMain.LOOKING) { if ((int)
+     * state.getValue("leader") < (int)e1.getValue("leader") || (int) state.getValue("leader") <
+     * (int)e2.getValue("leader")) { return true; } else if (isFinished(state)) { return true; } }
      */
     return false;
   }
@@ -70,18 +68,20 @@ public class LeaderElectionSAMC extends EvaluationModelChecker {
   }
 
   @Override
-  public boolean isCCDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, NodeCrashTransition crash1,
-      NodeCrashTransition crash2) {
+  public boolean isCCDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState,
+      NodeCrashTransition crash1, NodeCrashTransition crash2) {
     return true;
   }
 
   @Override
-  public boolean isCRSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalstate, Transition event) {
+  public boolean isCRSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalstate,
+      Transition event) {
     return true;
   }
 
   @Override
-  public boolean isRSSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, Transition event) {
+  public boolean isRSSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState,
+      Transition event) {
     return true;
   }
 

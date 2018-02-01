@@ -5,7 +5,6 @@ import java.io.FileInputStream;
 import java.io.PrintWriter;
 import java.io.IOException;
 import java.util.Properties;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,8 +49,8 @@ public class SCMReceiver {
       updateStateWriter.close();
 
       // commit msg order update
-      Runtime.getRuntime()
-          .exec("mv " + ipcDmckDir + "/new/updatescm-receiver " + ipcDmckDir + "/send/updatescm-receiver");
+      Runtime.getRuntime().exec("mv " + ipcDmckDir + "/new/updatescm-receiver " + ipcDmckDir
+          + "/send/updatescm-receiver");
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -88,7 +87,8 @@ public class SCMReceiver {
         ev.load(evInputStream);
         int senderVote = Integer.parseInt(ev.getProperty("vote"));
 
-        LOG.info("receiver-" + fromId + " has received message " + msgName + " which vote " + senderVote);
+        LOG.info("receiver-" + fromId + " has received message " + msgName + " which vote "
+            + senderVote);
 
         // reaction on sender message
         if (vote < senderVote) {

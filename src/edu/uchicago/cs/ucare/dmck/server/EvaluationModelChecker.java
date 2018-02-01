@@ -3,7 +3,6 @@ package edu.uchicago.cs.ucare.dmck.server;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.transition.AbstractNodeCrashTransition;
 import edu.uchicago.cs.ucare.dmck.transition.AbstractNodeOperationTransition;
@@ -17,24 +16,26 @@ import edu.uchicago.cs.ucare.dmck.util.LocalState;
 
 public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChecker {
 
-  public EvaluationModelChecker(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash, int numReboot,
-      String globalStatePathDir, String packetRecordDir, String cacheDir, WorkloadDriver workloadDriver,
-      String ipcDir) {
-    super(dmckName, fileWatcher, numNode, numCrash, numReboot, globalStatePathDir, packetRecordDir, cacheDir,
-        workloadDriver, ipcDir);
+  public EvaluationModelChecker(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash,
+      int numReboot, String globalStatePathDir, String packetRecordDir, String cacheDir,
+      WorkloadDriver workloadDriver, String ipcDir) {
+    super(dmckName, fileWatcher, numNode, numCrash, numReboot, globalStatePathDir, packetRecordDir,
+        cacheDir, workloadDriver, ipcDir);
   }
 
   public abstract boolean isLMDependent(LocalState state, Event e1, Event e2);
 
-  public abstract boolean isCMDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, Event msg,
-      NodeCrashTransition crash);
+  public abstract boolean isCMDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState,
+      Event msg, NodeCrashTransition crash);
 
-  public abstract boolean isCCDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, NodeCrashTransition crash1,
-      NodeCrashTransition crash2);
+  public abstract boolean isCCDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState,
+      NodeCrashTransition crash1, NodeCrashTransition crash2);
 
-  public abstract boolean isCRSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalstate, Transition event);
+  public abstract boolean isCRSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalstate,
+      Transition event);
 
-  public abstract boolean isRSSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, Transition event);
+  public abstract boolean isRSSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState,
+      Transition event);
 
   public abstract boolean isNotDiscardReorder(boolean[] wasNodeOnline, LocalState[] wasLocalState,
       NodeOperationTransition crashOrRebootEvent, Event msg);
@@ -56,7 +57,8 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
       return -1;
     } else if (nextTransition instanceof NodeCrashTransition) {
       NodeCrashTransition crashEvent = (NodeCrashTransition) nextTransition;
-      if (isNodeOnline(crashEvent.getId()) && isCRSDependent(isNodeOnline, localStates, crashEvent)) {
+      if (isNodeOnline(crashEvent.getId())
+          && isCRSDependent(isNodeOnline, localStates, crashEvent)) {
         return -2;
       }
       recordPolicyEffectiveness("crs-rss-runtime");
@@ -72,7 +74,8 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
       return -1;
     } else if (nextTransition instanceof NodeStartTransition) {
       NodeStartTransition rebootEvent = (NodeStartTransition) nextTransition;
-      if (!isNodeOnline(rebootEvent.getId()) && isRSSDependent(isNodeOnline, localStates, rebootEvent)) {
+      if (!isNodeOnline(rebootEvent.getId())
+          && isRSSDependent(isNodeOnline, localStates, rebootEvent)) {
         return -2;
       }
       recordPolicyEffectiveness("crs-rss-runtime");
@@ -124,8 +127,8 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
   }
 
   // return true = break loop, false = continue
-  protected boolean evaluatePairsOfTransitions(Path tmpPath, boolean[] wasOnlineNodes, LocalState[] wasLocalStates,
-      Transition currentTransition, Transition lastTransition) {
+  protected boolean evaluatePairsOfTransitions(Path tmpPath, boolean[] wasOnlineNodes,
+      LocalState[] wasLocalStates, Transition currentTransition, Transition lastTransition) {
     if (lastTransition instanceof PacketSendTransition) {
       Event lastPacket = ((PacketSendTransition) lastTransition).getPacket();
       if (currentTransition instanceof PacketSendTransition) {
@@ -142,7 +145,8 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
               int toId = currentPacket.getToId();
               // msg vs msg
               if (isLMDependent(wasLocalStates[toId], lastPacket, currentPacket)) {
-                return addNewInitialPath(wasLocalStates, tmpPath, currentTransition, lastTransition);
+                return addNewInitialPath(wasLocalStates, tmpPath, currentTransition,
+                    lastTransition);
               }
             }
           } else if (currentPacket.getToId() == lastPacket.getToId()
@@ -151,7 +155,8 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
             // reordering
             if (!this.tcpParadigm) {
               if (isLMDependent(wasLocalStates[lastPacket.getToId()], lastPacket, currentPacket)) {
-                return addNewInitialPath(wasLocalStates, tmpPath, currentTransition, lastTransition);
+                return addNewInitialPath(wasLocalStates, tmpPath, currentTransition,
+                    lastTransition);
               }
             } else {
               return true;
@@ -161,10 +166,12 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
       } else if (currentTransition instanceof NodeCrashTransition) {
         if (isPossibleConcurrent(lastTransition, currentTransition)) {
           NodeCrashTransition currentCrash = (NodeCrashTransition) currentTransition;
-          if (lastPacket.getFromId() == currentCrash.getId() || lastPacket.getToId() == currentCrash.getId()) {
+          if (lastPacket.getFromId() == currentCrash.getId()
+              || lastPacket.getToId() == currentCrash.getId()) {
             if (wasOnlineNodes[lastPacket.getFromId()] && wasOnlineNodes[lastPacket.getToId()]) {
               if (isCMDependent(wasOnlineNodes, wasLocalStates, lastPacket, currentCrash)
-                  && isNotDiscardReorder(wasOnlineNodes, wasLocalStates, currentCrash, lastPacket)) {
+                  && isNotDiscardReorder(wasOnlineNodes, wasLocalStates, currentCrash,
+                      lastPacket)) {
                 if (lastPacket.isObsolete()) {
                   lastPacket.setObsolete(false);
                 }
@@ -179,7 +186,8 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
         if (isPossibleConcurrent(lastTransition, currentTransition)) {
           NodeStartTransition currentStart = (NodeStartTransition) currentTransition;
           if (!lastPacket.isObsolete()) {
-            if (currentStart.getId() == lastPacket.getFromId() || currentStart.getId() == lastPacket.getToId()) {
+            if (currentStart.getId() == lastPacket.getFromId()
+                || currentStart.getId() == lastPacket.getToId()) {
               return true;
             }
             if (isNotDiscardReorder(wasOnlineNodes, wasLocalStates, currentStart, lastPacket)) {
@@ -198,7 +206,8 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
         if (currentTransition instanceof PacketSendTransition) {
           if (isPossibleConcurrent(lastTransition, currentTransition)) {
             Event currentPacket = ((PacketSendTransition) currentTransition).getPacket();
-            if (currentPacket.getFromId() == lastCrash.getId() || currentPacket.getToId() == lastCrash.getId()) {
+            if (currentPacket.getFromId() == lastCrash.getId()
+                || currentPacket.getToId() == lastCrash.getId()) {
               if (isCRSDependent(wasOnlineNodes, wasLocalStates, lastCrash)
                   && isCMDependent(wasOnlineNodes, wasLocalStates, currentPacket, lastCrash)) {
                 addNewInitialPath(wasLocalStates, tmpPath, currentTransition, lastCrash);
@@ -285,9 +294,11 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
   }
 
   // by CRS or RSS, we will eliminate symmetrical events
-  @SuppressWarnings({ "unchecked", "unlikely-arg-type" })
-  protected void reevaluateInitialPaths(Path initialPath, LocalState[] wasLocalStates, Transition lastEvent) {
-    if (lastEvent instanceof NodeCrashTransition || lastEvent instanceof AbstractNodeCrashTransition) {
+  @SuppressWarnings({"unchecked", "unlikely-arg-type"})
+  protected void reevaluateInitialPaths(Path initialPath, LocalState[] wasLocalStates,
+      Transition lastEvent) {
+    if (lastEvent instanceof NodeCrashTransition
+        || lastEvent instanceof AbstractNodeCrashTransition) {
       LinkedList<Path> initialPathsClone = (LinkedList<Path>) initialPaths.clone();
       Iterator<Path> initialPathsCloneIterator = initialPathsClone.iterator();
       while (initialPathsCloneIterator.hasNext()) {
@@ -297,13 +308,15 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
           if (lastEventOfComparePath instanceof NodeCrashTransition) {
             NodeCrashTransition lastCrashCompare = (NodeCrashTransition) lastEventOfComparePath;
             if (isSymmetric(wasLocalStates, lastCrashCompare)) {
-              LOG.debug("Remove an Initial Path from initialPaths because it has symmetrical crash.");
+              LOG.debug(
+                  "Remove an Initial Path from initialPaths because it has symmetrical crash.");
               initialPaths.remove(comparePath);
             }
           }
         }
       }
-    } else if (lastEvent instanceof NodeStartTransition || lastEvent instanceof AbstractNodeStartTransition) {
+    } else if (lastEvent instanceof NodeStartTransition
+        || lastEvent instanceof AbstractNodeStartTransition) {
       LinkedList<Path> initialPathsClone = (LinkedList<Path>) initialPaths.clone();
       Iterator<Path> initialPathsCloneIterator = initialPathsClone.iterator();
       while (initialPathsCloneIterator.hasNext()) {
@@ -313,7 +326,8 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
           if (lastEventOfComparePath instanceof NodeStartTransition) {
             NodeStartTransition lastStartCompare = (NodeStartTransition) lastEventOfComparePath;
             if (isSymmetric(wasLocalStates, lastStartCompare)) {
-              LOG.debug("Remove an Initial Path from initialPaths because it has symmetrical reboot.");
+              LOG.debug(
+                  "Remove an Initial Path from initialPaths because it has symmetrical reboot.");
               initialPaths.remove(comparePath);
             }
           }
@@ -339,9 +353,10 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
       // check lastTransition instance, if it is crash or reboot on X
       // node, then add other X node possibilities
       if (lastTransition instanceof AbstractNodeCrashTransition) {
-        AbstractNodeCrashTransition abstractNodeCrashTransition = (AbstractNodeCrashTransition) lastTransition;
-        LinkedList<NodeOperationTransition> transitions = abstractNodeCrashTransition
-            .getAllRealNodeOperationTransitions(oldOnlineStatus);
+        AbstractNodeCrashTransition abstractNodeCrashTransition =
+            (AbstractNodeCrashTransition) lastTransition;
+        LinkedList<NodeOperationTransition> transitions =
+            abstractNodeCrashTransition.getAllRealNodeOperationTransitions(oldOnlineStatus);
         for (NodeOperationTransition t : transitions) {
           if (abstractNodeCrashTransition.getId() != t.getId()) {
             // check CRS
@@ -357,9 +372,11 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
           }
         }
       } else if (lastTransition instanceof AbstractNodeStartTransition) {
-        AbstractNodeStartTransition abstractNodeStartTransition = (AbstractNodeStartTransition) lastTransition;
-        LinkedList<NodeOperationTransition> transitions = ((AbstractNodeStartTransition) lastTransition)
-            .getAllRealNodeOperationTransitions(oldOnlineStatus);
+        AbstractNodeStartTransition abstractNodeStartTransition =
+            (AbstractNodeStartTransition) lastTransition;
+        LinkedList<NodeOperationTransition> transitions =
+            ((AbstractNodeStartTransition) lastTransition)
+                .getAllRealNodeOperationTransitions(oldOnlineStatus);
         for (NodeOperationTransition t : transitions) {
           if (abstractNodeStartTransition.getId() != t.getId()) {
             // check RSS
@@ -394,57 +411,69 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
         boolean breakLoop = false;
         if (!(lastTransition instanceof AbstractNodeOperationTransition)
             && !(currentTransition instanceof AbstractNodeOperationTransition)) {
-          breakLoop = evaluatePairsOfTransitions(tmpPath, tmpOldOnlineStatus, tmpOldLocalStates, currentTransition,
-              lastTransition);
+          breakLoop = evaluatePairsOfTransitions(tmpPath, tmpOldOnlineStatus, tmpOldLocalStates,
+              currentTransition, lastTransition);
         } else if ((lastTransition instanceof AbstractNodeOperationTransition)
             && !(currentTransition instanceof AbstractNodeOperationTransition)) {
           LinkedList<NodeOperationTransition> transitions = null;
           if (lastTransition instanceof AbstractNodeCrashTransition) {
-            AbstractNodeCrashTransition abstractNodeCrashTransition = (AbstractNodeCrashTransition) lastTransition;
-            transitions = abstractNodeCrashTransition.getAllRealNodeOperationTransitions(tmpOldOnlineStatus);
+            AbstractNodeCrashTransition abstractNodeCrashTransition =
+                (AbstractNodeCrashTransition) lastTransition;
+            transitions =
+                abstractNodeCrashTransition.getAllRealNodeOperationTransitions(tmpOldOnlineStatus);
           } else if (lastTransition instanceof AbstractNodeStartTransition) {
-            AbstractNodeStartTransition abstractNodeStartTransition = (AbstractNodeStartTransition) lastTransition;
-            transitions = abstractNodeStartTransition.getAllRealNodeOperationTransitions(tmpOldOnlineStatus);
+            AbstractNodeStartTransition abstractNodeStartTransition =
+                (AbstractNodeStartTransition) lastTransition;
+            transitions =
+                abstractNodeStartTransition.getAllRealNodeOperationTransitions(tmpOldOnlineStatus);
           }
           for (NodeOperationTransition lastConcreteTransition : transitions) {
-            breakLoop = evaluatePairsOfTransitions(tmpPath, tmpOldOnlineStatus, tmpOldLocalStates, currentTransition,
-                lastConcreteTransition) || breakLoop;
+            breakLoop = evaluatePairsOfTransitions(tmpPath, tmpOldOnlineStatus, tmpOldLocalStates,
+                currentTransition, lastConcreteTransition) || breakLoop;
           }
         } else if (!(lastTransition instanceof AbstractNodeOperationTransition)
             && (currentTransition instanceof AbstractNodeOperationTransition)) {
           LinkedList<NodeOperationTransition> transitions = null;
           if (currentTransition instanceof AbstractNodeCrashTransition) {
-            AbstractNodeCrashTransition abstractNodeCrashTransition = (AbstractNodeCrashTransition) currentTransition;
-            transitions = abstractNodeCrashTransition.getAllRealNodeOperationTransitions(tmpOldOnlineStatus);
+            AbstractNodeCrashTransition abstractNodeCrashTransition =
+                (AbstractNodeCrashTransition) currentTransition;
+            transitions =
+                abstractNodeCrashTransition.getAllRealNodeOperationTransitions(tmpOldOnlineStatus);
           } else if (currentTransition instanceof AbstractNodeStartTransition) {
-            AbstractNodeStartTransition abstractNodeStartTransition = (AbstractNodeStartTransition) currentTransition;
-            transitions = abstractNodeStartTransition.getAllRealNodeOperationTransitions(tmpOldOnlineStatus);
+            AbstractNodeStartTransition abstractNodeStartTransition =
+                (AbstractNodeStartTransition) currentTransition;
+            transitions =
+                abstractNodeStartTransition.getAllRealNodeOperationTransitions(tmpOldOnlineStatus);
           }
           for (NodeOperationTransition concreteTransition : transitions) {
-            breakLoop = evaluatePairsOfTransitions(tmpPath, tmpOldOnlineStatus, tmpOldLocalStates, concreteTransition,
-                lastTransition) || breakLoop;
+            breakLoop = evaluatePairsOfTransitions(tmpPath, tmpOldOnlineStatus, tmpOldLocalStates,
+                concreteTransition, lastTransition) || breakLoop;
           }
         } else {
           LinkedList<NodeOperationTransition> lastTransitions = null;
           LinkedList<NodeOperationTransition> currentTransitions = null;
           if (currentTransition instanceof AbstractNodeCrashTransition) {
-            AbstractNodeCrashTransition abstractNodeCrashTransition = (AbstractNodeCrashTransition) currentTransition;
+            AbstractNodeCrashTransition abstractNodeCrashTransition =
+                (AbstractNodeCrashTransition) currentTransition;
             currentTransitions = abstractNodeCrashTransition.getAllRealNodeOperationTransitions();
           } else if (currentTransition instanceof AbstractNodeStartTransition) {
-            AbstractNodeStartTransition abstractNodeStartTransition = (AbstractNodeStartTransition) currentTransition;
+            AbstractNodeStartTransition abstractNodeStartTransition =
+                (AbstractNodeStartTransition) currentTransition;
             currentTransitions = abstractNodeStartTransition.getAllRealNodeOperationTransitions();
           }
           if (lastTransition instanceof AbstractNodeCrashTransition) {
-            AbstractNodeCrashTransition abstractNodeCrashTransition = (AbstractNodeCrashTransition) lastTransition;
+            AbstractNodeCrashTransition abstractNodeCrashTransition =
+                (AbstractNodeCrashTransition) lastTransition;
             lastTransitions = abstractNodeCrashTransition.getAllRealNodeOperationTransitions();
           } else if (lastTransition instanceof AbstractNodeStartTransition) {
-            AbstractNodeStartTransition abstractNodeStartTransition = (AbstractNodeStartTransition) lastTransition;
+            AbstractNodeStartTransition abstractNodeStartTransition =
+                (AbstractNodeStartTransition) lastTransition;
             lastTransitions = abstractNodeStartTransition.getAllRealNodeOperationTransitions();
           }
           for (NodeOperationTransition concreteTransition : currentTransitions) {
             for (NodeOperationTransition lastConcreteTransition : lastTransitions) {
-              breakLoop = evaluatePairsOfTransitions(tmpPath, tmpOldOnlineStatus, tmpOldLocalStates, concreteTransition,
-                  lastConcreteTransition) || breakLoop;
+              breakLoop = evaluatePairsOfTransitions(tmpPath, tmpOldOnlineStatus, tmpOldLocalStates,
+                  concreteTransition, lastConcreteTransition) || breakLoop;
             }
           }
         }

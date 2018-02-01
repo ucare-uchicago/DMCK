@@ -2,7 +2,6 @@ package edu.uchicago.cs.ucare.dmck.raft;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
 import edu.uchicago.cs.ucare.dmck.server.SpecVerifier;
 import edu.uchicago.cs.ucare.dmck.transition.Transition;
@@ -14,8 +13,10 @@ public class RaftVerifier extends SpecVerifier {
 
   private static final String HARD_CRASH = "A node experienced hard crash";
   private static final String MORE_THAN_ONE_LEADER = "More than one node is a leader";
-  private static final String NO_LEADER = "No leader is in place, but it should be resolved with next LE round. So we can ignore this bug for now.";
-  private static final String DIFF_TERM = "There is a leader, but there is a node with different term. This event should be handled by heartbeat message.";
+  private static final String NO_LEADER =
+      "No leader is in place, but it should be resolved with next LE round. So we can ignore this bug for now.";
+  private static final String DIFF_TERM =
+      "There is a leader, but there is a node with different term. This event should be handled by heartbeat message.";
 
   private int numLeader;
   private int numCrash;
@@ -65,7 +66,8 @@ public class RaftVerifier extends SpecVerifier {
     String result = "";
     for (int node = 0; node < modelCheckingServer.numNode; node++) {
       LocalState state = this.modelCheckingServer.localStates[node];
-      result += "(" + node + ":" + state.getRaftStateName() + " with term:" + state.getValue("term") + ") ";
+      result += "(" + node + ":" + state.getRaftStateName() + " with term:" + state.getValue("term")
+          + ") ";
     }
 
     result += errorType;

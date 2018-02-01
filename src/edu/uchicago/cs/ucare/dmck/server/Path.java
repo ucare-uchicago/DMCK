@@ -3,7 +3,6 @@ package edu.uchicago.cs.ucare.dmck.server;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.LinkedList;
-
 import edu.uchicago.cs.ucare.dmck.transition.NodeCrashTransition;
 import edu.uchicago.cs.ucare.dmck.transition.NodeOperationTransition;
 import edu.uchicago.cs.ucare.dmck.transition.NodeStartTransition;

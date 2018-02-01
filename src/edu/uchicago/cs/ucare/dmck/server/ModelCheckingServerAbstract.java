@@ -21,10 +21,8 @@ import java.util.ListIterator;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.raft.RaftWorkloadDriver;
 import edu.uchicago.cs.ucare.dmck.transition.AbstractNodeCrashTransition;
@@ -149,8 +147,9 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   public int[] receiverSequencer;
 
   @SuppressWarnings("unchecked")
-  public ModelCheckingServerAbstract(String dmckName, FileWatcher fileWatcher, int numNode, String testRecordDirPath,
-      String workingDirPath, WorkloadDriver workloadDriver, String ipcDir) {
+  public ModelCheckingServerAbstract(String dmckName, FileWatcher fileWatcher, int numNode,
+      String testRecordDirPath, String workingDirPath, WorkloadDriver workloadDriver,
+      String ipcDir) {
     LOG = LoggerFactory.getLogger(ModelCheckingServerAbstract.class + "." + dmckName);
     this.dmckName = dmckName;
     packetQueue = new LinkedBlockingQueue<Event>();
@@ -200,7 +199,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       waitEndExploration = Integer.parseInt(dmckConf.getProperty("wait_end_exploration"));
 
       // optional config
-      workloadInjectionWaitingTime = Integer.parseInt(dmckConf.getProperty("wait_before_workload_injection", "0"));
+      workloadInjectionWaitingTime =
+          Integer.parseInt(dmckConf.getProperty("wait_before_workload_injection", "0"));
       useSequencer = dmckConf.getProperty("use_sequencer", "false").equals("true");
       tcpParadigm = dmckConf.getProperty("tcp_paradigm", "true").equals("true");
       if (dmckName.equals("raftModelChecker")) {
@@ -292,7 +292,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
         Transition t = iter.next();
         if (t instanceof PacketSendTransition) {
           PacketSendTransition p = (PacketSendTransition) t;
-          if (p.getPacket().getFromId() == crash.getId() || p.getPacket().getToId() == crash.getId()) {
+          if (p.getPacket().getFromId() == crash.getId()
+              || p.getPacket().getToId() == crash.getId()) {
             p.getPacket().setObsolete(true);
             p.getPacket().setObsoleteBy(crash.getId());
           }
@@ -660,7 +661,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     if (currentStep > 0) {
       // Performance evaluation: Collect Round-trip time for DMCK in enabling an event
       // and receiving next event(s) or/and node state update(s)
-      long maxRoundTripTime = lastTimeNewEventOrStateUpdate.getTime() - lastTimeEnabledEvent.getTime();
+      long maxRoundTripTime =
+          lastTimeNewEventOrStateUpdate.getTime() - lastTimeEnabledEvent.getTime();
 
       // If there is no new event or state that came after an event is enabled, then
       // maxRoundTripTime will be < 0 milliseconds. At this condition, we can assume
@@ -760,15 +762,16 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       if (packet.getToId() == packet.getObsoleteBy()) {
         // Enable an event, but DMCK does not record it
         try {
-          PrintWriter writer = new PrintWriter(ipcDir + "/new/" + packet.getValue(Event.FILENAME), "UTF-8");
+          PrintWriter writer =
+              new PrintWriter(ipcDir + "/new/" + packet.getValue(Event.FILENAME), "UTF-8");
           writer.println("eventId=" + packet.getId());
           writer.println("execute=false");
           writer.close();
 
           LOG.info("Enable obsolete event with ID : " + packet.getId());
 
-          Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " " + ipcDir + "/ack/"
-              + packet.getValue(Event.FILENAME));
+          Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " "
+              + ipcDir + "/ack/" + packet.getValue(Event.FILENAME));
 
           // Performance evaluation
           collectPerformancePerEventMetrics();
@@ -1008,8 +1011,9 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     } else if (instruction[0].equals("stop")) {
       i = new ExitInstructionTransaction();
     } else {
-      LOG.error("Instruction=" + instruction[0] + " is unknown. Please double check the guided path or"
-          + " update ModelCheckingServerAbstract-transformInstructionToTransition function");
+      LOG.error(
+          "Instruction=" + instruction[0] + " is unknown. Please double check the guided path or"
+              + " update ModelCheckingServerAbstract-transformInstructionToTransition function");
       return null;
     }
 
@@ -1064,10 +1068,13 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     for (int i = 0; i < currentEnabledTransitions.size(); i++) {
       // replace abstract with real one based on id
       Transition eventInQueue = currentEnabledTransitions.get(i);
-      if ((transition instanceof NodeCrashTransition && eventInQueue instanceof AbstractNodeCrashTransition)
-          || (transition instanceof NodeStartTransition && eventInQueue instanceof AbstractNodeStartTransition)) {
+      if ((transition instanceof NodeCrashTransition
+          && eventInQueue instanceof AbstractNodeCrashTransition)
+          || (transition instanceof NodeStartTransition
+              && eventInQueue instanceof AbstractNodeStartTransition)) {
         NodeOperationTransition nodeOp = (NodeOperationTransition) transition;
-        AbstractNodeOperationTransition abstractNodeOpInQueue = (AbstractNodeOperationTransition) eventInQueue;
+        AbstractNodeOperationTransition abstractNodeOpInQueue =
+            (AbstractNodeOperationTransition) eventInQueue;
         nodeOp.setVectorClock(abstractNodeOpInQueue.getPossibleVectorClock(nodeOp.getId()));
         currentEnabledTransitions.set(i, transition);
         eventInQueue = currentEnabledTransitions.get(i);
@@ -1131,8 +1138,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
         waitForNextLE = true;
       }
 
-      LOG.info(
-          "Node " + i + " state: " + localStates[i].getRaftStateName() + " term: " + localStates[i].getValue("term"));
+      LOG.info("Node " + i + " state: " + localStates[i].getRaftStateName() + " term: "
+          + localStates[i].getValue("term"));
     }
     if (!allNodesHasTheSameTerm()) {
       diffTerm = true;
@@ -1174,7 +1181,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   protected boolean allNodesHasTheSameTerm() {
     if (dmckName.equals("raftModelChecker")) {
       for (int i = 0; i < numNode; i++) {
-        if (i > 0 && (int) localStates[i].getValue("term") != (int) localStates[i - 1].getValue("term")) {
+        if (i > 0
+            && (int) localStates[i].getValue("term") != (int) localStates[i - 1].getValue("term")) {
           return false;
         }
       }

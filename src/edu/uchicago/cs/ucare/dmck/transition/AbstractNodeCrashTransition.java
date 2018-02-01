@@ -1,10 +1,8 @@
 package edu.uchicago.cs.ucare.dmck.transition;
 
 import java.util.LinkedList;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
 
 @SuppressWarnings("serial")
@@ -51,7 +49,8 @@ public class AbstractNodeCrashTransition extends AbstractNodeOperationTransition
 
   public NodeCrashTransition getRealNodeOperationTransition() {
     if (isRandom) {
-      LinkedList<NodeOperationTransition> allPossible = getAllRealNodeOperationTransitions(dmck.isNodeOnline);
+      LinkedList<NodeOperationTransition> allPossible =
+          getAllRealNodeOperationTransitions(dmck.isNodeOnline);
       if (allPossible.isEmpty()) {
         LOG.debug("Try to execute crash node event, but currently there is no online node");
         return null;
@@ -78,12 +77,14 @@ public class AbstractNodeCrashTransition extends AbstractNodeOperationTransition
       realCrash.setVectorClock(getPossibleVectorClock(suggestExecuteNodeId));
       return realCrash;
     }
-    LOG.debug("Try to execute crash node event based on suggestion, but currently suggested node is not online");
+    LOG.debug(
+        "Try to execute crash node event based on suggestion, but currently suggested node is not online");
     return null;
   }
 
   @Override
-  public LinkedList<NodeOperationTransition> getAllRealNodeOperationTransitions(boolean[] onlineStatus) {
+  public LinkedList<NodeOperationTransition> getAllRealNodeOperationTransitions(
+      boolean[] onlineStatus) {
     LinkedList<NodeOperationTransition> result = new LinkedList<NodeOperationTransition>();
     for (int i = 0; i < onlineStatus.length; ++i) {
       if (onlineStatus[i]) {

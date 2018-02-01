@@ -2,7 +2,6 @@ package edu.uchicago.cs.ucare.dmck.zookeeper;
 
 import java.util.HashMap;
 import java.util.Properties;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.server.FileWatcher;
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
@@ -35,10 +34,12 @@ public class ZKFileWatcher extends FileWatcher {
         long eventId = Long.parseLong(ev.getProperty("eventId"));
         long hashId = commonHashId(eventId);
 
-        LOG.debug("DMCK receives ZK LE event with hashId-" + hashId + " sender-" + sender + " recv-" + recv + " state-"
-            + state + " leader-" + leader + " zxid-" + zxid + " epoch-" + epoch + " filename-" + filename);
-        appendReceivedUpdates("New Event: filename=" + filename + " sender=" + sender + " recv=" + recv + " state="
-            + state + " leader=" + leader + " zxid=" + zxid + " epoch=" + epoch + " hashId=" + hashId);
+        LOG.debug("DMCK receives ZK LE event with hashId-" + hashId + " sender-" + sender + " recv-"
+            + recv + " state-" + state + " leader-" + leader + " zxid-" + zxid + " epoch-" + epoch
+            + " filename-" + filename);
+        appendReceivedUpdates("New Event: filename=" + filename + " sender=" + sender + " recv="
+            + recv + " state=" + state + " leader=" + leader + " zxid=" + zxid + " epoch=" + epoch
+            + " hashId=" + hashId);
 
         Event event = new Event(hashId);
         event.addKeyValue(Event.FROM_ID, sender);
@@ -63,10 +64,10 @@ public class ZKFileWatcher extends FileWatcher {
         long eventId = Long.parseLong(ev.getProperty("eventId"));
         long hashId = commonHashId(eventId);
 
-        LOG.debug("DMCK receives ZK Snapshot event with hashId-" + hashId + " sender-" + sender + " recv-" + recv
-            + " eventType-" + eventType + " filename-" + filename);
-        appendReceivedUpdates("New Event: filename=" + filename + " sender=" + sender + " recv=" + recv + " eventType="
-            + eventType + " hashId=" + hashId);
+        LOG.debug("DMCK receives ZK Snapshot event with hashId-" + hashId + " sender-" + sender
+            + " recv-" + recv + " eventType-" + eventType + " filename-" + filename);
+        appendReceivedUpdates("New Event: filename=" + filename + " sender=" + sender + " recv="
+            + recv + " eventType=" + eventType + " hashId=" + hashId);
 
         Event event = new Event(hashId);
         event.addKeyValue(Event.FROM_ID, sender);
@@ -88,10 +89,10 @@ public class ZKFileWatcher extends FileWatcher {
         long eventId = Long.parseLong(ev.getProperty("eventId"));
         long hashId = zkHashIdBasedOnPort(eventId, port);
 
-        LOG.debug("DMCK receives ZK UPTODATE msg with hashId-" + hashId + " sender-" + sender + " recv-" + recv
-            + " eventType-" + eventType + " filename-" + filename);
-        appendReceivedUpdates("New Event: filename=" + filename + " sender=" + sender + " recv=" + recv + " eventType="
-            + eventType + " port=" + port + " hashId=" + hashId);
+        LOG.debug("DMCK receives ZK UPTODATE msg with hashId-" + hashId + " sender-" + sender
+            + " recv-" + recv + " eventType-" + eventType + " filename-" + filename);
+        appendReceivedUpdates("New Event: filename=" + filename + " sender=" + sender + " recv="
+            + recv + " eventType=" + eventType + " port=" + port + " hashId=" + hashId);
 
         Event event = new Event(hashId);
         event.addKeyValue(Event.FROM_ID, sender);
@@ -116,11 +117,12 @@ public class ZKFileWatcher extends FileWatcher {
         long eventId = Long.parseLong(ev.getProperty("eventId"));
         long hashId = zkHashIdBasedOnPort(eventId, port);
 
-        LOG.debug(
-            "DMCK receives ZK ZAB event with hashId-" + hashId + " sender-" + sender + " recv-" + recv + " eventType-"
-                + eventType + " key-" + key + " value-" + value + " port-" + port + " filename-" + filename);
-        appendReceivedUpdates("New Event: filename=" + filename + " sender=" + sender + " recv=" + recv + " eventType="
-            + eventType + " key=" + key + " value=" + value + " port=" + port + " hashId=" + hashId);
+        LOG.debug("DMCK receives ZK ZAB event with hashId-" + hashId + " sender-" + sender
+            + " recv-" + recv + " eventType-" + eventType + " key-" + key + " value-" + value
+            + " port-" + port + " filename-" + filename);
+        appendReceivedUpdates("New Event: filename=" + filename + " sender=" + sender + " recv="
+            + recv + " eventType=" + eventType + " key=" + key + " value=" + value + " port=" + port
+            + " hashId=" + hashId);
 
         Event event = new Event(hashId);
         event.addKeyValue(Event.FROM_ID, sender);
@@ -143,10 +145,10 @@ public class ZKFileWatcher extends FileWatcher {
         long eventId = Long.parseLong(ev.getProperty("eventId"));
         long hashId = commonHashId(eventId);
 
-        LOG.debug("DMCK receives ZK Disk Write event with hashId-" + hashId + " node-" + nodeId + " eventType-"
-            + eventType + " filename-" + filename);
-        appendReceivedUpdates(
-            "New Event: filename=" + filename + " nodeId=" + nodeId + " eventType=" + eventType + " hashId=" + hashId);
+        LOG.debug("DMCK receives ZK Disk Write event with hashId-" + hashId + " node-" + nodeId
+            + " eventType-" + eventType + " filename-" + filename);
+        appendReceivedUpdates("New Event: filename=" + filename + " nodeId=" + nodeId
+            + " eventType=" + eventType + " hashId=" + hashId);
 
         Event event = new Event(hashId);
         event.addKeyValue(Event.FROM_ID, nodeId);
@@ -164,7 +166,8 @@ public class ZKFileWatcher extends FileWatcher {
         long hashId = commonHashId(nodeId);
 
         LOG.debug("DMCK receives ZK Snapshot Local Event node-" + nodeId + " filename-" + filename);
-        appendReceivedUpdates("New Event: filename=" + filename + " nodeId=" + nodeId + " hashId=" + hashId);
+        appendReceivedUpdates(
+            "New Event: filename=" + filename + " nodeId=" + nodeId + " hashId=" + hashId);
 
         Event event = new Event(hashId);
         event.addKeyValue(Event.FROM_ID, nodeId);
@@ -181,7 +184,8 @@ public class ZKFileWatcher extends FileWatcher {
       int port = Integer.parseInt(ev.getProperty("port"));
 
       LOG.debug("Update Follower port state node-" + nodeId + " port-" + port);
-      appendReceivedUpdates("New Update: filename=" + filename + " nodeId=" + nodeId + " port=" + port);
+      appendReceivedUpdates(
+          "New Update: filename=" + filename + " nodeId=" + nodeId + " port=" + port);
 
       zkFollowerPortMap.put(nodeId, port);
     } else if (filename.startsWith("zkPersistentState-")) {
@@ -195,19 +199,20 @@ public class ZKFileWatcher extends FileWatcher {
         persistentState += "," + hashcode;
       }
 
-      LOG.debug("Update persistent state at node-" + nodeId + " persistentState-" + persistentState);
-      appendReceivedUpdates(
-          "New Update: filename=" + filename + " nodeId=" + nodeId + " persistentState=" + persistentState);
+      LOG.debug(
+          "Update persistent state at node-" + nodeId + " persistentState-" + persistentState);
+      appendReceivedUpdates("New Update: filename=" + filename + " nodeId=" + nodeId
+          + " persistentState=" + persistentState);
 
       dmck.localStates[nodeId].setKeyValue("persistentState", persistentState);
     } else if (filename.startsWith("zkWorkloadUpdate-")) {
 
       dmck.numQueueInitWorkload--;
 
-      LOG.debug("DMCK receives ZK Workload Accomplishment Update filename-" + filename + " totalWorkloadLeft-"
+      LOG.debug("DMCK receives ZK Workload Accomplishment Update filename-" + filename
+          + " totalWorkloadLeft-" + dmck.numQueueInitWorkload);
+      appendReceivedUpdates("New Workload: filename=" + filename + " currentQueueClientCreateZNode="
           + dmck.numQueueInitWorkload);
-      appendReceivedUpdates(
-          "New Workload: filename=" + filename + " currentQueueClientCreateZNode=" + dmck.numQueueInitWorkload);
 
     } else if (filename.startsWith("zkUpdate-")) {
       int sender = Integer.parseInt(ev.getProperty("sender"));
@@ -216,10 +221,11 @@ public class ZKFileWatcher extends FileWatcher {
       long proposedZxid = Long.parseLong(ev.getProperty("proposedZxid"));
       long logicalclock = Long.parseLong(ev.getProperty("logicalclock"));
 
-      LOG.debug("Update state node-" + sender + " state-" + state + " proposedLeader-" + proposedLeader
-          + " proposedZxid-" + proposedZxid + " logicalclock-" + logicalclock);
-      appendReceivedUpdates("New Update: filename=" + filename + " nodeId=" + sender + " state=" + state
-          + " proposedLeader=" + proposedLeader + " proposedZxid=" + proposedZxid + " logicalclock=" + logicalclock);
+      LOG.debug("Update state node-" + sender + " state-" + state + " proposedLeader-"
+          + proposedLeader + " proposedZxid-" + proposedZxid + " logicalclock-" + logicalclock);
+      appendReceivedUpdates("New Update: filename=" + filename + " nodeId=" + sender + " state="
+          + state + " proposedLeader=" + proposedLeader + " proposedZxid=" + proposedZxid
+          + " logicalclock=" + logicalclock);
 
       dmck.localStates[sender].setKeyValue("state", state);
       dmck.localStates[sender].setKeyValue("proposedLeader", proposedLeader);
@@ -233,7 +239,8 @@ public class ZKFileWatcher extends FileWatcher {
       if (votesTable.isEmpty()) {
         votesHash = null;
         LOG.debug("Update state node=" + sender + " votesTable=null");
-        appendReceivedUpdates("New Update: filename=" + filename + " nodeId=" + sender + " votesTable=null");
+        appendReceivedUpdates(
+            "New Update: filename=" + filename + " nodeId=" + sender + " votesTable=null");
       } else {
         String[] votes = votesTable.split(";");
         for (String vote : votes) {
@@ -242,8 +249,8 @@ public class ZKFileWatcher extends FileWatcher {
         }
 
         LOG.debug("Update state node=" + sender + " votesTable=" + votesHash.toString());
-        appendReceivedUpdates(
-            "New Update: filename=" + filename + " nodeId=" + sender + " votesTable=" + votesHash.toString());
+        appendReceivedUpdates("New Update: filename=" + filename + " nodeId=" + sender
+            + " votesTable=" + votesHash.toString());
       }
 
       if (votesTable.isEmpty()) {

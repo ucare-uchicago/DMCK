@@ -3,7 +3,6 @@ package edu.uchicago.cs.ucare.dmck.election;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-
 import edu.uchicago.cs.ucare.dmck.server.WorkloadDriver;
 
 public class LeaderElectionWorkloadDriver extends WorkloadDriver {
