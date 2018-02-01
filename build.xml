@@ -1,15 +1,15 @@
 <?xml version="1.0"?>
 
-<project name="LeaderElection" default="jar">
+<project xmlns:ivy="antlib:org.apache.ivy.ant" name="LeaderElection" default="jar">
 
     <property name="Name" value="DMCK" />
     <property name="name" value="dmck" />
 
-    <property environment="env"/>
-    
+    <property environment="env" />
+
     <property name="version" value="1.0" />
-    <property name="final.name" value="${name}-v${version}"/>
-    
+    <property name="final.name" value="${name}-v${version}" />
+
     <property name="javac.target" value="1.7" />
     <property name="javac.source" value="1.7" />
 
@@ -21,77 +21,120 @@
     <property name="lib.dir.excludes" value="**/excluded/" />
 
     <property name="build.dir" value="${basedir}/bin" />
-    <property name="build.classes" value="${build.dir}"/>
+    <property name="build.classes" value="${build.dir}" />
 
-	  <path id="java.classpath">
-	      <fileset dir="${lib.dir}">
-	        <include name="${lib.dir.includes}" />
-	        <exclude name="${lib.dir.excludes}" />
-	      </fileset>
-        <fileset dir="${ant.home}/lib">
-          <include name="ant.jar" />
+    <property name="ivy.install.version" value="2.4.0" />
+    <property name="ivy.jar.dir" value="${basedir}/ivy" />
+    <property name="ivy.jar.file" value="${ivy.jar.dir}/ivy.jar" />
+
+    <path id="java.classpath">
+        <fileset dir="${lib.dir}">
+            <include name="${lib.dir.includes}" />
+            <exclude name="${lib.dir.excludes}" />
         </fileset>
-	  </path>
+        <fileset dir="${ant.home}/lib">
+            <include name="ant.jar" />
+        </fileset>
+    </path>
 
-    <target name="clean">
-      <delete dir="${build.dir}"/>
-      <delete file="${basedir}/${final.name}.jar"/>
+    <target name="download-ivy" unless="skip.download">
+        <mkdir dir="${ivy.jar.dir}" />
+        <!--
+        download Ivy from web site so that it can be used even without any special installation
+        -->
+        <echo message="installing ivy..." />
+        <get src="http://repo1.maven.org/maven2/org/apache/ivy/ivy/${ivy.install.version}/ivy-${ivy.install.version}.jar" dest="${ivy.jar.file}" usetimestamp="true" />
     </target>
 
-    <target name="compile" >
+    <target name="install-ivy" depends="download-ivy" description="--> install ivy">
+        <!--
+        try to load ivy here from local ivy dir, in case the user has not already dropped
+        it into ant's lib dir (note that the latter copy will always take precedence).
+        We will not fail as long as local lib dir exists (it may be empty) and
+        ivy is in at least one of ant's lib dir or the local lib dir.
+        -->
+        <path id="ivy.lib.path">
+            <fileset dir="${ivy.jar.dir}" includes="*.jar" />
+        </path>
+        <taskdef resource="org/apache/ivy/ant/antlib.xml" uri="antlib:org.apache.ivy.ant" classpathref="ivy.lib.path" />
+    </target>
+
+    <target name="resolve" depends="install-ivy" description="--> retrieve dependencies with ivy">
+        <!-- <ivy:retrieve type="jar"/> -->
+        <!-- only download the jar binary -->
+        <ivy:retrieve />
+        <!-- download jar, javadoc, sources -->
+    </target>
+
+    <target name="clean">
+        <delete dir="${build.dir}" />
+        <delete file="${basedir}/${final.name}.jar" />
+    </target>
+
+    <target name="compile" depends="resolve">
         <mkdir dir="${build.classes}" />
-        <javac srcdir="${java.src.dir}" destdir="${build.classes}" 
-               debug="true" debuglevel="lines,source"
-               target="${javac.target}" source="${javac.source}" includeantruntime="false">
-            <classpath refid="java.classpath"/>
+        <javac srcdir="${java.src.dir}" destdir="${build.classes}"
+            debug="true" debuglevel="lines,source"
+            target="${javac.target}" source="${javac.source}" includeantruntime="false">
+            <classpath refid="java.classpath" />
         </javac>
     </target>
 
     <target name="jar" depends="compile">
-        <exec executable="hostname" outputproperty="host.name"/>
+        <exec executable="hostname" outputproperty="host.name" />
         <jar jarfile="${basedir}/${final.name}.jar">
-            <fileset dir="${build.classes}" excludes="**/.generated"/>
-            <fileset dir="${java.src.dir}"/>
+            <fileset dir="${build.classes}" excludes="**/.generated" />
+            <fileset dir="${java.src.dir}" />
             <manifest>
                 <attribute name="Main-Class" value="edu.uchicago.cs.ucare.example.election.LeaderElectionMain" />
-                <attribute name="Built-By" value="${user.name}"/>
-                <attribute name="Built-At" value="${build.time}"/>
+                <attribute name="Built-By" value="${user.name}" />
+                <attribute name="Built-At" value="${build.time}" />
                 <attribute name="Built-On" value="${host.name}" />
-                <attribute name="Implementation-Title" value="edu.uchicago.cs.ucare.example.election"/>
+                <attribute name="Implementation-Title" value="edu.uchicago.cs.ucare.example.election" />
             </manifest>
         </jar>
     </target>
 
-    <property name="build.dir.eclipse" value=".eclipse"/>
-    <property name="build.dir.eclipse-main-classes" value="${build.dir.eclipse}/classes-main"/>
+    <property name="build.dir.eclipse" value=".eclipse" />
+    <property name="build.dir.eclipse-main-classes" value="${build.dir.eclipse}/classes-main" />
 
-    <target name="eclipse"
-            description="Create eclipse project files">
-      <taskdef name="eclipse"
-               classname="prantl.ant.eclipse.EclipseTask"
-               classpath="antlib/ant-eclipse-1.0-jvm1.2.jar" />
-      <eclipse updatealways="true">
-        <settings>
-          <jdtcore compilercompliance="6.0" />
-          <resources encoding="UTF-8" />
-        </settings>
-        <project name="${ant.project.name}" />
-        <classpath>
-          <source path="${java.src.dir}"
-                  output="${build.dir.eclipse-main-classes}" />
+    <target name="eclipse" description="Create eclipse project files">
+        <taskdef name="eclipse"
+            classname="prantl.ant.eclipse.EclipseTask"
+            classpath="antlib/ant-eclipse-1.0-jvm1.2.jar" />
+        <eclipse updatealways="true">
+            <settings>
+                <jdtcore compilercompliance="6.0" />
+                <resources encoding="UTF-8" />
+            </settings>
+            <project name="${ant.project.name}" />
+            <classpath>
+                <source path="${java.src.dir}" output="${build.dir.eclipse-main-classes}" />
 
-          <output path="${build.dir.eclipse-main-classes}" />
-          <library pathref="java.classpath" exported="true" />
-        </classpath>
-      </eclipse>
+                <output path="${build.dir.eclipse-main-classes}" />
+                <library pathref="java.classpath" exported="true" />
+            </classpath>
+        </eclipse>
     </target>
 
     <target name="clean-eclipse" description="Clean eclipse files">
-      <delete file=".classpath" />
-      <delete file=".eclipse" />
-      <delete file=".project" />
-      <delete dir=".settings" />
-      <delete dir="${build.dir.eclipse}" />
+        <delete file=".classpath" />
+        <delete file=".eclipse" />
+        <delete file=".project" />
+        <delete dir=".settings" />
+        <delete dir="${build.dir.eclipse}" />
+    </target>
+
+    <target name="clean-ivy" description="--> clean the ivy installation">
+        <delete dir="${ivy.jar.dir}" />
+    </target>
+    <!--
+ 		================================= 
+			target: clean-cache              
+		================================= 
+	-->
+    <target name="clean-cache" depends="install-ivy" description="--> clean the ivy cache">
+        <ivy:cleancache />
     </target>
 
 

@@ -4,5 +4,7 @@
 .eclipse
 bin
 dmck-*.jar
+ivy
+lib/*.jar
 target-sys.conf
 *.iml

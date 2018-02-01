@@ -17,9 +17,9 @@ public class Path extends LinkedList<Transition> implements Serializable {
    */
   private static final long serialVersionUID = 7359356166185399233L;
 
-  private int myId;
+  private int myId = 0;
 
-  private int myParentId;
+  private int myParentId = 0;
 
   public Path() {
     super();

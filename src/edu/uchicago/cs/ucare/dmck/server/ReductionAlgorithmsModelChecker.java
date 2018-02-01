@@ -11,6 +11,7 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Enumeration;
@@ -23,6 +24,8 @@ import java.util.ListIterator;
 import java.util.Properties;
 
 import com.almworks.sqlite4java.SQLiteException;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import edu.uchicago.cs.ucare.dmck.transition.AbstractEventConsequence;
 import edu.uchicago.cs.ucare.dmck.transition.AbstractGlobalStates;
@@ -224,16 +227,26 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       if (initialPathFile.exists()) {
         try {
           BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(initialPathFile)));
+          StringBuffer fileContents = new StringBuffer();
           String path;
           while ((path = br.readLine()) != null) {
+            fileContents.append(path);
+          }
+          br.close();
+
+          Gson gson = new Gson();
+          PathMeta[] arrPathMeta = gson.fromJson(fileContents.toString(), PathMeta[].class);
+
+          for (PathMeta meta : arrPathMeta) {
             Path initPath = new Path();
-            String[] eventIDs = path.trim().split(",");
+            initPath.setId(meta.getId());
+            initPath.setParentId(meta.getParentId());
+            String[] eventIDs = meta.getPathString().trim().split(",");
             for (String eventID : eventIDs) {
               initPath.add(allEventsDB.get(Long.parseLong(eventID)));
             }
             pathQueue.add(initPath);
           }
-          br.close();
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -247,11 +260,16 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       if (listOfPathsFile.exists()) {
         try {
           BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(listOfPathsFile)));
+          StringBuffer fileContents = new StringBuffer();
           String path;
           while ((path = br.readLine()) != null) {
-            pathQueue.add(new PathMeta(path.trim()));
+            fileContents.append(path);
           }
           br.close();
+
+          Gson gson = new Gson();
+          PathMeta[] arrPathMeta = gson.fromJson(fileContents.toString(), PathMeta[].class);
+          pathQueue.addAll(Arrays.asList(arrPathMeta));
         } catch (FileNotFoundException e) {
           e.printStackTrace();
         } catch (IOException e) {
@@ -782,11 +800,15 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         BufferedWriter bw = new BufferedWriter(
             new OutputStreamWriter(new FileOutputStream(new File(idRecordDirPath + "/" + fileName))));
         Iterator<Path> pathsQueueIter = pathsQueue.iterator();
-        String paths = "";
+
+        List<PathMeta> meta = new ArrayList<PathMeta>();
         while (pathsQueueIter.hasNext()) {
           Path path = pathsQueueIter.next();
-          paths += pathToString(path) + "\n";
+          meta.add(path.toPathMeta());
         }
+
+        Gson gson = new Gson();
+        String paths = gson.toJson(meta);
         bw.write(paths);
         bw.close();
 
@@ -805,10 +827,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       try {
         BufferedWriter bw = new BufferedWriter(
             new OutputStreamWriter(new FileOutputStream(new File(idRecordDirPath + "/" + fileName))));
-        String paths = "";
-        for (PathMeta path : pathsQueue) {
-          paths += path.getPathString() + "\n";
-        }
+
+        Gson gson = new Gson();
+        String paths = gson.toJson(pathsQueue);
         bw.write(paths);
         bw.close();
 

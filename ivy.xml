@@ -1,0 +1,6 @@
+<ivy-module version="2.0">
+    <info organisation="edu.uchicago.cs.ucare.dmck" module="dmck-core"/>
+    <dependencies>
+	<dependency org="com.google.code.gson" name="gson" rev="2.8.2"/>
+    </dependencies>
+</ivy-module>
