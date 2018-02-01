@@ -188,17 +188,17 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       configInputStream.close();
 
       // mandatory config
-      initSteadyStateTimeout = Integer.parseInt(dmckConf.getProperty("initSteadyStateTimeout"));
-      steadyStateTimeout = Integer.parseInt(dmckConf.getProperty("steadyStateTimeout"));
-      waitEndExploration = Integer.parseInt(dmckConf.getProperty("waitEndExploration"));
+      initSteadyStateTimeout = Integer.parseInt(dmckConf.getProperty("init_steady_state_timeout"));
+      steadyStateTimeout = Integer.parseInt(dmckConf.getProperty("steady_state_timeout"));
+      waitEndExploration = Integer.parseInt(dmckConf.getProperty("wait_end_exploration"));
 
       // optional config
-      workloadInjectionWaitingTime = Integer.parseInt(dmckConf.getProperty("waitBeforeWorkloadInjection", "0"));
-      tcpParadigm = dmckConf.getProperty("tcpParadigm", "true").equals("true");
+      workloadInjectionWaitingTime = Integer.parseInt(dmckConf.getProperty("wait_before_workload_injection", "0"));
+      tcpParadigm = dmckConf.getProperty("tcp_paradigm", "true").equals("true");
       if (dmckName.equals("raftModelChecker")) {
-        leaderElectionTimeout = Integer.parseInt(dmckConf.getProperty("leaderElectionTimeout"));
-        timeoutEventIterations = Integer.parseInt(dmckConf.getProperty("timeoutEventIterations"));
-        snapshotWaitingTime = Integer.parseInt(dmckConf.getProperty("snapshotWaitingTime"));
+        leaderElectionTimeout = Integer.parseInt(dmckConf.getProperty("leader_election_timeout"));
+        timeoutEventIterations = Integer.parseInt(dmckConf.getProperty("timeout_event_iterations"));
+        snapshotWaitingTime = Integer.parseInt(dmckConf.getProperty("snapshot_waiting_time"));
       }
 
     } catch (Exception e) {

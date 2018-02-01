@@ -18,24 +18,24 @@ ipc_dir=/tmp/ipc
 # DMCK Main Directory
 #   Store the complete DMCK code
 #   Default: /home/yourusername/dmck
-dmck_dir=/home/jeff/Programs/dmck
+dmck_dir=/home/jeff/Programs/DMCK
 
 # Target System Directory (optional)
 #   Point this to the target system directory
 #   Default: /home/yourusername/target-system 
-target_sys_dir=/home/jeff/Programs/dmck-target-sys/cassandra-6023
+target_sys_dir=/home/jeff/Programs/DMCK-target-systems/cassandra-6023
 
 # DMCK File Watcher Class
 #   Point this to the FileWatcher class that you have made
 #   specific for your target system
 #   Default: edu.uchicago.cs.ucare.dmck.yourtargetsystem.YourTargetSystemFileWatcher
-initial_path=/home/jeff/Programs/dmck/cassandra-2.0.0/initialPaths/cass-6023
+initial_path=/home/jeff/Programs/DMCK/cassandra-2.0.0/initialPaths/cass-6023
 
 # DMCK Expected Result Path (optional)
 #   If it is setup, the DMCK will stop its exploration
 #   once it sees that the latest execution path reach the specific result evaluation
 #   Default: /home/yourusername/dmck/target-system/expectedResultPaths/dcbugnumber-file
-expected_result_path=/home/jeff/Programs/dmck/cassandra-2.0.0/expectedResultPaths/cass-6023
+expected_result_path=/home/jeff/Programs/DMCK/cassandra-2.0.0/expectedResultPaths/cass-6023
 
 # DMCK Exploration Strategy Class
 #   Point this to the Exploration Strategy that you want to use.
