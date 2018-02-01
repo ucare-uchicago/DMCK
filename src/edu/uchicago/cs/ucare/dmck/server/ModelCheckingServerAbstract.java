@@ -143,6 +143,11 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   public Timestamp startTimePathExecution;
   public Timestamp endTimePathExecution;
 
+  // quick event release
+  public boolean useSequencer;
+  public int[] senderSequencer;
+  public int[] receiverSequencer;
+
   @SuppressWarnings("unchecked")
   public ModelCheckingServerAbstract(String dmckName, FileWatcher fileWatcher, int numNode, String testRecordDirPath,
       String workingDirPath, WorkloadDriver workloadDriver, String ipcDir) {
@@ -196,6 +201,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
       // optional config
       workloadInjectionWaitingTime = Integer.parseInt(dmckConf.getProperty("wait_before_workload_injection", "0"));
+      useSequencer = dmckConf.getProperty("use_sequencer", "false").equals("true");
       tcpParadigm = dmckConf.getProperty("tcp_paradigm", "true").equals("true");
       if (dmckName.equals("raftModelChecker")) {
         leaderElectionTimeout = Integer.parseInt(dmckConf.getProperty("leader_election_timeout"));
@@ -731,16 +737,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     boolean result;
     if (!packet.isObsolete()) {
       try {
-
-        PrintWriter writer = new PrintWriter(ipcDir + "/new/" + packet.getValue(Event.FILENAME), "UTF-8");
-        writer.println("eventId=" + packet.getId());
-        writer.println("execute=true");
-        writer.close();
-
-        LOG.info("Enable event with ID : " + packet.getId());
-
-        Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " " + ipcDir + "/ack/"
-            + packet.getValue(Event.FILENAME));
+        fileWatcher.enableEvent(packet);
 
         // Performance evaluation
         collectPerformancePerEventMetrics();
@@ -879,11 +876,15 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     numQueueMidWorkload = numMidWorkload;
     numQueueInitWorkload = numInitWorkload;
     localState = new int[numNode];
+    senderSequencer = new int[numNode];
+    receiverSequencer = new int[numNode];
     timeoutEventCounter = new int[numNode];
     initTimeoutEnabling = new boolean[numNode];
     for (int i = 0; i < numNode; i++) {
       timeoutEventCounter[i] = 0;
       initTimeoutEnabling[i] = false;
+      senderSequencer[i] = 0;
+      receiverSequencer[i] = 0;
     }
     waitForNextLE = false;
     waitedForNextLEInDiffTermCounter = 0;

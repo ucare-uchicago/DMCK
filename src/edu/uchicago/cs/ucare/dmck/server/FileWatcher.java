@@ -11,6 +11,8 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.uchicago.cs.ucare.dmck.event.Event;
+
 public abstract class FileWatcher implements Runnable {
 
   protected final static Logger LOG = LoggerFactory.getLogger(FileWatcher.class);
@@ -123,5 +125,32 @@ public abstract class FileWatcher implements Runnable {
     packetCount.put(eventId, count);
     return 31 * eventId + count;
   }
+
+  // Sequencer Module
+  public void enableEvent(Event packet) {
+    if (dmck.useSequencer) {
+      sequencerEnablingSignal(packet);
+    } else {
+      commonEnablingSignal(packet);
+    }
+  }
+
+  public void commonEnablingSignal(Event packet) {
+    try {
+      PrintWriter writer = new PrintWriter(ipcDir + "/new/" + packet.getValue(Event.FILENAME), "UTF-8");
+      writer.println("eventId=" + packet.getId());
+      writer.println("execute=true");
+      writer.close();
+
+      LOG.info("Enable event with ID : " + packet.getId());
+
+      Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " " + ipcDir + "/ack/"
+          + packet.getValue(Event.FILENAME));
+    } catch (Exception e) {
+      LOG.error("Error when enabling event in common way=" + packet.toString());
+    }
+  }
+
+  protected abstract void sequencerEnablingSignal(Event packet);
 
 }

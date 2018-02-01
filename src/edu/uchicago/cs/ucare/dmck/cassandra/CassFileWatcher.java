@@ -1,5 +1,6 @@
 package edu.uchicago.cs.ucare.dmck.cassandra;
 
+import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Properties;
 
@@ -98,6 +99,38 @@ public class CassFileWatcher extends FileWatcher {
     }
 
     removeProceedFile(filename);
+  }
+
+  @Override
+  protected void sequencerEnablingSignal(Event packet) {
+    try {
+      dmck.senderSequencer[packet.getFromId()]++;
+      dmck.receiverSequencer[packet.getToId()]++;
+
+      // Sender Sequencer
+      String sendSeqFile = String.valueOf(packet.getValue(Event.FILENAME));
+      PrintWriter writer = new PrintWriter(ipcDir + "/new/" + sendSeqFile, "UTF-8");
+      writer.println("eventId=" + packet.getId());
+      writer.println("recvNode=" + packet.getToId());
+      writer.println("dmckStep=" + dmck.senderSequencer[packet.getFromId()]);
+      writer.println("execute=true");
+      writer.close();
+
+      // Receiver Sequencer
+      String recvSeqFile = "recv-" + packet.getToId() + "-" + dmck.receiverSequencer[packet.getToId()];
+      writer = new PrintWriter(ipcDir + "/new/" + recvSeqFile, "UTF-8");
+      writer.println("sendNode=" + packet.getFromId());
+      writer.println("verb=" + packet.getValue("verb"));
+      writer.println("execute=true");
+      writer.close();
+
+      LOG.info("Enable event with ID : " + packet.getId());
+
+      Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + recvSeqFile + " " + ipcDir + "/ack/" + recvSeqFile);
+      Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + sendSeqFile + " " + ipcDir + "/ack/" + sendSeqFile);
+    } catch (Exception e) {
+      LOG.error("Error when enabling event with sequencer method=" + packet.toString());
+    }
   }
 
 }

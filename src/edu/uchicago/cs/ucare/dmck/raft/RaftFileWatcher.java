@@ -88,4 +88,11 @@ public class RaftFileWatcher extends FileWatcher {
     removeProceedFile(filename);
   }
 
+  @Override
+  protected void sequencerEnablingSignal(Event packet) {
+    // Since current DMCK integration with Raft has not supported sequencer yet,
+    // DMCK should just use common enabling signal function for now.
+    commonEnablingSignal(packet);
+  }
+
 }
