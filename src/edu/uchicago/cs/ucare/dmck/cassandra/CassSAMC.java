@@ -44,7 +44,7 @@ public class CassSAMC extends EvaluationModelChecker {
     }
 
     // SAMC2 : Msg-alwaysdis
-    if (this.enableMsgAlwaysDis) {
+    if (reductionAlgorithms.contains("msg_always_dis")) {
       if (e1Verb.equals("PAXOS_COMMIT_RESPONSE")
           || e2Verb.equals("PAXOS_COMMIT_RESPONSE") && (e1.getToId() == e2.getToId())) {
         recordPolicyEffectiveness("msgAlwaysDis");
@@ -53,7 +53,7 @@ public class CassSAMC extends EvaluationModelChecker {
     }
 
     // SAMC3 : Msg-alwaysdis
-    if (this.enableMsgAlwaysDis) {
+    if (reductionAlgorithms.contains("msg_always_dis")) {
       if (isPaxosCommand(e1Verb) && e1Verb.equals(e2Verb) && (e1.getToId() == e2.getToId()) && (e1Key == e2Key)
           && (e1Ballot.compareTo(e2Ballot) > 0)) {
         recordPolicyEffectiveness("msgAlwaysDis");
@@ -62,7 +62,7 @@ public class CassSAMC extends EvaluationModelChecker {
     }
 
     // SAMC4 : LMI-discard && Msg-alwaysdis
-    if (this.enableMsgAlwaysDis) {
+    if (reductionAlgorithms.contains("msg_always_dis")) {
       if (e1Verb.equals("PAXOS_PREPARE_RESPONSE") && e2Verb.equals("PAXOS_PREPARE_RESPONSE")
           && (e1.getToId() == e2.getToId()) && (e1Key == e2Key)) {
         String e1Response = e1Payload.get("response");
@@ -75,7 +75,7 @@ public class CassSAMC extends EvaluationModelChecker {
     }
 
     // SAMC5 : Msg-ww-disjoint
-    if (this.enableMsgWWDisjoint) {
+    if (reductionAlgorithms.contains("msg_ww_disjoint")) {
       if (e1Verb.equals("PAXOS_PREPARE") && e2Verb.equals("PAXOS_PREPARE_RESPONSE") && (e1.getToId() == e2.getToId())) {
         recordPolicyEffectiveness("msgWWDisjoint");
         return false;
@@ -103,7 +103,7 @@ public class CassSAMC extends EvaluationModelChecker {
     }
 
     // SAMC6 : Msg-ww-disjoint
-    if (this.enableMsgWWDisjoint) {
+    if (reductionAlgorithms.contains("msg_ww_disjoint")) {
       if (e1Verb.equals("PAXOS_PREPARE_RESPONSE") && e2Verb.equals("PAXOS_PROPOSE_RESPONSE")
           && (e1.getToId() == e2.getToId())) {
         recordPolicyEffectiveness("msgWWDisjoint");
@@ -117,7 +117,7 @@ public class CassSAMC extends EvaluationModelChecker {
     }
 
     // SAMC7 : LMI && Msg-alwaysdis
-    if (this.enableMsgAlwaysDis) {
+    if (reductionAlgorithms.contains("msg_always_dis")) {
       if (e1Verb.equals("PAXOS_PROPOSE_RESPONSE") && e2Verb.equals("PAXOS_PROPOSE_RESPONSE")
           && (e1.getToId() == e2.getToId())) {
         recordPolicyEffectiveness("msgAlwaysDis");

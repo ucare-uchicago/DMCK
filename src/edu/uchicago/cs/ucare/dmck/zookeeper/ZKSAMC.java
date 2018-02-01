@@ -33,7 +33,7 @@ public class ZKSAMC extends EvaluationModelChecker {
     }
 
     // if one msg is zkUpToDate and the other msg is zkLE, do not reorder
-    if (this.enableMsgWWDisjoint) {
+    if (reductionAlgorithms.contains("msg_ww_disjoint")) {
       if ((e1.getValue("filename").toString().startsWith("zkUpToDate")
           && e2.getValue("filename").toString().startsWith("zkLE"))
           || (e2.getValue("filename").toString().startsWith("zkUpToDate")
@@ -44,7 +44,7 @@ public class ZKSAMC extends EvaluationModelChecker {
     }
 
     // if one of it is msg and the other is local disk write event
-    if (this.enableDiskRW) {
+    if (reductionAlgorithms.contains("disk_rw")) {
       if ((e1.getFromId() == e1.getToId() && e2.getFromId() != e2.getToId())
           || (e2.getFromId() == e2.getToId() && e1.getFromId() != e1.getToId())) {
         recordPolicyEffectiveness("diskRW");
@@ -78,7 +78,7 @@ public class ZKSAMC extends EvaluationModelChecker {
   @Override
   public boolean isCCDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, NodeCrashTransition crash1,
       NodeCrashTransition crash2) {
-    if (this.enableCrash2NoImpact) {
+    if (reductionAlgorithms.contains("crash_2_noimpact")) {
       for (int i = 0; i < numNode; i++) {
         if (wasNodeOnline[i] && i != crash1.getId() && i != crash2.getId()) {
           if ((int) wasLocalState[i].getValue("state") != 0) {
@@ -117,7 +117,7 @@ public class ZKSAMC extends EvaluationModelChecker {
   @Override
   public boolean isNotDiscardReorder(boolean[] wasNodeOnline, LocalState[] wasLocalState,
       NodeOperationTransition crashOrRebootEvent, Event msg) {
-    if (this.enableCrashRebootDis) {
+    if (reductionAlgorithms.contains("crash_reboot_dis")) {
       if (isDiscardMsg(wasLocalState[msg.getToId()], msg)) {
         recordPolicyEffectiveness("crDis");
         return false;

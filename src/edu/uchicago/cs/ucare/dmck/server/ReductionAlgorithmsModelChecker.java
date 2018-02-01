@@ -11,6 +11,7 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Enumeration;
@@ -70,15 +71,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   int recordedEventImpacts;
 
   protected boolean isSAMC;
-  protected boolean enableMsgWWDisjoint;
-  protected boolean enableMsgAlwaysDis;
-  protected boolean enableDiskRW;
-  protected boolean enableParallelism;
-  protected boolean enableCrash2NoImpact;
-  protected boolean enableCrashRebootDis;
-  protected boolean enableSymmetry;
-  protected boolean enableSymmetryDoubleCheck;
-  protected boolean enableCRSRSSRuntime;
+  protected ArrayList<String> reductionAlgorithms;
 
   String stateDir;
 
@@ -115,14 +108,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     this.numCrash = numCrash;
     this.numReboot = numReboot;
     isSAMC = true;
-    enableMsgWWDisjoint = false;
-    enableMsgAlwaysDis = false;
-    enableDiskRW = false;
-    enableParallelism = false;
-    enableCrash2NoImpact = false;
-    enableCrashRebootDis = false;
-    enableSymmetry = false;
-    enableCRSRSSRuntime = false;
+    reductionAlgorithms = new ArrayList<String>();
     policyRecord = new Hashtable<String, Integer>();
 
     stateDir = packetRecordDir;
@@ -178,18 +164,12 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         nonAbstractEventKeys = samcConf.getProperty("non_abstract_event") != null
             ? samcConf.getProperty("non_abstract_event").split(",")
             : null;
-        this.enableMsgWWDisjoint = samcConf.getProperty("msg_ww_disjoint", "false").equals("true");
-        this.enableMsgAlwaysDis = samcConf.getProperty("msg_always_dis", "false").equals("true");
-        this.enableDiskRW = samcConf.getProperty("disk_rw", "false").equals("true");
-        this.enableCrash2NoImpact = samcConf.getProperty("crash_2_noimpact", "false").equals("true");
-        this.enableCrashRebootDis = samcConf.getProperty("crash_reboot_dis", "false").equals("true");
-        this.enableParallelism = samcConf.getProperty("parallelism", "false").equals("true");
-        this.enableSymmetry = samcConf.getProperty("symmetry", "false").equals("true");
-        this.enableSymmetryDoubleCheck = samcConf.getProperty("symmetry_double_check", "false").equals("true");
-        this.enableCRSRSSRuntime = samcConf.getProperty("crs_rss_runtime", "false").equals("true");
+        for (String algorithm : samcConf.getProperty("reduction_algorithms", "").split("")) {
+          reductionAlgorithms.add(algorithm);
+        }
 
         // sanity check
-        if (this.enableSymmetry && nonAbstractEventKeys == null) {
+        if (reductionAlgorithms.contains("symmetry") && nonAbstractEventKeys == null) {
           LOG.error("In samc.conf, you have configured symmetry=true, but you have not specified non_abstract_event.");
           System.exit(1);
         }
@@ -271,7 +251,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       // Load all events DB
       Hashtable<Long, Transition> allEventsDB = loadAllEventsDB();
 
-      if (enableParallelism) {
+      if (reductionAlgorithms.contains("parallelism")) {
         loadPaths(allEventsDB, importantInitialPaths, numRecord, "importantInitialPathsInQueue");
         loadPaths(allEventsDB, unnecessaryInitialPaths, numRecord, "unnecessaryInitialPathsInQueue");
       }
@@ -286,7 +266,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           while ((path = br.readLine()) != null) {
             path = path.trim();
             boolean hasRemovedPath = false;
-            if (enableParallelism) {
+            if (reductionAlgorithms.contains("parallelism")) {
               for (Path p : importantInitialPaths) {
                 if (pathToString(p).equals(path)) {
                   importantInitialPaths.remove(p);
@@ -304,7 +284,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
                 }
               }
             }
-            if (enableParallelism && !hasRemovedPath) {
+            if (reductionAlgorithms.contains("parallelism") && !hasRemovedPath) {
               for (Path p : unnecessaryInitialPaths) {
                 if (pathToString(p).equals(path)) {
                   unnecessaryInitialPaths.remove(p);
@@ -351,7 +331,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         }
       }
 
-      if (this.enableSymmetryDoubleCheck && currentInitialPath != null) {
+      if (reductionAlgorithms.contains("symmetry_double_check") && currentInitialPath != null) {
         if (!isSymmetricPath(currentInitialPath)) {
           break;
         }
@@ -377,7 +357,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       int continueCounter = 0;
       while (iter.hasNext()) {
         Transition transition = iter.next();
-        if (this.enableCRSRSSRuntime) {
+        if (reductionAlgorithms.contains("crs_rss_runtime")) {
           int isSymmetric = isRuntimeCrashRebootSymmetric(transition);
 
           if (isSymmetric == -1 && continueCounter < queueSize) {
@@ -733,7 +713,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       LOG.info("Transition " + newTransition.getTransitionId() + " needs to be reordered with "
           + oldTransition.getTransitionId());
       initialPaths.add(newInitialPath);
-      if (!this.enableParallelism) {
+      if (!reductionAlgorithms.contains("parallelism")) {
         addPathToFinishedInitialPath(newInitialPath);
       }
 
@@ -853,7 +833,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         bw.close();
       }
 
-      if (this.enableParallelism) {
+      if (reductionAlgorithms.contains("parallelism")) {
         // to save high priority initial path
         if (savePaths(currentImportantInitialPaths, "importantInitialPathsInQueue")) {
           importantInitialPaths.addAll(currentImportantInitialPaths);
@@ -869,7 +849,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         printPaths("Initial Paths", initialPaths);
       }
 
-      if (this.enableParallelism) {
+      if (reductionAlgorithms.contains("parallelism")) {
         // to save low priority initial path
         if (savePaths(currentUnnecessaryInitialPaths, "unnecessaryInitialPathsInQueue")) {
           unnecessaryInitialPaths.addAll(currentUnnecessaryInitialPaths);
@@ -962,7 +942,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     backtrackExecutedPath();
     printPaths("Initial Paths", initialPaths);
 
-    if (this.enableParallelism) {
+    if (reductionAlgorithms.contains("parallelism")) {
       evaluateParallelismInitialPaths();
     }
 
@@ -1084,7 +1064,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   public boolean isSymmetricPath(Path initialPath) {
-    if (this.enableSymmetry) {
+    if (reductionAlgorithms.contains("symmetry")) {
       LocalState[] globalStates = getInitialGlobalStates();
       for (Transition event : initialPath) {
         AbstractGlobalStates ags = new AbstractGlobalStates(globalStates, event);
@@ -1432,7 +1412,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             event = ((NodeCrashTransition) nextEvent).clone();
           } else if (nextEvent instanceof NodeStartTransition) {
             event = ((NodeStartTransition) nextEvent).clone();
-          } else if (nextEvent instanceof PacketSendTransition && enableSymmetry) {
+          } else if (nextEvent instanceof PacketSendTransition && reductionAlgorithms.contains("symmetry")) {
             event = ((PacketSendTransition) nextEvent).clone();
           }
           eventAddedToHistory = addEventToIncompleteHistory(oldLocalStates, event);
@@ -1444,7 +1424,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           updateSAMCQueueAfterEventExecution(nextEvent);
         }
 
-        if (eventAddedToHistory && enableSymmetry) {
+        if (eventAddedToHistory && reductionAlgorithms.contains("symmetry")) {
           moveIncompleteEventToEventHistory(oldLocalStates, copyLocalState(localStates), event);
         }
       } catch (IOException e) {
