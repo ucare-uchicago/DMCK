@@ -32,6 +32,7 @@ public class PacketSendTransition extends Transition implements Serializable {
   public PacketSendTransition(ModelCheckingServerAbstract dmck, Event packet) {
     this.dmck = dmck;
     this.packet = packet;
+    this.id = packet.getToId();
   }
 
   @Override

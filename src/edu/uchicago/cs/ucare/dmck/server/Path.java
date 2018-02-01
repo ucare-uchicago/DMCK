@@ -25,7 +25,6 @@ public class Path extends LinkedList<Transition> implements Serializable {
     super();
   }
 
-
   public Path(Collection<Transition> transitions) {
     super(transitions);
   }

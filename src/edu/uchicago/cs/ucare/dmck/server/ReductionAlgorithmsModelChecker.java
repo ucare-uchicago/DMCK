@@ -367,9 +367,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             continue;
           } else if (isSymmetric >= 0) {
             AbstractNodeOperationTransition tmp = (AbstractNodeOperationTransition) transition;
-            tmp.id = isSymmetric;
+            tmp.setId(isSymmetric);
             transition = tmp;
-            LOG.debug("NextTransition is suggested to transform " + transition.toString() + " to " + tmp.id);
+            LOG.debug("NextTransition is suggested to transform " + transition.toString() + " to " + tmp.getId());
           }
         }
         if (continueCounter >= queueSize) {
@@ -456,12 +456,12 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       Transition iterItem = iter.next();
       if (iterItem instanceof AbstractNodeCrashTransition) {
         AbstractNodeCrashTransition crash = (AbstractNodeCrashTransition) iterItem;
-        NodeCrashTransition crashTransition = new NodeCrashTransition(ReductionAlgorithmsModelChecker.this, crash.id);
+        NodeCrashTransition crashTransition = new NodeCrashTransition(ReductionAlgorithmsModelChecker.this, crash.getId());
         crashTransition.setVectorClock(crash.getPossibleVectorClock(crash.getId()));
         iter.set(crashTransition);
       } else if (iterItem instanceof AbstractNodeStartTransition) {
         AbstractNodeStartTransition start = (AbstractNodeStartTransition) iterItem;
-        NodeStartTransition startTransition = new NodeStartTransition(ReductionAlgorithmsModelChecker.this, start.id);
+        NodeStartTransition startTransition = new NodeStartTransition(ReductionAlgorithmsModelChecker.this, start.getId());
         startTransition.setVectorClock(start.getPossibleVectorClock(start.getId()));
         iter.set(startTransition);
       }
@@ -957,13 +957,13 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     for (Transition transition : currentExploringPath) {
       if (transition instanceof AbstractNodeCrashTransition) {
         AbstractNodeCrashTransition abstractCrash = (AbstractNodeCrashTransition) transition;
-        NodeCrashTransition realCrash = new NodeCrashTransition(this, abstractCrash.id);
-        realCrash.setVectorClock(abstractCrash.getPossibleVectorClock(abstractCrash.id));
+        NodeCrashTransition realCrash = new NodeCrashTransition(this, abstractCrash.getId());
+        realCrash.setVectorClock(abstractCrash.getPossibleVectorClock(abstractCrash.getId()));
         realExecutionPath.addTransition(realCrash);
       } else if (transition instanceof AbstractNodeStartTransition) {
         AbstractNodeStartTransition abstractStart = (AbstractNodeStartTransition) transition;
-        NodeStartTransition realStart = new NodeStartTransition(this, abstractStart.id);
-        realStart.setVectorClock(abstractStart.getPossibleVectorClock(abstractStart.id));
+        NodeStartTransition realStart = new NodeStartTransition(this, abstractStart.getId());
+        realStart.setVectorClock(abstractStart.getPossibleVectorClock(abstractStart.getId()));
         realExecutionPath.addTransition(realStart);
       } else {
         realExecutionPath.addTransition(transition);
@@ -1277,7 +1277,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             } catch (IOException e) {
               LOG.error("", e);
             }
-            if (!initialPathSecondAttempt.contains(pathToString(currentInitialPath))) {
+            if (!initialPathSecondAttempt.contains(currentInitialPath.toPathMeta())) {
               currentUnnecessaryInitialPaths.addFirst(currentInitialPath);
               LOG.warn("Try this initial path once again, but at low priority. Total Low Priority Initial Path="
                   + (unnecessaryInitialPaths.size() + currentUnnecessaryInitialPaths.size())
@@ -1394,14 +1394,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         if (nextEvent instanceof AbstractNodeOperationTransition) {
           AbstractNodeOperationTransition nodeOperationTransition = (AbstractNodeOperationTransition) nextEvent;
 
-          if (nodeOperationTransition.id > -1) {
+          if (nodeOperationTransition.getId() > -1) {
             nextEvent = ((AbstractNodeOperationTransition) nextEvent)
-                .getRealNodeOperationTransition(nodeOperationTransition.id);
+                .getRealNodeOperationTransition(nodeOperationTransition.getId());
             LOG.debug("DMCK is going to follow the suggestion to execute=" + nextEvent.toString());
           } else {
             nextEvent = ((AbstractNodeOperationTransition) nextEvent).getRealNodeOperationTransition();
           }
-          nodeOperationTransition.id = ((NodeOperationTransition) nextEvent).getId();
+          nodeOperationTransition.setId(((NodeOperationTransition) nextEvent).getId());
         }
 
         boolean eventAddedToHistory = false;

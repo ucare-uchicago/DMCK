@@ -15,6 +15,18 @@ public abstract class Transition implements Serializable {
 
   public abstract long getTransitionId();
 
+  // Represents the message receiver node ID, or the local event / crash / reboot
+  // executor
+  protected int id;
+
+  public void setId(int id) {
+    this.id = id;
+  }
+
+  public int getId() {
+    return id;
+  }
+
   public static final Comparator<Transition> COMPARATOR = new Comparator<Transition>() {
     public int compare(Transition o1, Transition o2) {
       Long i1 = o1.getTransitionId();

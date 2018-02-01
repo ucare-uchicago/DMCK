@@ -180,7 +180,7 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
                 currentEnabledTransitions.add(nodeOperationTransition);
                 continue;
               }
-              nodeOperationTransition.id = ((NodeOperationTransition) transition).getId();
+              nodeOperationTransition.setId(((NodeOperationTransition) transition).getId());
             }
             saveNextTransition(transition.toString());
             LOG.info("[NEXT TRANSITION] " + transition.toString());

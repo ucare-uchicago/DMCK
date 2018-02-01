@@ -3,12 +3,7 @@ package edu.uchicago.cs.ucare.dmck.transition;
 @SuppressWarnings("serial")
 abstract public class NodeOperationTransition extends Transition {
 
-  public int id;
   public int[][] vectorClock;
-
-  public int getId() {
-    return id;
-  }
 
   public void setVectorClock(int[][] vectorClock) {
     int column = vectorClock[0].length;

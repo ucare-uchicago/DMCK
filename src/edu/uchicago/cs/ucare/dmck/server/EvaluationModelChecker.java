@@ -56,7 +56,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
       return -1;
     } else if (nextTransition instanceof NodeCrashTransition) {
       NodeCrashTransition crashEvent = (NodeCrashTransition) nextTransition;
-      if (isNodeOnline(crashEvent.id) && isCRSDependent(isNodeOnline, localStates, crashEvent)) {
+      if (isNodeOnline(crashEvent.getId()) && isCRSDependent(isNodeOnline, localStates, crashEvent)) {
         return -2;
       }
       recordPolicyEffectiveness("crs-rss-runtime");
@@ -72,7 +72,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
       return -1;
     } else if (nextTransition instanceof NodeStartTransition) {
       NodeStartTransition rebootEvent = (NodeStartTransition) nextTransition;
-      if (!isNodeOnline(rebootEvent.id) && isRSSDependent(isNodeOnline, localStates, rebootEvent)) {
+      if (!isNodeOnline(rebootEvent.getId()) && isRSSDependent(isNodeOnline, localStates, rebootEvent)) {
         return -2;
       }
       recordPolicyEffectiveness("crs-rss-runtime");
@@ -95,13 +95,13 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
     }
     if (lastTransition instanceof AbstractNodeCrashTransition) {
       AbstractNodeCrashTransition abstractCrash = (AbstractNodeCrashTransition) lastTransition;
-      NodeCrashTransition realCrash = new NodeCrashTransition(this, abstractCrash.id);
-      realCrash.setVectorClock(abstractCrash.getPossibleVectorClock(abstractCrash.id));
+      NodeCrashTransition realCrash = new NodeCrashTransition(this, abstractCrash.getId());
+      realCrash.setVectorClock(abstractCrash.getPossibleVectorClock(abstractCrash.getId()));
       lastTransition = realCrash;
     } else if (lastTransition instanceof AbstractNodeStartTransition) {
       AbstractNodeStartTransition abstractStart = (AbstractNodeStartTransition) lastTransition;
-      NodeStartTransition realStart = new NodeStartTransition(this, abstractStart.id);
-      realStart.setVectorClock(abstractStart.getPossibleVectorClock(abstractStart.id));
+      NodeStartTransition realStart = new NodeStartTransition(this, abstractStart.getId());
+      realStart.setVectorClock(abstractStart.getPossibleVectorClock(abstractStart.getId()));
       lastTransition = realStart;
     }
     List<Transition> allBeforeTransitions = dependencies.get(lastTransition);
@@ -110,13 +110,13 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
     } else {
       if (currentTransition instanceof AbstractNodeCrashTransition) {
         AbstractNodeCrashTransition abstractCrash = (AbstractNodeCrashTransition) currentTransition;
-        NodeCrashTransition realCrash = new NodeCrashTransition(this, abstractCrash.id);
-        realCrash.setVectorClock(abstractCrash.getPossibleVectorClock(abstractCrash.id));
+        NodeCrashTransition realCrash = new NodeCrashTransition(this, abstractCrash.getId());
+        realCrash.setVectorClock(abstractCrash.getPossibleVectorClock(abstractCrash.getId()));
         currentTransition = realCrash;
       } else if (currentTransition instanceof AbstractNodeStartTransition) {
         AbstractNodeStartTransition abstractStart = (AbstractNodeStartTransition) currentTransition;
-        NodeStartTransition realStart = new NodeStartTransition(this, abstractStart.id);
-        realStart.setVectorClock(abstractStart.getPossibleVectorClock(abstractStart.id));
+        NodeStartTransition realStart = new NodeStartTransition(this, abstractStart.getId());
+        realStart.setVectorClock(abstractStart.getPossibleVectorClock(abstractStart.getId()));
         currentTransition = realStart;
       }
       return !allBeforeTransitions.contains(currentTransition);
@@ -343,7 +343,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
         LinkedList<NodeOperationTransition> transitions = abstractNodeCrashTransition
             .getAllRealNodeOperationTransitions(oldOnlineStatus);
         for (NodeOperationTransition t : transitions) {
-          if (abstractNodeCrashTransition.id != t.id) {
+          if (abstractNodeCrashTransition.getId() != t.getId()) {
             // check CRS
             if (isCRSDependent(oldOnlineStatus, oldLocalStates, t)) {
               Path interestingPath = tmpPath.clone();
@@ -361,7 +361,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
         LinkedList<NodeOperationTransition> transitions = ((AbstractNodeStartTransition) lastTransition)
             .getAllRealNodeOperationTransitions(oldOnlineStatus);
         for (NodeOperationTransition t : transitions) {
-          if (abstractNodeStartTransition.id != t.id) {
+          if (abstractNodeStartTransition.getId() != t.getId()) {
             // check RSS
             if (isRSSDependent(oldOnlineStatus, oldLocalStates, t)) {
               Path interestingPath = tmpPath.clone();
