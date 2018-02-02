@@ -64,7 +64,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   Path currentExploringPath = new Path();
 
   // record all transition global states before and after
-  LinkedList<AbstractGlobalStates> incompleteEventHistory;
   LinkedList<AbstractGlobalStates> eventHistory;
   LinkedList<AbstractEventConsequence> eventImpacts;
   int recordedEventImpacts;
@@ -80,7 +79,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   int currentReboot;
 
   LinkedList<boolean[]> prevOnlineStatus;
-
   LinkedList<LocalState[]> prevLocalStates;
 
   // record policy effectiveness
@@ -99,7 +97,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     finishedInitialPaths = new HashSet<PathMeta>();
     currentFinishedInitialPaths = new HashSet<PathMeta>();
     initialPathSecondAttempt = new HashSet<PathMeta>();
-    incompleteEventHistory = new LinkedList<AbstractGlobalStates>();
     eventHistory = new LinkedList<AbstractGlobalStates>();
     eventImpacts = new LinkedList<AbstractEventConsequence>();
     recordedEventImpacts = 0;
@@ -1094,7 +1091,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   public boolean isSymmetric(LocalState[] localStates, Transition event) {
     AbstractGlobalStates ags = new AbstractGlobalStates(localStates, event);
     boolean isSymmetric = false;
-    for (AbstractGlobalStates historicalAGS : incompleteEventHistory) {
+    for (AbstractGlobalStates historicalAGS : eventHistory) {
       if (historicalAGS.equals(ags)) {
         isSymmetric = true;
         break;
@@ -1103,47 +1100,37 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return isSymmetric;
   }
 
-  public boolean addEventToIncompleteHistory(LocalState[] localStates, Transition event) {
-    // do not add null event to history
-    if (event == null) {
-      return false;
-    }
-
-    AbstractGlobalStates ags = new AbstractGlobalStates(localStates, event);
-    if (isSymmetricEvent(ags) == -1) {
-      incompleteEventHistory.add(ags);
-      return true;
-    }
-    return false;
-  }
-
-  public void moveIncompleteEventToEventHistory(LocalState[] oldLocalStates,
-      LocalState[] newLocalStates, Transition event) {
-    AbstractGlobalStates ags = new AbstractGlobalStates(oldLocalStates, event);
-    int eventIndex = -1;
-    for (int x = 0; x < incompleteEventHistory.size(); x++) {
-      if (incompleteEventHistory.get(x).equals(ags)) {
-        eventIndex = x;
+  public boolean addEventToHistory(LocalState[] globalStateBefore, LocalState[] globalStateAfter,
+      Transition event) {
+    AbstractGlobalStates ags = new AbstractGlobalStates(globalStateBefore, event);
+    boolean isNewAGS = true;
+    int index = 0;
+    while (index < eventHistory.size()) {
+      if (eventHistory.get(index).equals(ags)) {
+        isNewAGS = false;
         break;
       }
+      index++;
     }
-    if (eventIndex >= 0) {
-      incompleteEventHistory.remove(eventIndex);
-      ags.setAbstractGlobalStateAfter(newLocalStates);
-      // collect : stateBefore >> event >> stateAfter chains
-      AbstractEventConsequence newAEC = ags.getAbstractEventConsequence();
-      boolean record = true;
+    if (isNewAGS) {
+      ags.setAbstractGlobalStateAfter(globalStateAfter);
+      eventHistory.add(ags);
+
+      boolean isNewAEC = true;
+      AbstractEventConsequence aec = ags.getAbstractEventConsequence();
       for (AbstractEventConsequence recordedAEC : eventImpacts) {
-        if (recordedAEC.isIdentical(newAEC)) {
-          record = false;
+        if (recordedAEC.isIdentical(aec)) {
+          isNewAEC = false;
           break;
         }
       }
-      if (record) {
-        eventImpacts.add(newAEC);
+      if (isNewAEC) {
+        eventImpacts.add(aec);
       }
-      eventHistory.add(ags);
+    } else if (eventHistory.get(index).getAbstractGlobalStateAfter() == null) {
+      eventHistory.get(index).setAbstractGlobalStateAfter(globalStateAfter);
     }
+    return isNewAGS;
   }
 
   // if symmetric, return id in history. otherwise, return -1.
@@ -1403,10 +1390,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         exploredBranchRecorder.traverseDownTo(nextEvent.getTransitionId());
       }
       try {
-        currentExploringPath.add(nextEvent);
-        prevOnlineStatus.add(isNodeOnline.clone());
-        prevLocalStates.add(copyLocalState(localStates));
-
         if (nextEvent instanceof AbstractNodeOperationTransition) {
           AbstractNodeOperationTransition nodeOperationTransition =
               (AbstractNodeOperationTransition) nextEvent;
@@ -1422,29 +1405,31 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           nodeOperationTransition.setId(((NodeOperationTransition) nextEvent).getId());
         }
 
-        boolean eventAddedToHistory = false;
         LocalState[] oldLocalStates = copyLocalState(localStates);
-        Transition event = null;
-        if (isSAMC) {
-          if (nextEvent instanceof NodeCrashTransition) {
-            event = ((NodeCrashTransition) nextEvent).clone();
-          } else if (nextEvent instanceof NodeStartTransition) {
-            event = ((NodeStartTransition) nextEvent).clone();
-          } else if (nextEvent instanceof PacketSendTransition
-              && reductionAlgorithms.contains("symmetry")) {
-            event = ((PacketSendTransition) nextEvent).clone();
-          }
-          eventAddedToHistory = addEventToIncompleteHistory(oldLocalStates, event);
-        }
+        currentExploringPath.add(nextEvent);
+        prevOnlineStatus.add(isNodeOnline.clone());
+        prevLocalStates.add(copyLocalState(oldLocalStates));
 
         if (nextEvent.apply()) {
           pathRecordFile.write((nextEvent.toString() + "\n").getBytes());
           updateSAMCQueueAfterEventExecution(nextEvent);
         }
 
-        if (eventAddedToHistory && reductionAlgorithms.contains("symmetry")) {
-          moveIncompleteEventToEventHistory(oldLocalStates, copyLocalState(localStates), event);
+        Transition concreteEvent = null;
+        if (isSAMC) {
+          if (nextEvent instanceof NodeCrashTransition) {
+            concreteEvent = ((NodeCrashTransition) nextEvent).clone();
+          } else if (nextEvent instanceof NodeStartTransition) {
+            concreteEvent = ((NodeStartTransition) nextEvent).clone();
+          } else if (nextEvent instanceof PacketSendTransition
+              && reductionAlgorithms.contains("symmetry")) {
+            concreteEvent = ((PacketSendTransition) nextEvent).clone();
+          }
+          if (concreteEvent != null) {
+            addEventToHistory(oldLocalStates, copyLocalState(localStates), concreteEvent);
+          }
         }
+
       } catch (IOException e) {
         LOG.error("", e);
       }

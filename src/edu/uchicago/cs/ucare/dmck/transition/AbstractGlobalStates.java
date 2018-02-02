@@ -45,7 +45,7 @@ public class AbstractGlobalStates implements Serializable {
       LOG.error("Event=" + event.toString() + " cannot be abstracted yet. Event class="
           + event.getClass());
     }
-    abstractGlobalStateAfter = new LocalState[globalStates.length];
+    abstractGlobalStateAfter = null;
   }
 
   public void setAbstractGlobalStateAfter(LocalState[] globalStates) {
@@ -64,9 +64,13 @@ public class AbstractGlobalStates implements Serializable {
     return abstractGlobalStateBefore;
   }
 
+  public LocalState[] getAbstractGlobalStateAfter() {
+    return abstractGlobalStateAfter;
+  }
+
   public boolean equals(AbstractGlobalStates otherAGS) {
-    // check executing node state similarity
-    if (executingNodeState.equals(otherAGS.getExecutingNodeState())) {
+    // If executing node states are different, then these AGSs are not equal.
+    if (!executingNodeState.equals(otherAGS.getExecutingNodeState())) {
       return false;
     }
 

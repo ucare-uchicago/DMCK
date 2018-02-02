@@ -212,7 +212,9 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
                   && isCMDependent(wasOnlineNodes, wasLocalStates, currentPacket, lastCrash)) {
                 addNewInitialPath(wasLocalStates, tmpPath, currentTransition, lastCrash);
                 if (isSAMC) {
-                  addEventToIncompleteHistory(copyLocalState(wasLocalStates), lastCrash);
+                  // If SAMC, record crash to history, although DMCK does not know the impact of the
+                  // crash.
+                  addEventToHistory(copyLocalState(wasLocalStates), null, lastCrash);
                 }
                 return true;
               }
@@ -228,7 +230,9 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
                 && isCCDependent(wasOnlineNodes, wasLocalStates, currentCrash, lastCrash)) {
               addNewInitialPath(wasLocalStates, tmpPath, currentCrash, lastCrash);
               if (isSAMC) {
-                addEventToIncompleteHistory(copyLocalState(wasLocalStates), lastCrash);
+                // If SAMC, record crash to history, although DMCK does not know the impact of the
+                // crash.
+                addEventToHistory(copyLocalState(wasLocalStates), null, lastCrash);
               }
               return true;
             }
@@ -240,7 +244,9 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
             if (isCRSDependent(wasOnlineNodes, wasLocalStates, lastCrash)) {
               addNewInitialPath(wasLocalStates, tmpPath, currentStart, lastCrash);
               if (isSAMC) {
-                addEventToIncompleteHistory(copyLocalState(wasLocalStates), lastCrash);
+                // If SAMC, record crash to history, although DMCK does not know the impact of the
+                // crash.
+                addEventToHistory(copyLocalState(wasLocalStates), null, lastCrash);
               }
               return true;
             }
@@ -257,7 +263,9 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
             if (isRSSDependent(wasOnlineNodes, wasLocalStates, lastStart)) {
               addNewInitialPath(wasLocalStates, tmpPath, currentTransition, lastStart);
               if (isSAMC) {
-                addEventToIncompleteHistory(copyLocalState(wasLocalStates), lastStart);
+                // If SAMC, record reboot to history, although DMCK does not know the impact of the
+                // reboot.
+                addEventToHistory(copyLocalState(wasLocalStates), null, lastStart);
               }
             }
           } else {
@@ -270,7 +278,9 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
             if (isRSSDependent(wasOnlineNodes, wasLocalStates, lastStart)) {
               addNewInitialPath(wasLocalStates, tmpPath, currentCrash, lastStart);
               if (isSAMC) {
-                addEventToIncompleteHistory(copyLocalState(wasLocalStates), lastStart);
+                // If SAMC, record reboot to history, although DMCK does not know the impact of the
+                // reboot.
+                addEventToHistory(copyLocalState(wasLocalStates), null, lastStart);
               }
               return true;
             }
@@ -282,7 +292,9 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
             if (isRSSDependent(wasOnlineNodes, wasLocalStates, lastStart)) {
               addNewInitialPath(wasLocalStates, tmpPath, currentStart, lastStart);
               if (isSAMC) {
-                addEventToIncompleteHistory(copyLocalState(wasLocalStates), lastStart);
+                // If SAMC, record reboot to history, although DMCK does not know the impact of the
+                // reboot.
+                addEventToHistory(copyLocalState(wasLocalStates), null, lastStart);
               }
               return true;
             }
@@ -364,9 +376,10 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
               Path interestingPath = tmpPath.clone();
               interestingPath.addTransition(t);
               addToInitialPathList(interestingPath);
-              // if SAMC, record crash to history
+              // If SAMC, record crash to history, although DMCK does not know the impact of the
+              // crash.
               if (isSAMC) {
-                addEventToIncompleteHistory(copyLocalState(oldLocalStates), t);
+                addEventToHistory(copyLocalState(oldLocalStates), null, t);
               }
             }
           }
@@ -384,9 +397,10 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
               Path interestingPath = tmpPath.clone();
               interestingPath.addTransition(t);
               addToInitialPathList(interestingPath);
-              // if SAMC, record reboot to history
+              // If SAMC, record reboot to history, although DMCK does not know the impact of the
+              // reboot.
               if (isSAMC) {
-                addEventToIncompleteHistory(copyLocalState(oldLocalStates), t);
+                addEventToHistory(copyLocalState(oldLocalStates), null, t);
               }
             }
           }
