@@ -79,7 +79,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   int currentCrash;
   int currentReboot;
 
-  int globalState2;
   LinkedList<boolean[]> prevOnlineStatus;
 
   LinkedList<LocalState[]> prevLocalStates;
@@ -442,21 +441,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         }
       }
     }
-  }
-
-  public void updateGlobalState2() {
-    int prime = 31;
-    globalState2 = getGlobalState();
-    globalState2 = prime * globalState2 + currentEnabledTransitions.hashCode();
-    for (int i = 0; i < numNode; ++i) {
-      for (int j = 0; j < numNode; ++j) {
-        globalState2 = prime * globalState2 + Arrays.hashCode(messagesQueues[i][j].toArray());
-      }
-    }
-  }
-
-  protected int getGlobalState2() {
-    return globalState2;
   }
 
   protected void convertExecutedAbstractTransitionToReal(Path executedPath) {
@@ -1280,7 +1264,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           transitionCounter++;
           executeMidWorkload();
           updateSAMCQueue();
-          updateGlobalState2();
           Transition nextEvent = null;
           for (int i = 0; i < 20; ++i) {
             nextEvent = retrieveEventFromQueue(currentEnabledTransitions, expectedEvent);
@@ -1296,8 +1279,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             }
           }
           if (nextEvent == null) {
-            LOG.error(
-                "ERROR: Expected to execute " + expectedEvent + ", but the event was not in DMCK Queue.");
+            LOG.error("ERROR: Expected to execute " + expectedEvent
+                + ", but the event was not in DMCK Queue.");
             try {
               pathRecordFile.write(("Expected event cannot be found in DMCK Queue. "
                   + "DMCK was looking for event with id=" + expectedEvent + "\n").getBytes());
@@ -1326,7 +1309,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       while (true) {
         executeMidWorkload();
         updateSAMCQueue();
-        updateGlobalState2();
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
         if (terminationPoint && hasWaited) {
           LOG.info("---- End of Path Execution ----");
@@ -1424,7 +1406,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         currentExploringPath.add(nextEvent);
         prevOnlineStatus.add(isNodeOnline.clone());
         prevLocalStates.add(copyLocalState(localStates));
-        saveLocalState();
 
         if (nextEvent instanceof AbstractNodeOperationTransition) {
           AbstractNodeOperationTransition nodeOperationTransition =
@@ -1458,7 +1439,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
         if (nextEvent.apply()) {
           pathRecordFile.write((nextEvent.toString() + "\n").getBytes());
-          updateGlobalState();
           updateSAMCQueueAfterEventExecution(nextEvent);
         }
 

@@ -116,23 +116,6 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
     exploredBranchRecorder.noteThisNode(".test_id", testId + "");
   }
 
-  protected void saveNextTransition(String nextTransition) {
-    try {
-      localRecordFile.write(("Next Execute: " + nextTransition + "\n").getBytes());
-    } catch (IOException e) {
-      LOG.error("", e);
-    }
-  }
-
-  protected void saveFinishedPath() {
-    try {
-      localRecordFile
-          .write(("Finished Path: " + exploredBranchRecorder.getCurrentPath() + "\n").getBytes());
-    } catch (IOException e) {
-      LOG.error("", e);
-    }
-  }
-
   class PathTraversalWorker extends Thread {
     @Override
     @SuppressWarnings("unchecked")
@@ -157,7 +140,6 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
           saveResult(verifiedResult + "; " + detail + "\n");
           recordTestId();
           exploredBranchRecorder.markBelowSubtreeFinished();
-          saveFinishedPath();
           int currentStep = 0;
           for (LinkedList<Transition> pastTransitions : pastEnabledTransitionList) {
             currentStep++;
@@ -166,7 +148,6 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
               Transition transition = nextTransition(pastTransitions);
               if (transition == null) {
                 exploredBranchRecorder.markBelowSubtreeFinished();
-                saveFinishedPath();
                 hasExploredAll = true;
               } else {
                 hasExploredAll = false;
@@ -210,7 +191,6 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
           transition = nextTransition(currentEnabledTransitions);
         }
         if (transition != null) {
-          saveNextTransition(transition.toString());
           if (recordPath) {
             exploredBranchRecorder.createChild(transition.getTransitionId());
             exploredBranchRecorder.traverseDownTo(transition.getTransitionId());
@@ -221,7 +201,6 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
           try {
             if (transition.apply()) {
               pathRecordFile.write((transition.toString() + "\n").getBytes());
-              updateGlobalState();
               updateSAMCQueueAfterEventExecution(transition);
             } else {
               LOG.warn(transition.toString() + " IS NOT EXECUTED!");
@@ -241,7 +220,6 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
             }
             continue;
           } else {
-            saveFinishedPath();
             LOG.error("There might be some errors");
             hasFinishedAllExploration = true;
             signalWaitingFile();

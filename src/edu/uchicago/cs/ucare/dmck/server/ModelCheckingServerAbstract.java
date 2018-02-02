@@ -40,7 +40,6 @@ import edu.uchicago.cs.ucare.example.election.LeaderElectionMain;
 public abstract class ModelCheckingServerAbstract implements ModelCheckingServer {
 
   private static String PATH_FILE = "path";
-  private static String LOCAL_FILE = "local";
   private static String DEBUG_FILE = "debug.log";
   private static String PERF_FILE = "performance.log";
   private static String RESULT_FILE = "result";
@@ -64,21 +63,15 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
   protected int testId;
 
-  protected boolean isInitGlobalState;
-  protected int initialGlobalState;
-  protected int globalState;
-
   protected String testRecordDirPath;
   protected String allEventsDBDirPath;
   protected String idRecordDirPath;
   protected String pathRecordFilePath;
-  protected String localRecordFilePath;
   protected String performanceRecordFilePath;
   protected String debugRecordFilePath;
   protected String resultFilePath;
   protected File allEventsDBDir;
   protected FileOutputStream pathRecordFile;
-  protected FileOutputStream localRecordFile;
   protected FileOutputStream performanceRecordFile;
   protected FileOutputStream debugRecordFile;
   protected FileOutputStream resultFile;
@@ -162,7 +155,6 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     this.workloadDriver = workloadDriver;
     this.verifier = workloadDriver.verifier;
     pathRecordFile = null;
-    localRecordFile = null;
     performanceRecordFile = null;
     debugRecordFile = null;
     resultFile = null;
@@ -425,7 +417,6 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       testRecordDir.mkdir();
     }
     pathRecordFilePath = idRecordDirPath + "/" + PATH_FILE;
-    localRecordFilePath = idRecordDirPath + "/" + LOCAL_FILE;
     debugRecordFilePath = idRecordDirPath + "/" + DEBUG_FILE;
     performanceRecordFilePath = idRecordDirPath + "/" + PERF_FILE;
     resultFilePath = idRecordDirPath + "/" + RESULT_FILE;
@@ -447,25 +438,9 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     }
   }
 
-  public void updateGlobalState() {
-    int[] tmp = new int[numNode];
-    for (int i = 0; i < numNode; ++i) {
-      tmp[i] = isNodeOnline[i] ? localState[i] : 0;
-    }
-    globalState = Arrays.hashCode(tmp);
-    LOG.debug("System update its global state to be " + globalState);
-  }
-
-  public int getGlobalState() {
-    return globalState;
-  }
-
   protected void initGlobalState() {
-    updateGlobalState();
-    initialGlobalState = globalState;
     try {
       pathRecordFile = new FileOutputStream(pathRecordFilePath);
-      localRecordFile = new FileOutputStream(localRecordFilePath);
       performanceRecordFile = new FileOutputStream(performanceRecordFilePath);
       debugRecordFile = new FileOutputStream(debugRecordFilePath);
     } catch (FileNotFoundException e) {
@@ -570,20 +545,6 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
   public int[][] getVectorClock(int sender, int receiver) {
     return vectorClocks[sender][receiver];
-  }
-
-  public void saveLocalState() {
-    String tmp = "";
-    for (int i = 0; i < numNode; ++i) {
-      tmp += !isNodeOnline[i] ? 0 : localState[i];
-      tmp += ",";
-    }
-    tmp += "\n";
-    try {
-      localRecordFile.write(tmp.getBytes());
-    } catch (IOException e) {
-      LOG.error("", e);
-    }
   }
 
   public boolean hasReproducedBug() {
@@ -891,18 +852,9 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     }
     waitForNextLE = false;
     waitedForNextLEInDiffTermCounter = 0;
-    globalState = 0;
-    isInitGlobalState = false;
     if (pathRecordFile != null) {
       try {
         pathRecordFile.close();
-      } catch (IOException e) {
-        LOG.error("", e);
-      }
-    }
-    if (localRecordFile != null) {
-      try {
-        localRecordFile.close();
       } catch (IOException e) {
         LOG.error("", e);
       }

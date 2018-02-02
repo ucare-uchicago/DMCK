@@ -73,7 +73,6 @@ public class GuideModelChecker extends ModelCheckingServerAbstract {
           break;
         }
         if (transition.apply()) {
-          updateGlobalState();
           updateSAMCQueueAfterEventExecution(transition);
         } else {
 

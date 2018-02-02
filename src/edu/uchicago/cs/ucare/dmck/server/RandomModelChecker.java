@@ -111,14 +111,6 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
     }
   }
 
-  protected void saveNextTransition(String nextTransition) {
-    try {
-      localRecordFile.write(("Next Execute: " + nextTransition + "\n").getBytes());
-    } catch (IOException e) {
-      LOG.error("", e);
-    }
-  }
-
   class PathTraversalWorker extends Thread {
 
     @Override
@@ -187,11 +179,9 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
               }
               nodeOperationTransition.setId(((NodeOperationTransition) transition).getId());
             }
-            saveNextTransition(transition.toString());
             LOG.info("[NEXT TRANSITION] " + transition.toString());
             if (transition.apply()) {
               pathRecordFile.write((transition.toString() + "\n").getBytes());
-              updateGlobalState();
               updateSAMCQueueAfterEventExecution(transition);
             }
           } catch (IOException e) {
