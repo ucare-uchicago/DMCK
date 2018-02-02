@@ -163,7 +163,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         nonAbstractEventKeys = samcConf.getProperty("non_abstract_event") != null
             ? samcConf.getProperty("non_abstract_event").split(",")
             : null;
-        for (String algorithm : samcConf.getProperty("reduction_algorithms", "").split("")) {
+        for (String algorithm : samcConf.getProperty("reduction_algorithms", "").split(",")) {
           reductionAlgorithms.add(algorithm);
         }
 
@@ -1108,10 +1108,10 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   public boolean isSymmetric(LocalState[] localStates, Transition event) {
-    AbstractGlobalStates crashGS = new AbstractGlobalStates(localStates, event);
+    AbstractGlobalStates ags = new AbstractGlobalStates(localStates, event);
     boolean isSymmetric = false;
     for (AbstractGlobalStates historicalAGS : incompleteEventHistory) {
-      if (historicalAGS.equals(crashGS)) {
+      if (historicalAGS.equals(ags)) {
         isSymmetric = true;
         break;
       }
@@ -1276,13 +1276,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         LOG.info(tmp);
         collectDebug(tmp);
         int transitionCounter = 0;
-        for (Transition event : currentInitialPath) {
+        for (Transition expectedEvent : currentInitialPath) {
           transitionCounter++;
           executeMidWorkload();
           updateSAMCQueue();
           updateGlobalState2();
-          Transition nextEvent = retrieveEventFromQueue(currentEnabledTransitions, event);
+          Transition nextEvent = null;
           for (int i = 0; i < 20; ++i) {
+            nextEvent = retrieveEventFromQueue(currentEnabledTransitions, expectedEvent);
             if (nextEvent != null) {
               break;
             } else {
@@ -1295,11 +1296,11 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             }
           }
           if (nextEvent == null) {
-            LOG.error("ERROR: Expected to execute " + event + ", but the event is not in queue.");
-            LOG.error("Being in wrong state, there is not transition " + event + " to apply");
+            LOG.error(
+                "ERROR: Expected to execute " + expectedEvent + ", but the event was not in DMCK Queue.");
             try {
-              pathRecordFile
-                  .write(("no transition. looking for event with id=" + event + "\n").getBytes());
+              pathRecordFile.write(("Expected event cannot be found in DMCK Queue. "
+                  + "DMCK was looking for event with id=" + expectedEvent + "\n").getBytes());
             } catch (IOException e) {
               LOG.error("", e);
             }

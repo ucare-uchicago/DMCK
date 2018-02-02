@@ -417,7 +417,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   }
 
   public void setTestId(int testId) {
-    LOG.debug("This test has id = " + testId);
+    LOG.debug("Path ID=" + testId);
     this.testId = testId;
     idRecordDirPath = testRecordDirPath + "/" + testId;
     File testRecordDir = new File(idRecordDirPath);
@@ -689,7 +689,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     String content = "-------\n";
     content += "SUMMARY\n";
     content += "-------\n";
-    content += " : max-roundtrip-time=" + totalPathExecutionTime + "ms;\n";
+    content += "total-execution-path-time=" + totalPathExecutionTime + "ms;\n";
     try {
       performanceRecordFile.write(content.getBytes());
     } catch (Exception e) {
