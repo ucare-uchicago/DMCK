@@ -18,6 +18,7 @@ public class AbstractGlobalStates implements Serializable {
   private LocalState[] abstractGlobalStateAfter;
   private LocalState executingNodeState;
   private Transition event;
+  private ArrayList<String> causalAbsNewEvents;
 
   public AbstractGlobalStates(LocalState[] globalStates, Transition event) {
     abstractGlobalStateBefore = AbstractGlobalStates.getAbstractGlobalStates(globalStates);
@@ -47,26 +48,38 @@ public class AbstractGlobalStates implements Serializable {
           + event.getClass());
     }
     abstractGlobalStateAfter = null;
+    causalAbsNewEvents = null;
   }
 
   public AbstractGlobalStates(LocalState[] absGlobalStatesBefore, LocalState[] absGlobalStatesAfter,
-      LocalState exNodeState, Transition event, ModelCheckingServerAbstract mc) {
+      LocalState exNodeState, Transition event, ArrayList<String> causalAbsNewEvents,
+      ModelCheckingServerAbstract mc) {
     this.abstractGlobalStateBefore = absGlobalStatesBefore;
     this.abstractGlobalStateAfter = absGlobalStatesAfter;
     this.executingNodeState = exNodeState;
+    this.causalAbsNewEvents = causalAbsNewEvents;
     this.event = Transition.getRealTransition(mc, event);
   }
 
   public AbstractGlobalStates(LocalState[] absGlobalStatesBefore, LocalState[] absGlobalStatesAfter,
-      LocalState exNodeState, Transition event, int numNode) {
+      LocalState exNodeState, Transition event, ArrayList<String> causalAbsNewEvents, int numNode) {
     this.abstractGlobalStateBefore = absGlobalStatesBefore;
     this.abstractGlobalStateAfter = absGlobalStatesAfter;
     this.executingNodeState = exNodeState;
+    this.causalAbsNewEvents = causalAbsNewEvents;
     this.event = event.getSerializable(numNode);
   }
 
   public void setAbstractGlobalStateAfter(LocalState[] globalStates) {
-    abstractGlobalStateAfter = AbstractGlobalStates.getAbstractGlobalStates(globalStates);
+    if (this.abstractGlobalStateAfter == null) {
+      abstractGlobalStateAfter = AbstractGlobalStates.getAbstractGlobalStates(globalStates);
+    }
+  }
+
+  public void setCausalNewEvents(ArrayList<String> causalAbsNewEvents) {
+    if (this.causalAbsNewEvents == null) {
+      this.causalAbsNewEvents = causalAbsNewEvents;
+    }
   }
 
   public LocalState getExecutingNodeState() {
@@ -83,6 +96,10 @@ public class AbstractGlobalStates implements Serializable {
 
   public LocalState[] getAbstractGlobalStateAfter() {
     return abstractGlobalStateAfter;
+  }
+
+  public ArrayList<String> getCausalAbsNewEvents() {
+    return causalAbsNewEvents;
   }
 
   public boolean equals(AbstractGlobalStates otherAGS) {
@@ -191,12 +208,13 @@ public class AbstractGlobalStates implements Serializable {
 
   public AbstractGlobalStates getSerializable(int numNode) {
     return new AbstractGlobalStates(this.abstractGlobalStateBefore, this.abstractGlobalStateAfter,
-        this.executingNodeState, this.event, numNode);
+        this.executingNodeState, this.event, this.causalAbsNewEvents, numNode);
   }
 
   public AbstractGlobalStates getRealAbsEvCons(ModelCheckingServerAbstract mc) {
     return new AbstractGlobalStates(this.getAbstractGlobalStateBefore(),
-        this.getAbstractGlobalStateAfter(), this.executingNodeState, this.getEvent(), mc);
+        this.getAbstractGlobalStateAfter(), this.executingNodeState, this.getEvent(),
+        this.causalAbsNewEvents, mc);
   }
 
 }

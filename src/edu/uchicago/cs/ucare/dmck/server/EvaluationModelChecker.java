@@ -214,7 +214,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
                 if (isSAMC) {
                   // If SAMC, record crash to history, although DMCK does not know the impact of the
                   // crash.
-                  addEventToHistory(copyLocalState(wasLocalStates), null, lastCrash);
+                  addEventToHistory(copyLocalState(wasLocalStates), null, lastCrash, null);
                 }
                 return true;
               }
@@ -232,7 +232,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
               if (isSAMC) {
                 // If SAMC, record crash to history, although DMCK does not know the impact of the
                 // crash.
-                addEventToHistory(copyLocalState(wasLocalStates), null, lastCrash);
+                addEventToHistory(copyLocalState(wasLocalStates), null, lastCrash, null);
               }
               return true;
             }
@@ -246,7 +246,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
               if (isSAMC) {
                 // If SAMC, record crash to history, although DMCK does not know the impact of the
                 // crash.
-                addEventToHistory(copyLocalState(wasLocalStates), null, lastCrash);
+                addEventToHistory(copyLocalState(wasLocalStates), null, lastCrash, null);
               }
               return true;
             }
@@ -265,7 +265,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
               if (isSAMC) {
                 // If SAMC, record reboot to history, although DMCK does not know the impact of the
                 // reboot.
-                addEventToHistory(copyLocalState(wasLocalStates), null, lastStart);
+                addEventToHistory(copyLocalState(wasLocalStates), null, lastStart, null);
               }
             }
           } else {
@@ -280,7 +280,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
               if (isSAMC) {
                 // If SAMC, record reboot to history, although DMCK does not know the impact of the
                 // reboot.
-                addEventToHistory(copyLocalState(wasLocalStates), null, lastStart);
+                addEventToHistory(copyLocalState(wasLocalStates), null, lastStart, null);
               }
               return true;
             }
@@ -294,7 +294,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
               if (isSAMC) {
                 // If SAMC, record reboot to history, although DMCK does not know the impact of the
                 // reboot.
-                addEventToHistory(copyLocalState(wasLocalStates), null, lastStart);
+                addEventToHistory(copyLocalState(wasLocalStates), null, lastStart, null);
               }
               return true;
             }
@@ -379,7 +379,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
               // If SAMC, record crash to history, although DMCK does not know the impact of the
               // crash.
               if (isSAMC) {
-                addEventToHistory(copyLocalState(oldLocalStates), null, t);
+                addEventToHistory(copyLocalState(oldLocalStates), null, t, null);
               }
             }
           }
@@ -400,7 +400,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
               // If SAMC, record reboot to history, although DMCK does not know the impact of the
               // reboot.
               if (isSAMC) {
-                addEventToHistory(copyLocalState(oldLocalStates), null, t);
+                addEventToHistory(copyLocalState(oldLocalStates), null, t, null);
               }
             }
           }

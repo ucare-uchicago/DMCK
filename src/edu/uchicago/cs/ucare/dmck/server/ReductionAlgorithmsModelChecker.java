@@ -662,6 +662,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return result;
   }
 
+  public static ArrayList<String> getAbstractEventQueue(LinkedList<Transition> queue) {
+    ArrayList<String> absEvQueue = new ArrayList<String>();
+    for (Transition ev : queue) {
+      absEvQueue.add(getAbstractEvent(ev));
+    }
+    return absEvQueue;
+  }
+
   public static boolean isIdenticalAbstractLocalStates(LocalState ls1, LocalState ls2) {
     for (String key : abstractGlobalStateKeys) {
       if (ls1.getValue(key) == null && ls2.getValue(key) == null) {
@@ -1196,7 +1204,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   public boolean addEventToHistory(LocalState[] globalStateBefore, LocalState[] globalStateAfter,
-      Transition event) {
+      Transition event, ArrayList<String> causalNewEvents) {
     AbstractGlobalStates ags = new AbstractGlobalStates(globalStateBefore, event);
     boolean isNewAGS = true;
     int index = 0;
@@ -1209,6 +1217,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
     if (isNewAGS) {
       ags.setAbstractGlobalStateAfter(globalStateAfter);
+      ags.setCausalNewEvents(causalNewEvents);
+
       eventHistory.add(ags);
 
       boolean isNewAEC = true;
@@ -1222,8 +1232,13 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       if (isNewAEC) {
         eventImpacts.add(aec);
       }
-    } else if (eventHistory.get(index).getAbstractGlobalStateAfter() == null) {
-      eventHistory.get(index).setAbstractGlobalStateAfter(globalStateAfter);
+    } else {
+      if (eventHistory.get(index).getAbstractGlobalStateAfter() == null) {
+        eventHistory.get(index).setAbstractGlobalStateAfter(globalStateAfter);
+      }
+      if (eventHistory.get(index).getCausalAbsNewEvents() == null) {
+        eventHistory.get(index).setCausalNewEvents(causalNewEvents);
+      }
     }
     return isNewAGS;
   }
@@ -1511,6 +1526,10 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         }
 
         Transition concreteEvent = null;
+        ArrayList<String> prevQueue = new ArrayList<String>();
+        for (Transition ev : currentEnabledTransitions) {
+          prevQueue.add(getAbstractEvent(ev));
+        }
         if (isSAMC) {
           if (nextEvent instanceof NodeCrashTransition) {
             concreteEvent = ((NodeCrashTransition) nextEvent).clone();
@@ -1520,8 +1539,16 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
               && reductionAlgorithms.contains("symmetry")) {
             concreteEvent = ((PacketSendTransition) nextEvent).clone();
           }
+          ArrayList<String> newCausalEvents = new ArrayList<String>();
+          for (Transition ev : currentEnabledTransitions) {
+            String absEvent = getAbstractEvent(ev);
+            if (!prevQueue.contains(absEvent)) {
+              newCausalEvents.add(absEvent);
+            }
+          }
           if (concreteEvent != null) {
-            addEventToHistory(oldLocalStates, copyLocalState(localStates), concreteEvent);
+            addEventToHistory(oldLocalStates, copyLocalState(localStates), concreteEvent,
+                newCausalEvents);
           }
         }
 
