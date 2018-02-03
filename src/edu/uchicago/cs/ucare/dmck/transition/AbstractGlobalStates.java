@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
 import edu.uchicago.cs.ucare.dmck.server.ReductionAlgorithmsModelChecker;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
 
@@ -46,6 +47,22 @@ public class AbstractGlobalStates implements Serializable {
           + event.getClass());
     }
     abstractGlobalStateAfter = null;
+  }
+
+  public AbstractGlobalStates(LocalState[] absGlobalStatesBefore, LocalState[] absGlobalStatesAfter,
+      LocalState exNodeState, Transition event, ModelCheckingServerAbstract mc) {
+    this.abstractGlobalStateBefore = absGlobalStatesBefore;
+    this.abstractGlobalStateAfter = absGlobalStatesAfter;
+    this.executingNodeState = exNodeState;
+    this.event = Transition.getRealTransition(mc, event);
+  }
+
+  public AbstractGlobalStates(LocalState[] absGlobalStatesBefore, LocalState[] absGlobalStatesAfter,
+      LocalState exNodeState, Transition event, int numNode) {
+    this.abstractGlobalStateBefore = absGlobalStatesBefore;
+    this.abstractGlobalStateAfter = absGlobalStatesAfter;
+    this.executingNodeState = exNodeState;
+    this.event = event.getSerializable(numNode);
   }
 
   public void setAbstractGlobalStateAfter(LocalState[] globalStates) {
@@ -171,4 +188,15 @@ public class AbstractGlobalStates implements Serializable {
     }
     return ags;
   }
+
+  public AbstractGlobalStates getSerializable(int numNode) {
+    return new AbstractGlobalStates(this.abstractGlobalStateBefore, this.abstractGlobalStateAfter,
+        this.executingNodeState, this.event, numNode);
+  }
+
+  public AbstractGlobalStates getRealAbsEvCons(ModelCheckingServerAbstract mc) {
+    return new AbstractGlobalStates(this.getAbstractGlobalStateBefore(),
+        this.getAbstractGlobalStateAfter(), this.executingNodeState, this.getEvent(), mc);
+  }
+
 }

@@ -831,7 +831,6 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     LOG.debug("Test reset");
     fileWatcher.resetExecutionPathStats();
     messagesQueues = new ConcurrentLinkedQueue[numNode][numNode];
-    testId = -1;
     currentStep = 0;
     numCurrentCrash = 0;
     numCurrentReboot = 0;

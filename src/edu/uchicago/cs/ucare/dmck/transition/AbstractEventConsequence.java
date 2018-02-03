@@ -1,13 +1,13 @@
 package edu.uchicago.cs.ucare.dmck.transition;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.Serializable;
+import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
 import edu.uchicago.cs.ucare.dmck.server.ReductionAlgorithmsModelChecker;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
 
-public class AbstractEventConsequence {
+public class AbstractEventConsequence implements Serializable {
 
-  private static final Logger LOG = LoggerFactory.getLogger(AbstractEventConsequence.class);
+  private static final long serialVersionUID = -5930228490878216478L;
 
   private LocalState nodeStateBeforeEventExec;
   private LocalState nodeStateAfterEventExec;
@@ -57,6 +57,16 @@ public class AbstractEventConsequence {
     return ReductionAlgorithmsModelChecker.getAbstractLocalState(nodeStateBeforeEventExec) + " >> "
         + ReductionAlgorithmsModelChecker.getAbstractEvent(event) + " >> "
         + ReductionAlgorithmsModelChecker.getAbstractLocalState(nodeStateAfterEventExec).toString();
+  }
+
+  public AbstractEventConsequence getSerializable(int numNode) {
+    return new AbstractEventConsequence(this.nodeStateBeforeEventExec,
+        this.event.getSerializable(numNode), this.nodeStateAfterEventExec);
+  }
+
+  public AbstractEventConsequence getRealAbsEvCons(ModelCheckingServerAbstract mc) {
+    return new AbstractEventConsequence(this.getNodeStateBeforeEventExec(),
+        Transition.getRealTransition(mc, this.getEvent()), this.getNodeStateAfterEventExec());
   }
 
 }

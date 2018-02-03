@@ -13,7 +13,6 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -66,6 +65,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   // record all transition global states before and after
   LinkedList<AbstractGlobalStates> eventHistory;
   LinkedList<AbstractEventConsequence> eventImpacts;
+  int recordedEventHistory;
   int recordedEventImpacts;
 
   protected boolean isSAMC;
@@ -99,6 +99,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     initialPathSecondAttempt = new HashSet<PathMeta>();
     eventHistory = new LinkedList<AbstractGlobalStates>();
     eventImpacts = new LinkedList<AbstractEventConsequence>();
+    recordedEventHistory = 0;
     recordedEventImpacts = 0;
     this.numCrash = numCrash;
     this.numReboot = numReboot;
@@ -114,7 +115,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
 
     getSAMCConfig();
-    loadInitialPathsFromFile();
+    loadExistingDataFromFile();
     resetTest();
   }
 
@@ -192,6 +193,52 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return allEvents;
   }
 
+  @SuppressWarnings("unchecked")
+  protected void loadEventConsequences(int numRecord) {
+    for (int record = 1; record <= numRecord; record++) {
+      File serializedEvConsFile =
+          new File(testRecordDirPath + "/" + record + "/serializedEventConsequences");
+      if (serializedEvConsFile.exists()) {
+        ObjectInputStream ois;
+        try {
+          ois = new ObjectInputStream(new FileInputStream(serializedEvConsFile));
+          ArrayList<AbstractEventConsequence> tempEvImpacts =
+              (ArrayList<AbstractEventConsequence>) ois.readObject();
+          for (AbstractEventConsequence aec : tempEvImpacts) {
+            eventImpacts.add(aec.getRealAbsEvCons(this));
+          }
+          ois.close();
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      }
+    }
+    recordedEventImpacts = eventImpacts.size();
+  }
+
+  @SuppressWarnings("unchecked")
+  protected void loadEventHistory(int numRecord) {
+    for (int record = 1; record <= numRecord; record++) {
+      File serializedEvHistFile =
+          new File(testRecordDirPath + "/" + record + "/serializedEventHistory");
+      if (serializedEvHistFile.exists()) {
+        ObjectInputStream ois;
+        try {
+          ois = new ObjectInputStream(new FileInputStream(serializedEvHistFile));
+          ArrayList<AbstractGlobalStates> tempEvHistory =
+              (ArrayList<AbstractGlobalStates>) ois.readObject();
+          for (AbstractGlobalStates ags : tempEvHistory) {
+            eventHistory.add(ags.getRealAbsEvCons(this));
+          }
+          ois.close();
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      }
+    }
+    recordedEventHistory = eventHistory.size();
+  }
+
   // load existing list of paths to particular queue
   protected void loadPaths(Hashtable<Long, Transition> allEventsDB, LinkedList<Path> pathQueue,
       int numRecord, String fileName) {
@@ -239,15 +286,30 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
   }
 
-  protected void loadInitialPathsFromFile() {
+  protected void loadExistingDataFromFile() {
     try {
       // Grab the max record directory
       File recordDir = new File(testRecordDirPath);
       File[] listOfRecordDir = recordDir.listFiles();
       int numRecord = listOfRecordDir.length;
 
-      // Load all events DB
+      // Load all events DB.
       Hashtable<Long, Transition> allEventsDB = loadAllEventsDB();
+      if (allEventsDB.size() > 0) {
+        LOG.info("Total Events that is loaded to allEventsDB=" + allEventsDB.size());
+      }
+
+      // Load eventImpacts.
+      loadEventConsequences(numRecord);
+      if (eventImpacts.size() > 0) {
+        LOG.info("Total AbsEvConsequence that is loaded to eventImpacts=" + eventImpacts.size());
+      }
+
+      // Load eventHistory.
+      loadEventHistory(numRecord);
+      if (eventHistory.size() > 0) {
+        LOG.info("Total AGS that is loaded to eventHistory=" + eventHistory.size());
+      }
 
       if (reductionAlgorithms.contains("parallelism")) {
         loadPaths(allEventsDB, importantInitialPaths, numRecord, "importantInitialPathsInQueue");
@@ -300,10 +362,17 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
       loadEventIDsPaths(finishedInitialPaths, numRecord, "finishedInitialPaths");
 
-      LOG.info("Total Important Initial Path that has been loaded:" + importantInitialPaths.size());
-      LOG.info("Total Initial Path that has been loaded:" + initialPaths.size());
-      LOG.info(
-          "Total Unnecessary Initial Path that has been loaded:" + unnecessaryInitialPaths.size());
+      if (importantInitialPaths.size() > 0) {
+        LOG.info(
+            "Total Important Initial Path that has been loaded=" + importantInitialPaths.size());
+      }
+      if (initialPaths.size() > 0) {
+        LOG.info("Total Initial Path that has been loaded=" + initialPaths.size());
+      }
+      if (unnecessaryInitialPaths.size() > 0) {
+        LOG.info("Total Unnecessary Initial Path that has been loaded="
+            + unnecessaryInitialPaths.size());
+      }
 
       loadNextInitialPath(false, false);
 
@@ -796,6 +865,53 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return false;
   }
 
+  protected void saveEventConsequences() {
+    try {
+      // Readable event consequence file version.
+      BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
+          new FileOutputStream(new File(idRecordDirPath + "/" + "eventConsequences"))));
+      String eventConsequences = "";
+      // Serialized object event consequence file version
+      ObjectOutputStream evStream = new ObjectOutputStream(
+          new FileOutputStream(idRecordDirPath + "/" + "serializedEventConsequences"));
+      ArrayList<AbstractEventConsequence> tempEvImpacts = new ArrayList<AbstractEventConsequence>();
+      for (int i = recordedEventImpacts; i < eventImpacts.size(); i++) {
+        eventConsequences += eventImpacts.get(i) + "\n";
+        tempEvImpacts.add(eventImpacts.get(i).getSerializable(numNode));
+      }
+      bw.write(eventConsequences);
+      bw.close();
+      evStream.writeObject(tempEvImpacts);
+      evStream.close();
+
+      recordedEventImpacts = eventImpacts.size();
+    } catch (FileNotFoundException e) {
+      LOG.error("", e);
+    } catch (IOException e) {
+      LOG.error("", e);
+    }
+  }
+
+  protected void saveEventHistory() {
+    try {
+      // Serialized object event consequence file version
+      ObjectOutputStream evStream = new ObjectOutputStream(
+          new FileOutputStream(idRecordDirPath + "/" + "serializedEventHistory"));
+      ArrayList<AbstractGlobalStates> tempEvHistory = new ArrayList<AbstractGlobalStates>();
+      for (int i = recordedEventHistory; i < eventHistory.size(); i++) {
+        tempEvHistory.add(eventHistory.get(i).getSerializable(numNode));
+      }
+      evStream.writeObject(tempEvHistory);
+      evStream.close();
+
+      recordedEventHistory = eventHistory.size();
+    } catch (FileNotFoundException e) {
+      LOG.error("", e);
+    } catch (IOException e) {
+      LOG.error("", e);
+    }
+  }
+
   // to log paths
   protected void printPaths(String pathsName, Collection<String> paths) {
     String logs = pathsName + " consists of " + paths.size() + " paths:\n";
@@ -932,6 +1048,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   protected void evaluateExecutedPath() {
     saveAllExecutedEvents();
     saveEventConsequences();
+    saveEventHistory();
 
     backtrackExecutedPath();
     printPaths("Initial Paths", initialPaths);
@@ -1036,28 +1153,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     } catch (Exception ex) {
       LOG.error(ex.toString());
     }
-  }
-
-  protected void saveEventConsequences() {
-    if (testId > 0) {
-      try {
-        BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
-            new FileOutputStream(new File(idRecordDirPath + "/" + "eventConsequences"))));
-        String eventConsequences = "";
-        for (int i = recordedEventImpacts; i < eventImpacts.size(); i++) {
-          eventConsequences += eventImpacts.get(i) + "\n";
-        }
-        bw.write(eventConsequences);
-        bw.close();
-
-        recordedEventImpacts = eventImpacts.size();
-      } catch (FileNotFoundException e) {
-        LOG.error("", e);
-      } catch (IOException e) {
-        LOG.error("", e);
-      }
-    }
-
   }
 
   public boolean isSymmetricPath(Path initialPath) {
