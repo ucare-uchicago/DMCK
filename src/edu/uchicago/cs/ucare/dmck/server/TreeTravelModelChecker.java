@@ -126,7 +126,7 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
           new LinkedList<LinkedList<Transition>>();
       while (true) {
         executeMidWorkload();
-        updateSAMCQueue();
+        updateSAMCQueue(localStates);
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
         if (terminationPoint && hasWaited) {
           LOG.info("---- End of a Path Execution ----");

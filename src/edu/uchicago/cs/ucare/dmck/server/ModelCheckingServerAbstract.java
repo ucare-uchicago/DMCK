@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.ListIterator;
 import java.util.Properties;
@@ -136,6 +137,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
   // quick event release
   public boolean useSequencer;
+  public boolean quickEventReleaseMode;
+  public boolean isQuickEventStep;
   public int[] senderSequencer;
   public int[] receiverSequencer;
 
@@ -194,11 +197,18 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       workloadInjectionWaitingTime =
           Integer.parseInt(dmckConf.getProperty("wait_before_workload_injection", "0"));
       useSequencer = dmckConf.getProperty("use_sequencer", "false").equals("true");
+      quickEventReleaseMode = dmckConf.getProperty("quick_event_release", "false").equals("true");
       tcpParadigm = dmckConf.getProperty("tcp_paradigm", "true").equals("true");
       if (dmckName.equals("raftModelChecker")) {
         leaderElectionTimeout = Integer.parseInt(dmckConf.getProperty("leader_election_timeout"));
         timeoutEventIterations = Integer.parseInt(dmckConf.getProperty("timeout_event_iterations"));
         snapshotWaitingTime = Integer.parseInt(dmckConf.getProperty("snapshot_waiting_time"));
+      }
+
+      // sanity check
+      if (quickEventReleaseMode && !useSequencer) {
+        LOG.error("DMCK expects use_sequencer=true, if quick_event_release=true.");
+        System.exit(1);
       }
 
     } catch (Exception e) {
@@ -269,11 +279,14 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     }
   }
 
-  public void updateSAMCQueue() {
+  public void updateSAMCQueueWithoutLog() {
     getOutstandingEventTransition(currentEnabledTransitions);
     adjustCrashAndReboot(currentEnabledTransitions);
-    printTransitionQueues(currentEnabledTransitions);
-    collectDebugData();
+  }
+
+  public void updateSAMCQueue(LocalState[] currentGS) {
+    updateSAMCQueueWithoutLog();
+    collectDebugData(currentGS);
   }
 
   public void updateSAMCQueueAfterEventExecution(Transition transition) {
@@ -373,39 +386,6 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       buffer.add(new PacketSendTransition(this, localEventQueue.remove(i)));
     }
     transitionList.addAll(buffer);
-  }
-
-  public void printTransitionQueues(LinkedList<Transition> transitionList) {
-    String eventStr = "";
-    int counter = 1;
-    for (Transition t : transitionList) {
-      if (t != null) {
-        // LOG.info(counter + ". " + t.toString());
-        eventStr += counter + ". " + t.toString() + "\n";
-      } else {
-        // LOG.info(counter + ". null event");
-        eventStr += counter + ". null event\n";
-      }
-      counter++;
-    }
-    LOG.info("-----------------------------");
-    LOG.info("Events in DMCK Queue : " + transitionList.size() + "\n" + eventStr);
-    LOG.info("-----------------------------");
-  }
-
-  public void printPacketQueues(LinkedList<Event> packetList) {
-    LOG.debug("-----------------------------");
-    LOG.debug("Packets in DMCK Queue : " + packetList.size());
-    int counter = 1;
-    for (Event p : packetList) {
-      if (p != null) {
-        LOG.debug(counter + ". " + p.toString());
-      } else {
-        LOG.debug(counter + ". " + "null packet");
-      }
-      counter++;
-    }
-    LOG.debug("-----------------------------");
   }
 
   public void setTestId(int testId) {
@@ -562,13 +542,13 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     return false;
   }
 
-  public void collectDebugData() {
+  public void collectDebugData(LocalState[] curGlobalState) {
     String content = "Update from Target System:\n";
     content += fileWatcher.getReceivedUpdates();
 
     content += "Global States:\n";
     for (int n = 0; n < numNode; n++) {
-      content += "n-" + n + ": " + localStates[n].toString() + "\n";
+      content += "n-" + n + ": " + curGlobalState[n].toString() + "\n";
     }
 
     content += "Events in Queue:\n";
@@ -590,8 +570,11 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   }
 
   public void collectDebugNextTransition(Transition transition) {
-    String content = "Next Event: " + transition.toString() + "\n";
-    content += "------------------\n";
+    String content = "Next Event: " + transition.toString();
+    if (isQuickEventStep) {
+      content += " --> IS QUICK EVENT STEP";
+    }
+    content += "\n------------------\n";
     try {
       debugRecordFile.write(content.getBytes());
     } catch (IOException e) {
@@ -693,52 +676,52 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     }
   }
 
-  public boolean commit(Event packet) {
+  public boolean commit(PacketSendTransition event) {
     // if the destination node / origin node is crashed, and the event is
     // still not obsolete,
     // set it to obsolete since it is not valid anymore
     boolean result;
-    if (!packet.isObsolete()) {
+    if (!event.getPacket().isObsolete()) {
       try {
-        fileWatcher.enableEvent(packet);
+        fileWatcher.enableEvent(event);
 
         // Performance evaluation
         collectPerformancePerEventMetrics();
         lastTimeEnabledEvent = new Timestamp(System.currentTimeMillis());
 
-        updateVectorClock(packet);
+        updateVectorClock(event.getPacket());
 
         result = true;
       } catch (Exception e) {
-        LOG.error("Error when committing event=" + packet.toString());
+        LOG.error("Error when committing event=" + event.toString());
         result = false;
       }
       if (result) {
         synchronized (numPacketSentToId) {
-          numPacketSentToId[packet.getToId()]++;
+          numPacketSentToId[event.getPacket().getToId()]++;
         }
         return true;
       }
     } else {
-      if (packet.getToId() == packet.getObsoleteBy()) {
+      if (event.getPacket().getToId() == event.getPacket().getObsoleteBy()) {
         // Enable an event, but DMCK does not record it
+        String filename = String.valueOf(event.getPacket().getValue(Event.FILENAME));
         try {
-          PrintWriter writer =
-              new PrintWriter(ipcDir + "/new/" + packet.getValue(Event.FILENAME), "UTF-8");
-          writer.println("eventId=" + packet.getId());
+          PrintWriter writer = new PrintWriter(ipcDir + "/new/" + filename, "UTF-8");
+          writer.println("eventId=" + event.getPacket().getId());
           writer.println("execute=false");
           writer.close();
 
-          LOG.info("Enable obsolete event with ID : " + packet.getId());
+          LOG.info("Enable obsolete event with ID : " + event.getTransitionId());
 
-          Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " "
-              + ipcDir + "/ack/" + packet.getValue(Event.FILENAME));
+          Runtime.getRuntime()
+              .exec("mv " + ipcDir + "/new/" + filename + " " + ipcDir + "/ack/" + filename);
 
           // Performance evaluation
           collectPerformancePerEventMetrics();
           lastTimeEnabledEvent = new Timestamp(System.currentTimeMillis());
         } catch (Exception e) {
-          LOG.error("Error in creating commit file : " + packet.getValue(Event.FILENAME));
+          LOG.error("Error in creating commit file : " + filename);
         }
       }
 
@@ -811,19 +794,25 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     setNodeSteady(id, true);
   }
 
-  public boolean commitAndWait(Event packet) throws InterruptedException {
-    setNodeSteady(packet.getToId(), false);
-    boolean result = false;
-    if (commit(packet)) {
-      result = true;
-    }
-    if (result) {
-      waitNodeSteady(packet.getToId());
+  public boolean commitAndWait(PacketSendTransition event) throws InterruptedException {
+    int recvNode = event.getPacket().getToId();
+    setNodeSteady(recvNode, false);
+    if (commit(event)) {
+      if (isQuickEventStep) {
+        waitForCausalNewEvents(event);
+      } else {
+        waitNodeSteady(recvNode);
+      }
       return true;
     } else {
-      setNodeSteady(packet.getToId(), true);
+      setNodeSteady(recvNode, true);
       return false;
     }
+  }
+
+  public void waitForCausalNewEvents(PacketSendTransition event) throws InterruptedException {
+    // This function will only be accommodated in ReductionAlgorithmModelChecker
+    waitNodeSteady(event.getPacket().getToId());
   }
 
   @SuppressWarnings("unchecked")
@@ -849,6 +838,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       senderSequencer[i] = 0;
       receiverSequencer[i] = 0;
     }
+    isQuickEventStep = false;
     waitForNextLE = false;
     waitedForNextLEInDiffTermCounter = 0;
     if (pathRecordFile != null) {
@@ -940,6 +930,19 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     return initialLS;
   }
 
+  protected int waitForExpectedEvent(int retryCounter) {
+    if (!isQuickEventStep) {
+      retryCounter++;
+      try {
+        Thread.sleep(steadyStateTimeout / 2);
+      } catch (Exception e) {
+        LOG.error("", e);
+      }
+    }
+    updateSAMCQueueWithoutLog();
+    return retryCounter;
+  }
+
   protected Transition transformInstructionToTransition(String[] instruction) {
     InstructionTransition i = null;
     if (instruction[0].equals("packetsend")) {
@@ -998,15 +1001,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       if (transition != null) {
         break;
       }
-      if (steadyStateTimeout > 0) {
-        retryCounter++;
-        try {
-          Thread.sleep(steadyStateTimeout / 2);
-        } catch (Exception e) {
-          LOG.error("", e);
-        }
-      }
-      updateSAMCQueue();
+      retryCounter = waitForExpectedEvent(retryCounter);
     }
 
     if (transition instanceof SleepTransition) {

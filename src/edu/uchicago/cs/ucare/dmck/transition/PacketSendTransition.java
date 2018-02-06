@@ -40,7 +40,7 @@ public class PacketSendTransition extends Transition implements Serializable {
       LOG.debug("Trying to commit obsolete packet");
     }
     try {
-      boolean result = dmck.commitAndWait(packet);
+      boolean result = dmck.commitAndWait(this);
       return result;
     } catch (InterruptedException e) {
       LOG.error(e.getMessage());

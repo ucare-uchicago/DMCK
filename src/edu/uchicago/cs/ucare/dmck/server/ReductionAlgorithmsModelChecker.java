@@ -63,6 +63,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   Path currentExploringPath = new Path();
 
   // record all transition global states before and after
+  Hashtable<Long, Transition> allEventsDB;
   LinkedList<AbstractGlobalStates> eventHistory;
   LinkedList<AbstractEventConsequence> eventImpacts;
   int recordedEventHistory;
@@ -294,7 +295,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       int numRecord = listOfRecordDir.length;
 
       // Load all events DB.
-      Hashtable<Long, Transition> allEventsDB = loadAllEventsDB();
+      allEventsDB = loadAllEventsDB();
       if (allEventsDB.size() > 0) {
         LOG.info("Total Events that is loaded to allEventsDB=" + allEventsDB.size());
       }
@@ -813,6 +814,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         }
       }
       if (isNewEv) {
+        allEventsDB.put(transition.getTransitionId(), transition);
         try {
           // Save per event to all-events-db directory
           ObjectOutputStream evStream = new ObjectOutputStream(
@@ -1192,15 +1194,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   public boolean isSymmetric(LocalState[] localStates, Transition event) {
-    AbstractGlobalStates ags = new AbstractGlobalStates(localStates, event);
-    boolean isSymmetric = false;
-    for (AbstractGlobalStates historicalAGS : eventHistory) {
-      if (historicalAGS.equals(ags)) {
-        isSymmetric = true;
-        break;
-      }
-    }
-    return isSymmetric;
+    return findLocalStateChange(localStates, event) != null;
   }
 
   public boolean addEventToHistory(LocalState[] globalStateBefore, LocalState[] globalStateAfter,
@@ -1258,6 +1252,16 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       LocalState newLS = aec.getTransformationState(oldState, event);
       if (newLS != null) {
         return newLS;
+      }
+    }
+    return null;
+  }
+
+  public LocalState findLocalStateChange(LocalState[] prevGS, Transition currentEv) {
+    AbstractGlobalStates ags = new AbstractGlobalStates(prevGS, currentEv);
+    for (AbstractGlobalStates historicalAGS : eventHistory) {
+      if (historicalAGS.equals(ags)) {
+        return historicalAGS.getExecutingNodeAfterState();
       }
     }
     return null;
@@ -1343,7 +1347,62 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return null;
   }
 
+  @Override
+  public void waitForCausalNewEvents(PacketSendTransition event) throws InterruptedException {
+    // 1. Get current abstract global states.
+    LocalState[] prevOnlineState = getLatestGlobalState();
+    AbstractGlobalStates currentAGS = new AbstractGlobalStates(prevOnlineState, event);
+
+    // 2. Get expected causal new events.
+    ArrayList<String> expectedCausalNewEvents = null;
+    for (AbstractGlobalStates historicalAGS : eventHistory) {
+      if (currentAGS.equals(historicalAGS)) {
+        expectedCausalNewEvents = historicalAGS.getCausalAbsNewEvents();
+        break;
+      }
+    }
+
+    // 3. Wait for the expectedCausalNewEvents
+    if (expectedCausalNewEvents == null) {
+      LOG.warn("DMCK can predict the global state after the event is executed, "
+          + "but DMCK cannot get the expected causal new events.");
+      waitNodeSteady(event.getPacket().getToId());
+    } else {
+      if (expectedCausalNewEvents.size() > 0) {
+        boolean waitLonger = true;
+        int matchEvents = 0;
+        LOG.debug("Wait for expected causal new events=" + expectedCausalNewEvents.size());
+        while (waitLonger) {
+          for (Transition queuedEvent : currentEnabledTransitions) {
+            if (queuedEvent instanceof PacketSendTransition) {
+              PacketSendTransition msgEvent = (PacketSendTransition) queuedEvent;
+              if (expectedCausalNewEvents.contains(getAbstractEvent(queuedEvent))
+                  && event.getPacket().getToId() == msgEvent.getPacket().getFromId()) {
+                matchEvents++;
+                if (matchEvents == expectedCausalNewEvents.size()) {
+                  waitLonger = false;
+                }
+              }
+            }
+          }
+        }
+        LOG.debug("DMCK has intercepted all causal new events that are expected.");
+      }
+      setNodeSteady(event.getId(), true);
+    }
+  }
+
+  public LocalState[] getLatestGlobalState() {
+    if (prevLocalStates.size() == 0) {
+      return getInitialGlobalStates();
+    } else {
+      return prevLocalStates.getLast();
+    }
+  }
+
   class PathTraversalWorker extends Thread {
+
+    private LocalState[] currentGlobalState;
 
     @Override
     public void run() {
@@ -1360,20 +1419,16 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         for (Transition expectedEvent : currentInitialPath) {
           transitionCounter++;
           executeMidWorkload();
-          updateSAMCQueue();
+          evaluateIsQuickEventStep(expectedEvent);
+          updateSAMCQueueWithoutLog();
           Transition nextEvent = null;
-          for (int i = 0; i < 20; ++i) {
+          int retryCounter = 0;
+          while (retryCounter < 20) {
             nextEvent = retrieveEventFromQueue(currentEnabledTransitions, expectedEvent);
             if (nextEvent != null) {
               break;
-            } else {
-              try {
-                Thread.sleep(steadyStateTimeout / 2);
-                updateSAMCQueue();
-              } catch (InterruptedException e) {
-                LOG.error("", e);
-              }
             }
+            retryCounter = waitForExpectedEvent(retryCounter);
           }
           if (nextEvent == null) {
             LOG.error("ERROR: Expected to execute " + expectedEvent
@@ -1397,6 +1452,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             resetTest();
             return;
           } else {
+            collectDebugData(currentGlobalState);
             executeEvent(nextEvent, transitionCounter <= directedInitialPath.size());
           }
         }
@@ -1405,9 +1461,10 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       boolean hasWaited = waitEndExploration == 0;
       while (true) {
         executeMidWorkload();
-        updateSAMCQueue();
+        updateSAMCQueueWithoutLog();
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
         if (terminationPoint && hasWaited) {
+          collectDebugData(localStates);
           LOG.info("---- End of Path Execution ----");
 
           // Performance evaluation
@@ -1459,6 +1516,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           nextEvent = nextTransition(currentEnabledTransitions);
         }
         if (nextEvent != null) {
+          evaluateIsQuickEventStep(nextEvent);
+          collectDebugData(currentGlobalState);
           executeEvent(nextEvent, isDirectedEvent);
         } else if (exploredBranchRecorder.getCurrentDepth() == 0) {
           LOG.warn("Finished exploring all states");
@@ -1490,6 +1549,26 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       }
     }
 
+    protected void evaluateIsQuickEventStep(Transition event) {
+      if (quickEventReleaseMode) {
+        LocalState[] prevGS = getLatestGlobalState();
+        LocalState predictedLS = findLocalStateChange(prevGS, event);
+        isQuickEventStep = predictedLS != null;
+        if (isQuickEventStep) {
+          if (prevLocalStates.size() == 0) {
+            currentGlobalState = getInitialGlobalStates();
+          } else {
+            currentGlobalState = copyLocalState(prevLocalStates.getLast());
+            currentGlobalState[currentExploringPath.getLast().getId()] = predictedLS.clone();
+          }
+        } else {
+          currentGlobalState = copyLocalState(localStates);
+        }
+      } else {
+        currentGlobalState = copyLocalState(localStates);
+      }
+    }
+
     protected void executeEvent(Transition nextEvent, boolean isDirectedEvent) {
       collectDebugNextTransition(nextEvent);
       if (isDirectedEvent) {
@@ -1515,10 +1594,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           nodeOperationTransition.setId(((NodeOperationTransition) nextEvent).getId());
         }
 
-        LocalState[] oldLocalStates = copyLocalState(localStates);
         currentExploringPath.add(nextEvent);
         prevOnlineStatus.add(isNodeOnline.clone());
-        prevLocalStates.add(copyLocalState(oldLocalStates));
+        prevLocalStates.add(copyLocalState(currentGlobalState));
 
         if (nextEvent.apply()) {
           pathRecordFile.write((nextEvent.toString() + "\n").getBytes());
@@ -1546,8 +1624,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
               newCausalEvents.add(absEvent);
             }
           }
-          if (concreteEvent != null) {
-            addEventToHistory(oldLocalStates, copyLocalState(localStates), concreteEvent,
+          if (concreteEvent != null && !isQuickEventStep) {
+            addEventToHistory(currentGlobalState, copyLocalState(localStates), concreteEvent,
                 newCausalEvents);
           }
         }

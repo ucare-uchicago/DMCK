@@ -172,7 +172,7 @@ public class AbstractGlobalStates implements Serializable {
     return true;
   }
 
-  public AbstractEventConsequence getAbstractEventConsequence() {
+  public LocalState getExecutingNodeAfterState() {
     // to save nodeIDs that are found with similar state
     ArrayList<Integer> similar = new ArrayList<Integer>();
     for (int afterNodeId = 0; afterNodeId < abstractGlobalStateAfter.length; afterNodeId++) {
@@ -186,11 +186,14 @@ public class AbstractGlobalStates implements Serializable {
         }
       }
       if (!identicalState) {
-        return new AbstractEventConsequence(executingNodeState, event,
-            abstractGlobalStateAfter[afterNodeId]);
+        return abstractGlobalStateAfter[afterNodeId];
       }
     }
-    return new AbstractEventConsequence(executingNodeState, event, executingNodeState);
+    return executingNodeState;
+  }
+
+  public AbstractEventConsequence getAbstractEventConsequence() {
+    return new AbstractEventConsequence(executingNodeState, event, getExecutingNodeAfterState());
   }
 
   public static LocalState[] getAbstractGlobalStates(LocalState[] globalStates) {
@@ -199,7 +202,9 @@ public class AbstractGlobalStates implements Serializable {
     for (int i = 0; i < globalStates.length; i++) {
       LocalState newAbstractLocalState = new LocalState();
       for (String key : ReductionAlgorithmsModelChecker.abstractGlobalStateKeys) {
-        newAbstractLocalState.setKeyValue(key, (Serializable) globalStates[i].getValue(key));
+        if (globalStates[i].getValue(key) != null) {
+          newAbstractLocalState.setKeyValue(key, (Serializable) globalStates[i].getValue(key));
+        }
       }
       ags[i] = newAbstractLocalState;
     }

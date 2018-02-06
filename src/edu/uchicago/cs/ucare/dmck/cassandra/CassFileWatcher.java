@@ -126,8 +126,6 @@ public class CassFileWatcher extends FileWatcher {
       writer.println("execute=true");
       writer.close();
 
-      LOG.info("Enable event with ID : " + packet.getId());
-
       Runtime.getRuntime()
           .exec("mv " + ipcDir + "/new/" + recvSeqFile + " " + ipcDir + "/ack/" + recvSeqFile);
       Runtime.getRuntime()

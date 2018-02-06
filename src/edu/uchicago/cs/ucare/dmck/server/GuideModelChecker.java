@@ -52,7 +52,7 @@ public class GuideModelChecker extends ModelCheckingServerAbstract {
       InstructionTransition instruction;
       while (parser != null && (instruction = parser.readNextInstruction()) != null) {
         getOutstandingEventTransition(currentEnabledTransitions);
-        printTransitionQueues(currentEnabledTransitions);
+        updateSAMCQueue(localStates);
         // raft specific
         if (dmckName.equals("raftModelChecker")) {
           while (checkTerminationPoint(currentEnabledTransitions)) {
@@ -85,8 +85,7 @@ public class GuideModelChecker extends ModelCheckingServerAbstract {
       if (afterProgramModelChecker != null) {
         afterProgramModelChecker.start();
       } else {
-        LOG.debug("Events left in Queue:");
-        printTransitionQueues(currentEnabledTransitions);
+        updateSAMCQueue(localStates);
 
         boolean verifiedResult = verifier.verify();
         String detail = verifier.verificationDetail();

@@ -118,7 +118,7 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
       boolean hasWaited = waitEndExploration == 0;
       while (true) {
         executeMidWorkload();
-        updateSAMCQueue();
+        updateSAMCQueue(localStates);
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
         if (terminationPoint && hasWaited) {
           LOG.info("---- End of Path Execution ----");

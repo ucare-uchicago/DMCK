@@ -10,6 +10,7 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import edu.uchicago.cs.ucare.dmck.event.Event;
+import edu.uchicago.cs.ucare.dmck.transition.PacketSendTransition;
 
 public abstract class FileWatcher implements Runnable {
 
@@ -126,12 +127,13 @@ public abstract class FileWatcher implements Runnable {
   }
 
   // Sequencer Module
-  public void enableEvent(Event packet) {
+  public void enableEvent(PacketSendTransition event) {
     if (dmck.useSequencer) {
-      sequencerEnablingSignal(packet);
+      sequencerEnablingSignal(event.getPacket());
     } else {
-      commonEnablingSignal(packet);
+      commonEnablingSignal(event.getPacket());
     }
+    LOG.info("Enable event with ID : " + event.getTransitionId());
   }
 
   public void commonEnablingSignal(Event packet) {
@@ -141,8 +143,6 @@ public abstract class FileWatcher implements Runnable {
       writer.println("eventId=" + packet.getId());
       writer.println("execute=true");
       writer.close();
-
-      LOG.info("Enable event with ID : " + packet.getId());
 
       Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " "
           + ipcDir + "/ack/" + packet.getValue(Event.FILENAME));
