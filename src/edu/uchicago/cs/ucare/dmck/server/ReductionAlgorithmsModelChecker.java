@@ -1474,7 +1474,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
           boolean verifiedResult = verifier.verify();
           String detail = verifier.verificationDetail();
-          saveResult(verifiedResult + " ; " + detail + "\n");
+          saveResult(verifiedResult, detail);
           exploredBranchRecorder.markBelowSubtreeFinished();
           calculateDependencyGraph();
           String currentFinishedPath = "Finished execution path\n";

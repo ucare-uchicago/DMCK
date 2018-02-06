@@ -16,7 +16,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.ListIterator;
 import java.util.Properties;
@@ -407,7 +406,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     LOG.debug("Node " + id + " update its local state to be " + state);
   }
 
-  public void saveResult(String result) {
+  public void saveResult(boolean verifiedResult, String desc) {
+    String result = verifiedResult + " ; " + desc + "\n";
     try {
       if (resultFile == null) {
         resultFile = new FileOutputStream(resultFilePath);

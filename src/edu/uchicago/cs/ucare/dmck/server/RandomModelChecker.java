@@ -129,7 +129,7 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
 
           boolean verifiedResult = verifier.verify();
           String detail = verifier.verificationDetail();
-          saveResult(verifiedResult + " ; " + detail + "\n");
+          saveResult(verifiedResult, detail);
           recordTestId();
           exploredBranchRecorder.markBelowSubtreeFinished();
           LOG.info("---- End of Path Evaluation ----");

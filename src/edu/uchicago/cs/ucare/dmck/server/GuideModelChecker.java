@@ -89,7 +89,7 @@ public class GuideModelChecker extends ModelCheckingServerAbstract {
 
         boolean verifiedResult = verifier.verify();
         String detail = verifier.verificationDetail();
-        saveResult(verifiedResult + " ; " + detail + "\n");
+        saveResult(verifiedResult, detail);
 
         dmck.stopEnsemble();
         System.exit(0);

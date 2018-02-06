@@ -137,7 +137,7 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
 
           boolean verifiedResult = verifier.verify();
           String detail = verifier.verificationDetail();
-          saveResult(verifiedResult + "; " + detail + "\n");
+          saveResult(verifiedResult, detail);
           recordTestId();
           exploredBranchRecorder.markBelowSubtreeFinished();
           int currentStep = 0;
