@@ -406,6 +406,14 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     LOG.debug("Node " + id + " update its local state to be " + state);
   }
 
+  public void recordEventToPathFile(String event) {
+    try {
+      pathRecordFile.write((event + "\n").getBytes());
+    } catch (IOException e) {
+      LOG.error("", e);
+    }
+  }
+
   public void saveResult(boolean verifiedResult, String desc) {
     String result = verifiedResult + " ; " + desc + "\n";
     try {

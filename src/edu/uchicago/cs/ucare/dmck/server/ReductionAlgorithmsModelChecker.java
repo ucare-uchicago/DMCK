@@ -1433,12 +1433,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           if (nextEvent == null) {
             LOG.error("ERROR: Expected to execute " + expectedEvent
                 + ", but the event was not in DMCK Queue.");
-            try {
-              pathRecordFile.write(("Expected event cannot be found in DMCK Queue. "
-                  + "DMCK was looking for event with id=" + expectedEvent + "\n").getBytes());
-            } catch (IOException e) {
-              LOG.error("", e);
-            }
+            recordEventToPathFile("Expected event cannot be found in DMCK Queue. "
+                + "DMCK was looking for event with id=" + expectedEvent.toString());
             if (!initialPathSecondAttempt.contains(currentInitialPath.toPathMeta())) {
               currentUnnecessaryInitialPaths.addFirst(currentInitialPath);
               LOG.warn(
@@ -1538,11 +1534,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           continue;
         } else {
           loadNextInitialPath(true, true);
-          try {
-            pathRecordFile.write("duplicated\n".getBytes());
-          } catch (IOException e) {
-            LOG.error("", e);
-          }
+          recordEventToPathFile("Duplicated path.");
           resetTest();
           break;
         }
@@ -1570,7 +1562,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
 
     protected void executeEvent(Transition nextEvent, boolean isDirectedEvent) {
-      collectDebugNextTransition(nextEvent);
+
       if (isDirectedEvent) {
         LOG.debug("NEXT TRANSITION IS DIRECTED BY INITIAL PATH=" + nextEvent.toString());
       } else {
@@ -1578,60 +1570,57 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         exploredBranchRecorder.createChild(nextEvent.getTransitionId());
         exploredBranchRecorder.traverseDownTo(nextEvent.getTransitionId());
       }
-      try {
-        if (nextEvent instanceof AbstractNodeOperationTransition) {
-          AbstractNodeOperationTransition nodeOperationTransition =
-              (AbstractNodeOperationTransition) nextEvent;
+      if (nextEvent instanceof AbstractNodeOperationTransition) {
+        AbstractNodeOperationTransition nodeOperationTransition =
+            (AbstractNodeOperationTransition) nextEvent;
 
-          if (nodeOperationTransition.getId() > -1) {
-            nextEvent = ((AbstractNodeOperationTransition) nextEvent)
-                .getRealNodeOperationTransition(nodeOperationTransition.getId());
-            LOG.debug("DMCK is going to follow the suggestion to execute=" + nextEvent.toString());
-          } else {
-            nextEvent =
-                ((AbstractNodeOperationTransition) nextEvent).getRealNodeOperationTransition();
-          }
-          nodeOperationTransition.setId(((NodeOperationTransition) nextEvent).getId());
+        if (nodeOperationTransition.getId() > -1) {
+          nextEvent = ((AbstractNodeOperationTransition) nextEvent)
+              .getRealNodeOperationTransition(nodeOperationTransition.getId());
+          LOG.debug("DMCK is going to follow the suggestion to execute=" + nextEvent.toString());
+        } else {
+          nextEvent =
+              ((AbstractNodeOperationTransition) nextEvent).getRealNodeOperationTransition();
         }
+        nodeOperationTransition.setId(((NodeOperationTransition) nextEvent).getId());
+      }
 
-        currentExploringPath.add(nextEvent);
-        prevOnlineStatus.add(isNodeOnline.clone());
-        prevLocalStates.add(copyLocalState(currentGlobalState));
+      currentExploringPath.add(nextEvent);
+      prevOnlineStatus.add(isNodeOnline.clone());
+      prevLocalStates.add(copyLocalState(currentGlobalState));
 
-        if (nextEvent.apply()) {
-          pathRecordFile.write((nextEvent.toString() + "\n").getBytes());
-          updateSAMCQueueAfterEventExecution(nextEvent);
+      collectDebugNextTransition(nextEvent);
+
+      if (nextEvent.apply()) {
+        recordEventToPathFile(nextEvent.toString());
+        updateSAMCQueueAfterEventExecution(nextEvent);
+      }
+
+      Transition concreteEvent = null;
+      ArrayList<String> prevQueue = new ArrayList<String>();
+      for (Transition ev : currentEnabledTransitions) {
+        prevQueue.add(getAbstractEvent(ev));
+      }
+      if (isSAMC) {
+        if (nextEvent instanceof NodeCrashTransition) {
+          concreteEvent = ((NodeCrashTransition) nextEvent).clone();
+        } else if (nextEvent instanceof NodeStartTransition) {
+          concreteEvent = ((NodeStartTransition) nextEvent).clone();
+        } else if (nextEvent instanceof PacketSendTransition
+            && reductionAlgorithms.contains("symmetry")) {
+          concreteEvent = ((PacketSendTransition) nextEvent).clone();
         }
-
-        Transition concreteEvent = null;
-        ArrayList<String> prevQueue = new ArrayList<String>();
+        ArrayList<String> newCausalEvents = new ArrayList<String>();
         for (Transition ev : currentEnabledTransitions) {
-          prevQueue.add(getAbstractEvent(ev));
-        }
-        if (isSAMC) {
-          if (nextEvent instanceof NodeCrashTransition) {
-            concreteEvent = ((NodeCrashTransition) nextEvent).clone();
-          } else if (nextEvent instanceof NodeStartTransition) {
-            concreteEvent = ((NodeStartTransition) nextEvent).clone();
-          } else if (nextEvent instanceof PacketSendTransition
-              && reductionAlgorithms.contains("symmetry")) {
-            concreteEvent = ((PacketSendTransition) nextEvent).clone();
-          }
-          ArrayList<String> newCausalEvents = new ArrayList<String>();
-          for (Transition ev : currentEnabledTransitions) {
-            String absEvent = getAbstractEvent(ev);
-            if (!prevQueue.contains(absEvent)) {
-              newCausalEvents.add(absEvent);
-            }
-          }
-          if (concreteEvent != null && !isQuickEventStep) {
-            addEventToHistory(currentGlobalState, copyLocalState(localStates), concreteEvent,
-                newCausalEvents);
+          String absEvent = getAbstractEvent(ev);
+          if (!prevQueue.contains(absEvent)) {
+            newCausalEvents.add(absEvent);
           }
         }
-
-      } catch (IOException e) {
-        LOG.error("", e);
+        if (concreteEvent != null && !isQuickEventStep) {
+          addEventToHistory(currentGlobalState, copyLocalState(localStates), concreteEvent,
+              newCausalEvents);
+        }
       }
     }
   }

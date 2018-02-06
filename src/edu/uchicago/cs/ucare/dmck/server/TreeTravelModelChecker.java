@@ -198,15 +198,11 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
           }
           LOG.info("[NEXT TRANSITION] " + transition.toString());
           collectDebugNextTransition(transition);
-          try {
-            if (transition.apply()) {
-              pathRecordFile.write((transition.toString() + "\n").getBytes());
-              updateSAMCQueueAfterEventExecution(transition);
-            } else {
-              LOG.warn(transition.toString() + " IS NOT EXECUTED!");
-            }
-          } catch (Exception e) {
-            LOG.error("", e);
+          if (transition.apply()) {
+            recordEventToPathFile(transition.toString());
+            updateSAMCQueueAfterEventExecution(transition);
+          } else {
+            LOG.warn(transition.toString() + " IS NOT EXECUTED!");
           }
         } else {
           if (!hasWaited) {

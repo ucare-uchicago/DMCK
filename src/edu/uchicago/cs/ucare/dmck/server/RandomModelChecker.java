@@ -167,34 +167,26 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
             exploredBranchRecorder.traverseDownTo(transition.getTransitionId());
             exploredBranchRecorder.noteThisNode(".packets", transition.toString(), false);
           }
-          try {
-            if (transition instanceof AbstractNodeOperationTransition) {
-              AbstractNodeOperationTransition nodeOperationTransition =
-                  (AbstractNodeOperationTransition) transition;
-              transition =
-                  ((AbstractNodeOperationTransition) transition).getRealNodeOperationTransition();
-              if (transition == null) {
-                currentEnabledTransitions.add(nodeOperationTransition);
-                continue;
-              }
-              nodeOperationTransition.setId(((NodeOperationTransition) transition).getId());
+          if (transition instanceof AbstractNodeOperationTransition) {
+            AbstractNodeOperationTransition nodeOperationTransition =
+                (AbstractNodeOperationTransition) transition;
+            transition =
+                ((AbstractNodeOperationTransition) transition).getRealNodeOperationTransition();
+            if (transition == null) {
+              currentEnabledTransitions.add(nodeOperationTransition);
+              continue;
             }
-            LOG.info("[NEXT TRANSITION] " + transition.toString());
-            if (transition.apply()) {
-              pathRecordFile.write((transition.toString() + "\n").getBytes());
-              updateSAMCQueueAfterEventExecution(transition);
-            }
-          } catch (IOException e) {
-            LOG.error("", e);
+            nodeOperationTransition.setId(((NodeOperationTransition) transition).getId());
+          }
+          LOG.info("[NEXT TRANSITION] " + transition.toString());
+          if (transition.apply()) {
+            recordEventToPathFile(transition.toString());
+            updateSAMCQueueAfterEventExecution(transition);
           }
         } else if (exploredBranchRecorder.getCurrentDepth() == 0) {
           hasFinishedAllExploration = true;
         } else {
-          try {
-            pathRecordFile.write("duplicated\n".getBytes());
-          } catch (IOException e) {
-            LOG.error("", e);
-          }
+          recordEventToPathFile("Duplicated path.\n");
           resetTest();
           break;
         }

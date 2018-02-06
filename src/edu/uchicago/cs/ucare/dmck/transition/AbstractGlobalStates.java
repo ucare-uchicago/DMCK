@@ -102,6 +102,56 @@ public class AbstractGlobalStates implements Serializable {
     return causalAbsNewEvents;
   }
 
+  public LocalState getExecutingNodeAfterState() {
+    // to save nodeIDs that are found with similar state
+    ArrayList<Integer> similar = new ArrayList<Integer>();
+    for (int afterNodeId = 0; afterNodeId < abstractGlobalStateAfter.length; afterNodeId++) {
+      boolean identicalState = false;
+      for (int beforeNodeId = 0; beforeNodeId < abstractGlobalStateBefore.length; beforeNodeId++) {
+        if (!similar.contains(afterNodeId) && abstractGlobalStateAfter[afterNodeId].toString()
+            .equals(abstractGlobalStateBefore[beforeNodeId].toString())) {
+          similar.add(afterNodeId);
+          identicalState = true;
+          break;
+        }
+      }
+      if (!identicalState) {
+        return abstractGlobalStateAfter[afterNodeId];
+      }
+    }
+    return executingNodeState;
+  }
+
+  public AbstractEventConsequence getAbstractEventConsequence() {
+    return new AbstractEventConsequence(executingNodeState, event, getExecutingNodeAfterState());
+  }
+
+  public AbstractGlobalStates getSerializable(int numNode) {
+    return new AbstractGlobalStates(this.abstractGlobalStateBefore, this.abstractGlobalStateAfter,
+        this.executingNodeState, this.event, this.causalAbsNewEvents, numNode);
+  }
+
+  public AbstractGlobalStates getRealAbsEvCons(ModelCheckingServerAbstract mc) {
+    return new AbstractGlobalStates(this.getAbstractGlobalStateBefore(),
+        this.getAbstractGlobalStateAfter(), this.executingNodeState, this.getEvent(),
+        this.causalAbsNewEvents, mc);
+  }
+
+  public static LocalState[] getAbstractGlobalStates(LocalState[] globalStates) {
+    LocalState[] ags = new LocalState[globalStates.length];
+    // recreate the local state only based on abstract global state keys
+    for (int i = 0; i < globalStates.length; i++) {
+      LocalState newAbstractLocalState = new LocalState();
+      for (String key : ReductionAlgorithmsModelChecker.abstractGlobalStateKeys) {
+        if (globalStates[i].getValue(key) != null) {
+          newAbstractLocalState.setKeyValue(key, (Serializable) globalStates[i].getValue(key));
+        }
+      }
+      ags[i] = newAbstractLocalState;
+    }
+    return ags;
+  }
+
   public boolean equals(AbstractGlobalStates otherAGS) {
     // If executing node states are different, then these AGSs are not equal.
     if (!executingNodeState.equals(otherAGS.getExecutingNodeState())) {
@@ -170,56 +220,6 @@ public class AbstractGlobalStates implements Serializable {
     }
 
     return true;
-  }
-
-  public LocalState getExecutingNodeAfterState() {
-    // to save nodeIDs that are found with similar state
-    ArrayList<Integer> similar = new ArrayList<Integer>();
-    for (int afterNodeId = 0; afterNodeId < abstractGlobalStateAfter.length; afterNodeId++) {
-      boolean identicalState = false;
-      for (int beforeNodeId = 0; beforeNodeId < abstractGlobalStateBefore.length; beforeNodeId++) {
-        if (!similar.contains(afterNodeId) && abstractGlobalStateAfter[afterNodeId].toString()
-            .equals(abstractGlobalStateBefore[beforeNodeId].toString())) {
-          similar.add(afterNodeId);
-          identicalState = true;
-          break;
-        }
-      }
-      if (!identicalState) {
-        return abstractGlobalStateAfter[afterNodeId];
-      }
-    }
-    return executingNodeState;
-  }
-
-  public AbstractEventConsequence getAbstractEventConsequence() {
-    return new AbstractEventConsequence(executingNodeState, event, getExecutingNodeAfterState());
-  }
-
-  public static LocalState[] getAbstractGlobalStates(LocalState[] globalStates) {
-    LocalState[] ags = new LocalState[globalStates.length];
-    // recreate the local state only based on abstract global state keys
-    for (int i = 0; i < globalStates.length; i++) {
-      LocalState newAbstractLocalState = new LocalState();
-      for (String key : ReductionAlgorithmsModelChecker.abstractGlobalStateKeys) {
-        if (globalStates[i].getValue(key) != null) {
-          newAbstractLocalState.setKeyValue(key, (Serializable) globalStates[i].getValue(key));
-        }
-      }
-      ags[i] = newAbstractLocalState;
-    }
-    return ags;
-  }
-
-  public AbstractGlobalStates getSerializable(int numNode) {
-    return new AbstractGlobalStates(this.abstractGlobalStateBefore, this.abstractGlobalStateAfter,
-        this.executingNodeState, this.event, this.causalAbsNewEvents, numNode);
-  }
-
-  public AbstractGlobalStates getRealAbsEvCons(ModelCheckingServerAbstract mc) {
-    return new AbstractGlobalStates(this.getAbstractGlobalStateBefore(),
-        this.getAbstractGlobalStateAfter(), this.executingNodeState, this.getEvent(),
-        this.causalAbsNewEvents, mc);
   }
 
 }
