@@ -420,7 +420,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   public Transition nextTransition(LinkedList<Transition> transitions) {
-    // CRS runtime checking
     if (this.isSAMC && (this.numCrash > 0 || this.numReboot > 0)) {
       ListIterator<Transition> iter = transitions.listIterator();
       LinkedList<Transition> tempContainer = new LinkedList<Transition>();
@@ -428,6 +427,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       int continueCounter = 0;
       while (iter.hasNext()) {
         Transition transition = iter.next();
+        // CRS runtime checking
         if (reductionAlgorithms.contains("crs_rss_runtime")) {
           int isSymmetric = isRuntimeCrashRebootSymmetric(transition);
 
@@ -450,17 +450,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
               "Queue only consists of uninteresting abstract event. DMCK decided to choose the first event.");
         }
         if (!exploredBranchRecorder.isSubtreeBelowChildFinished(transition.getTransitionId())) {
-          iter.remove();
           return transition;
         }
       }
       if (tempContainer.size() > 0) {
-        Transition result = tempContainer.getFirst();
-        transitions.remove(result);
-        return result;
+        return tempContainer.getFirst();
       }
     } else if (transitions.size() > 0) {
-      return transitions.removeFirst();
+      return transitions.getFirst();
     }
 
     return null;
@@ -1136,6 +1133,24 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return result;
   }
 
+  @Override
+  public void collectPerformancePerPathMetrics() {
+    // Performance evaluation: Collect time spent to execute a single path
+    endTimePathExecution = new Timestamp(System.currentTimeMillis());
+    long totalPathExecutionTime = endTimePathExecution.getTime() - startTimePathExecution.getTime();
+
+    String content = "-------\n";
+    content += "SUMMARY\n";
+    content += "-------\n";
+    content += "total-execution-path-time=" + totalPathExecutionTime + "ms;\n";
+    content += "total-ags-in-eventHistory=" + eventHistory.size() + ";\n";
+    try {
+      performanceRecordFile.write(content.getBytes());
+    } catch (Exception e) {
+      LOG.error("", e);
+    }
+  }
+
   protected void recordPolicyEffectiveness(String policy) {
     if (policyRecord.containsKey(policy)) {
       int currentRecord = (Integer) policyRecord.get(policy);
@@ -1214,6 +1229,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       ags.setCausalNewEvents(causalNewEvents);
 
       eventHistory.add(ags);
+      LOG.debug("New AGS=\n" + ags.toString());
 
       boolean isNewAEC = true;
       AbstractEventConsequence aec = ags.getAbstractEventConsequence();
@@ -1325,11 +1341,11 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       if (event instanceof PacketSendTransition
           && dmckQueue.get(index) instanceof PacketSendTransition
           && event.getTransitionId() == dmckQueue.get(index).getTransitionId()) {
-        return dmckQueue.remove(index);
+        return dmckQueue.get(index);
       } else if (event instanceof NodeCrashTransition
           && dmckQueue.get(index) instanceof AbstractNodeCrashTransition) {
         AbstractNodeCrashTransition absCrashEvent =
-            (AbstractNodeCrashTransition) dmckQueue.remove(index);
+            (AbstractNodeCrashTransition) dmckQueue.get(index);
         int crashId = ((NodeCrashTransition) event).getId();
         NodeCrashTransition crashEvent = new NodeCrashTransition(this, crashId);
         crashEvent.setVectorClock(absCrashEvent.getPossibleVectorClock(crashId));
@@ -1337,7 +1353,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       } else if (event instanceof NodeStartTransition
           && dmckQueue.get(index) instanceof AbstractNodeStartTransition) {
         AbstractNodeStartTransition absRebootEvent =
-            (AbstractNodeStartTransition) dmckQueue.remove(index);
+            (AbstractNodeStartTransition) dmckQueue.get(index);
         int rebootId = ((NodeStartTransition) event).getId();
         NodeStartTransition rebootEvent = new NodeStartTransition(this, rebootId);
         rebootEvent.setVectorClock(absRebootEvent.getPossibleVectorClock(rebootId));
@@ -1355,11 +1371,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
     // 2. Get expected causal new events.
     ArrayList<String> expectedCausalNewEvents = null;
+    int counter = 0;
     for (AbstractGlobalStates historicalAGS : eventHistory) {
       if (currentAGS.equals(historicalAGS)) {
+        LOG.debug("matched historicalAGS=" + historicalAGS.toString());
         expectedCausalNewEvents = historicalAGS.getCausalAbsNewEvents();
         break;
       }
+      counter++;
     }
 
     // 3. Wait for the expectedCausalNewEvents
@@ -1371,7 +1390,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       if (expectedCausalNewEvents.size() > 0) {
         boolean waitLonger = true;
         int matchEvents = 0;
-        LOG.debug("Wait for expected causal new events=" + expectedCausalNewEvents.size());
+        String log = "As after effect of executing event=" + event.toString()
+            + " wait for expected causal new events=" + expectedCausalNewEvents.size() + ":\n";
+        for (String newAbsEv : expectedCausalNewEvents) {
+          log += newAbsEv + "\n";
+        }
+        log += "Found in eventHistory, ags=" + counter + "\n";
+        log += "Here is the EventHistory AGS=" + eventHistory.get(counter).toString();
+        LOG.debug(log);
         while (waitLonger) {
           for (Transition queuedEvent : currentEnabledTransitions) {
             if (queuedEvent instanceof PacketSendTransition) {
@@ -1385,6 +1411,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
               }
             }
           }
+          updateSAMCQueueWithoutLog();
         }
         LOG.debug("DMCK has intercepted all causal new events that are expected.");
       }
@@ -1403,10 +1430,12 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   class PathTraversalWorker extends Thread {
 
     private LocalState[] currentGlobalState;
+    private LocalState predictedLS;
 
     @Override
     public void run() {
       int workloadRetry = 10;
+      // 1. Follow initial path if it exists.
       if (currentInitialPath != null && !currentInitialPath.isEmpty()) {
         LOG.info("Start with existing initial path first.");
         String tmp = "Current Initial Path:\n";
@@ -1419,8 +1448,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         for (Transition expectedEvent : currentInitialPath) {
           transitionCounter++;
           executeMidWorkload();
-          evaluateIsQuickEventStep(expectedEvent);
           updateSAMCQueueWithoutLog();
+
+          // 2a. Transform expected event into real event from and remove it from DMCK Queue
           Transition nextEvent = null;
           int retryCounter = 0;
           while (retryCounter < 20) {
@@ -1448,17 +1478,20 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             resetTest();
             return;
           } else {
-            collectDebugData(currentGlobalState);
+            // 3a. Execute the real event.
             executeEvent(nextEvent, transitionCounter <= directedInitialPath.size());
           }
         }
       }
-      LOG.info("Try to find new path/Continue from Initial Path");
+      // 2b. If current initial path is null then continue path execution with FIFO
+      LOG.info("Finding new path/Continuing from Initial Path");
       boolean hasWaited = waitEndExploration == 0;
       while (true) {
         executeMidWorkload();
         updateSAMCQueueWithoutLog();
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
+
+        // 3b. DMCK checks whether it reaches termination point or not
         if (terminationPoint && hasWaited) {
           collectDebugData(localStates);
           LOG.info("---- End of Path Execution ----");
@@ -1502,6 +1535,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           continue;
         }
         hasWaited = waitEndExploration == 0;
+
+        // 4b. Decide the next event based on guided path or FIFO
         Transition nextEvent;
         boolean isDirectedEvent = false;
         if (hasDirectedInitialPath && !hasFinishedDirectedInitialPath
@@ -1512,8 +1547,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           nextEvent = nextTransition(currentEnabledTransitions);
         }
         if (nextEvent != null) {
-          evaluateIsQuickEventStep(nextEvent);
-          collectDebugData(currentGlobalState);
           executeEvent(nextEvent, isDirectedEvent);
         } else if (exploredBranchRecorder.getCurrentDepth() == 0) {
           LOG.warn("Finished exploring all states");
@@ -1541,12 +1574,10 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       }
     }
 
-    protected void evaluateIsQuickEventStep(Transition event) {
+    protected void updateCurrentGlobalState(Transition event) {
       if (quickEventReleaseMode) {
-        LocalState[] prevGS = getLatestGlobalState();
-        LocalState predictedLS = findLocalStateChange(prevGS, event);
-        isQuickEventStep = predictedLS != null;
         if (isQuickEventStep) {
+          LOG.debug("IS QUICK EVENT");
           if (prevLocalStates.size() == 0) {
             currentGlobalState = getInitialGlobalStates();
           } else {
@@ -1554,6 +1585,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             currentGlobalState[currentExploringPath.getLast().getId()] = predictedLS.clone();
           }
         } else {
+          LOG.debug("IS SLOW EVENT");
           currentGlobalState = copyLocalState(localStates);
         }
       } else {
@@ -1561,8 +1593,15 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       }
     }
 
-    protected void executeEvent(Transition nextEvent, boolean isDirectedEvent) {
+    protected void updateIsQuickEventStep() {
+      if (quickEventReleaseMode) {
+        predictedLS =
+            findLocalStateChange(prevLocalStates.getLast(), currentExploringPath.getLast());
+        isQuickEventStep = predictedLS != null;
+      }
+    }
 
+    protected void executeEvent(Transition nextEvent, boolean isDirectedEvent) {
       if (isDirectedEvent) {
         LOG.debug("NEXT TRANSITION IS DIRECTED BY INITIAL PATH=" + nextEvent.toString());
       } else {
@@ -1570,6 +1609,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         exploredBranchRecorder.createChild(nextEvent.getTransitionId());
         exploredBranchRecorder.traverseDownTo(nextEvent.getTransitionId());
       }
+
+      // Transform abstract event to real event
       if (nextEvent instanceof AbstractNodeOperationTransition) {
         AbstractNodeOperationTransition nodeOperationTransition =
             (AbstractNodeOperationTransition) nextEvent;
@@ -1585,38 +1626,64 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         nodeOperationTransition.setId(((NodeOperationTransition) nextEvent).getId());
       }
 
+      updateCurrentGlobalState(nextEvent);
+
       currentExploringPath.add(nextEvent);
       prevOnlineStatus.add(isNodeOnline.clone());
       prevLocalStates.add(copyLocalState(currentGlobalState));
 
+      // Collect Logs
+      collectDebugData(prevLocalStates.getLast());
       collectDebugNextTransition(nextEvent);
+
+      // Get List of Prev Events in Queue
+      ArrayList<String> prevQueue = new ArrayList<String>();
+      for (Transition ev : currentEnabledTransitions) {
+        String absEv = getAbstractEvent(ev);
+        prevQueue.add(absEv);
+      }
+
+      // Remove real next event from DMCK queue
+      removeEventFromQueue(currentEnabledTransitions, nextEvent);
+
+      // Let DMCK predict the global state changes
+      updateIsQuickEventStep();
 
       if (nextEvent.apply()) {
         recordEventToPathFile(nextEvent.toString());
         updateSAMCQueueAfterEventExecution(nextEvent);
+        updateSAMCQueueWithoutLog();
       }
 
-      Transition concreteEvent = null;
-      ArrayList<String> prevQueue = new ArrayList<String>();
-      for (Transition ev : currentEnabledTransitions) {
-        prevQueue.add(getAbstractEvent(ev));
-      }
+
       if (isSAMC) {
+        Transition concreteEvent = null;
         if (nextEvent instanceof NodeCrashTransition) {
           concreteEvent = ((NodeCrashTransition) nextEvent).clone();
         } else if (nextEvent instanceof NodeStartTransition) {
           concreteEvent = ((NodeStartTransition) nextEvent).clone();
         } else if (nextEvent instanceof PacketSendTransition
-            && reductionAlgorithms.contains("symmetry")) {
+            && (reductionAlgorithms.contains("symmetry") || quickEventReleaseMode)) {
           concreteEvent = ((PacketSendTransition) nextEvent).clone();
         }
+
+        // Get List of Latest Events in Queue
         ArrayList<String> newCausalEvents = new ArrayList<String>();
         for (Transition ev : currentEnabledTransitions) {
           String absEvent = getAbstractEvent(ev);
-          if (!prevQueue.contains(absEvent)) {
+          boolean isNewEv = true;
+          for (String existingAbsEv : prevQueue) {
+            if (existingAbsEv.equals(absEvent)) {
+              isNewEv = false;
+              break;
+            }
+          }
+          if (isNewEv) {
             newCausalEvents.add(absEvent);
           }
         }
+
+        // Add new AGS into eventHistory
         if (concreteEvent != null && !isQuickEventStep) {
           addEventToHistory(currentGlobalState, copyLocalState(localStates), concreteEvent,
               newCausalEvents);

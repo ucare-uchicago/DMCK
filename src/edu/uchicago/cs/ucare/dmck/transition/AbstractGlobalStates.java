@@ -154,7 +154,7 @@ public class AbstractGlobalStates implements Serializable {
 
   public boolean equals(AbstractGlobalStates otherAGS) {
     // If executing node states are different, then these AGSs are not equal.
-    if (!executingNodeState.equals(otherAGS.getExecutingNodeState())) {
+    if (!executingNodeState.toString().equals(otherAGS.getExecutingNodeState().toString())) {
       return false;
     }
 
@@ -220,6 +220,25 @@ public class AbstractGlobalStates implements Serializable {
     }
 
     return true;
+  }
+
+  public String toString() {
+    String result = "GS Before:\n";
+    for (int i = 0; i < abstractGlobalStateBefore.length; i++) {
+      result += "n-" + i + abstractGlobalStateBefore[i].toString() + "\n";
+    }
+    result += "Abs Executed Ev:" + event.toString() + "\n";
+    result += "at state=" + executingNodeState.toString() + "\n";
+    result += "GS After:\n";
+    for (int i = 0; i < abstractGlobalStateAfter.length; i++) {
+      result += "n-" + i + abstractGlobalStateAfter[i].toString() + "\n";
+    }
+    result += "Expected Causal Abs New Ev:\n";
+    for (String ev : causalAbsNewEvents) {
+      result += ev + "\n";
+    }
+    result += "=======================";
+    return result;
   }
 
 }

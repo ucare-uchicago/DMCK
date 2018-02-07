@@ -570,6 +570,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       counter++;
     }
     content += "------------------\n";
+    LOG.info(content);
     try {
       debugRecordFile.write(content.getBytes());
     } catch (IOException e) {
@@ -583,6 +584,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       content += " --> IS QUICK EVENT STEP";
     }
     content += "\n------------------\n";
+    LOG.info(content);
     try {
       debugRecordFile.write(content.getBytes());
     } catch (IOException e) {
@@ -681,6 +683,38 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
           }
         }
       }
+    }
+  }
+
+  protected void removeEventFromQueue(LinkedList<Transition> dmckQueue, Transition event) {
+    boolean existInQueue = false;
+    for (int index = 0; index < dmckQueue.size(); index++) {
+      if (event instanceof PacketSendTransition
+          && dmckQueue.get(index) instanceof PacketSendTransition
+          && event.getTransitionId() == dmckQueue.get(index).getTransitionId()) {
+        existInQueue = true;
+      } else if (event instanceof NodeCrashTransition) {
+        if (dmckQueue.get(index) instanceof AbstractNodeCrashTransition) {
+          existInQueue = true;
+        } else if (dmckQueue.get(index) instanceof NodeCrashTransition
+            && dmckQueue.get(index).getId() == event.getId()) {
+          existInQueue = true;
+        }
+      } else if (event instanceof NodeStartTransition) {
+        if (dmckQueue.get(index) instanceof AbstractNodeStartTransition) {
+          existInQueue = true;
+        } else if (dmckQueue.get(index) instanceof NodeStartTransition
+            && dmckQueue.get(index).getId() == event.getId()) {
+          existInQueue = true;
+        }
+      }
+      if (existInQueue) {
+        dmckQueue.remove(index);
+        break;
+      }
+    }
+    if (!existInQueue) {
+      LOG.error("Event=" + event.toString() + " does not exist in DMCK Queue!");
     }
   }
 
@@ -1038,7 +1072,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
         break;
       }
     }
-    return currentEnabledTransitions.remove(id);
+    return currentEnabledTransitions.get(id);
   }
 
   // raft specific
