@@ -108,9 +108,9 @@ public class AbstractGlobalStates implements Serializable {
     for (int afterNodeId = 0; afterNodeId < abstractGlobalStateAfter.length; afterNodeId++) {
       boolean identicalState = false;
       for (int beforeNodeId = 0; beforeNodeId < abstractGlobalStateBefore.length; beforeNodeId++) {
-        if (!similar.contains(afterNodeId) && abstractGlobalStateAfter[afterNodeId].toString()
+        if (!similar.contains(beforeNodeId) && abstractGlobalStateAfter[afterNodeId].toString()
             .equals(abstractGlobalStateBefore[beforeNodeId].toString())) {
-          similar.add(afterNodeId);
+          similar.add(beforeNodeId);
           identicalState = true;
           break;
         }

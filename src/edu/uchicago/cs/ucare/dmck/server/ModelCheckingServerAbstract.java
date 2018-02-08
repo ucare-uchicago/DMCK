@@ -261,7 +261,6 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
   public void offerPacket(Event event) {
     messagesQueues[(int) event.getValue("sendNode")][(int) event.getValue("recvNode")].add(event);
-    LOG.info("Intercept event " + event.toString() + " to messagesQueue");
   }
 
   public void offerLocalEvent(Event event) {
@@ -832,7 +831,6 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       Thread.sleep(steadyStateTimeout / timeoutFraction);
       timeoutCounter++;
     }
-
     setNodeSteady(id, true);
   }
 

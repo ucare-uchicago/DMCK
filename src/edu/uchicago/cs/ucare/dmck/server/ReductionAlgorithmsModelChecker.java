@@ -616,12 +616,16 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     String result = "[";
     boolean isFirst = true;
     for (String key : abstractGlobalStateKeys) {
-      if (isFirst) {
-        isFirst = false;
-      } else {
-        result += ", ";
+      Object v = ls.getValue(key);
+      if (v != null) {
+        String temp = key + "=" + v;
+        if (isFirst) {
+          isFirst = false;
+          result += temp;
+        } else {
+          result += ", " + temp;
+        }
       }
-      result += key + "=" + ls.getValue(key);
     }
     result += "]";
     return result;
@@ -645,12 +649,16 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           continue;
         }
 
-        if (isFirst) {
-          isFirst = false;
-        } else {
-          result += ", ";
+        Object v = msg.getPacket().getValue(key);
+        if (v != null) {
+          String temp = key + "=" + v;
+          if (isFirst) {
+            isFirst = false;
+            result += temp;
+          } else {
+            result += ", " + temp;
+          }
         }
-        result += key + "=" + msg.getPacket().getValue(key);
       }
     } else if (ev instanceof AbstractNodeCrashTransition || ev instanceof NodeCrashTransition) {
       result = "abstract-crash";
@@ -1414,6 +1422,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           updateSAMCQueueWithoutLog();
         }
         LOG.debug("DMCK has intercepted all causal new events that are expected.");
+      } else {
+        LOG.debug("DMCK does not wait for any expected causal new events.");
       }
       setNodeSteady(event.getId(), true);
     }
@@ -1574,19 +1584,20 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       }
     }
 
-    protected void updateCurrentGlobalState(Transition event) {
+    protected void updateCurrentGlobalState() {
       if (quickEventReleaseMode) {
-        if (isQuickEventStep) {
-          LOG.debug("IS QUICK EVENT");
-          if (prevLocalStates.size() == 0) {
-            currentGlobalState = getInitialGlobalStates();
-          } else {
-            currentGlobalState = copyLocalState(prevLocalStates.getLast());
-            currentGlobalState[currentExploringPath.getLast().getId()] = predictedLS.clone();
-          }
+        if (prevLocalStates.size() == 0) {
+          currentGlobalState = getInitialGlobalStates();
         } else {
-          LOG.debug("IS SLOW EVENT");
-          currentGlobalState = copyLocalState(localStates);
+          currentGlobalState = copyLocalState(prevLocalStates.getLast());
+          int nodeId = currentExploringPath.getLast().getId();
+          if (isQuickEventStep) {
+            currentGlobalState[nodeId] = predictedLS.clone();
+            collectDebug("QUICK EVENT: predictedLS=" + predictedLS.toString() + "\n");
+          } else {
+            currentGlobalState[nodeId] = localStates[nodeId].clone();
+            collectDebug("SLOW EVENT: updatedLS=" + localStates[nodeId].toString() + "\n");
+          }
         }
       } else {
         currentGlobalState = copyLocalState(localStates);
@@ -1598,6 +1609,11 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         predictedLS =
             findLocalStateChange(prevLocalStates.getLast(), currentExploringPath.getLast());
         isQuickEventStep = predictedLS != null;
+        if (isQuickEventStep) {
+          LOG.debug("IS QUICK EVENT, PredictedLS=" + predictedLS.toString());
+        } else {
+          LOG.debug("IS SLOW EVENT");
+        }
       }
     }
 
@@ -1626,7 +1642,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         nodeOperationTransition.setId(((NodeOperationTransition) nextEvent).getId());
       }
 
-      updateCurrentGlobalState(nextEvent);
+      updateCurrentGlobalState();
 
       currentExploringPath.add(nextEvent);
       prevOnlineStatus.add(isNodeOnline.clone());
@@ -1634,7 +1650,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
       // Collect Logs
       collectDebugData(prevLocalStates.getLast());
-      collectDebugNextTransition(nextEvent);
+
+      // Remove real next event from DMCK queue
+      removeEventFromQueue(currentEnabledTransitions, nextEvent);
 
       // Get List of Prev Events in Queue
       ArrayList<String> prevQueue = new ArrayList<String>();
@@ -1643,18 +1661,24 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         prevQueue.add(absEv);
       }
 
-      // Remove real next event from DMCK queue
-      removeEventFromQueue(currentEnabledTransitions, nextEvent);
-
       // Let DMCK predict the global state changes
       updateIsQuickEventStep();
+
+      // If current event will be released quickly,
+      // DMCK needs to guarantee that the current localStates
+      // is the same with what is recorded, before enable another event.
+      if (isQuickEventStep) {
+        localStates = currentGlobalState.clone();
+      }
+
+      // Collect Logs
+      collectDebugNextTransition(nextEvent);
 
       if (nextEvent.apply()) {
         recordEventToPathFile(nextEvent.toString());
         updateSAMCQueueAfterEventExecution(nextEvent);
         updateSAMCQueueWithoutLog();
       }
-
 
       if (isSAMC) {
         Transition concreteEvent = null;
@@ -1672,14 +1696,18 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         for (Transition ev : currentEnabledTransitions) {
           String absEvent = getAbstractEvent(ev);
           boolean isNewEv = true;
-          for (String existingAbsEv : prevQueue) {
-            if (existingAbsEv.equals(absEvent)) {
+          int i = 0;
+          while (i < prevQueue.size()) {
+            if (prevQueue.get(i).equals(absEvent)) {
               isNewEv = false;
               break;
             }
+            i++;
           }
           if (isNewEv) {
             newCausalEvents.add(absEvent);
+          } else {
+            prevQueue.remove(i);
           }
         }
 
