@@ -6,6 +6,7 @@ import java.util.Properties;
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.server.FileWatcher;
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
+import edu.uchicago.cs.ucare.dmck.util.LocalState;
 
 public class CassFileWatcher extends FileWatcher {
 
@@ -72,13 +73,14 @@ public class CassFileWatcher extends FileWatcher {
       String type = ev.getProperty("type");
       String ballot = ev.getProperty("ballot");
       int key = Integer.parseInt(ev.getProperty("key"));
-      int value = Integer.parseInt(ev.getProperty("value"));
 
       LOG.debug("Update state node-" + sender + " type-" + type + " ballot-" + ballot + " key-"
-          + key + " value-" + value + " filename-" + filename);
+          + key + " filename-" + filename);
 
-      dmck.localStates[sender].setKeyValue(type + "Ballot-" + key, ballot);
-      dmck.localStates[sender].setKeyValue(type + "Value-" + key, value);
+      // Evaluate latest state update whether to ignore it or accept it.
+      LocalState newState = new LocalState();
+      newState.setKeyValue(type + "Ballot-" + key, ballot);
+      dmck.addStateToEventBatch(sender, newState);
     } else if (filename.startsWith("cassResponseUpdate-")) {
       int id = Integer.parseInt(ev.getProperty("recv"));
       String type = ev.getProperty("type");
@@ -87,9 +89,10 @@ public class CassFileWatcher extends FileWatcher {
       LOG.debug("Update state node-" + id + " type-" + type + " response-" + resp + " filename-"
           + filename);
 
-      int currentResp = dmck.localStates[id].getValue(type) == null ? 0 + resp
-          : (int) dmck.localStates[id].getValue(type) + resp;
-      dmck.localStates[id].setKeyValue(type, currentResp);
+      // Evaluate latest state update whether to ignore it or accept it.
+      LocalState newState = new LocalState();
+      newState.setKeyValue(type, resp);
+      dmck.addStateToEventBatch(id, newState);
     } else if (filename.startsWith("cassWorkloadUpdate-")) {
       int id = Integer.parseInt(ev.getProperty("id"));
       String isApplied = ev.getProperty("isApplied");

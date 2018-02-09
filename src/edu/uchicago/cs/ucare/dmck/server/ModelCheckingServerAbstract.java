@@ -140,6 +140,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   public boolean isQuickEventStep;
   public int[] senderSequencer;
   public int[] receiverSequencer;
+  public LocalState[] perEventStateBatch;
+  public String[] stateUpdateBook;
 
   @SuppressWarnings("unchecked")
   public ModelCheckingServerAbstract(String dmckName, FileWatcher fileWatcher, int numNode,
@@ -398,6 +400,48 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     debugRecordFilePath = idRecordDirPath + "/" + DEBUG_FILE;
     performanceRecordFilePath = idRecordDirPath + "/" + PERF_FILE;
     resultFilePath = idRecordDirPath + "/" + RESULT_FILE;
+  }
+
+  public boolean addLocalStatesUpdate(int id, LocalState newState) {
+    String s = newState.toString();
+    if (quickEventReleaseMode) {
+      if (stateUpdateBook[id].contains(s)) {
+        return false;
+      }
+      stateUpdateBook[id] += s;
+      LOG.debug("currentStateUpdateBook at node-" + id + "=" + stateUpdateBook[id]);
+      LOG.debug("new state=" + s);
+    }
+    return true;
+  }
+
+  public void addOrIgnoreLocalStatesUpdate(int id, LocalState newState) {
+    if (addLocalStatesUpdate(id, newState)) {
+      for (String key : newState.getAllKeys()) {
+        localStates[id].setKeyValue(key, newState.getValue(key));
+      }
+    } else {
+      LOG.debug("Ignore Local State Update at node-" + id + "=" + newState.toString());
+    }
+  }
+
+  public void addOrIgnorePerBatchUpdates() {
+    for (int id = 0; id < numNode; id++) {
+      if (perEventStateBatch[id].getAllKeys().length > 0) {
+        addOrIgnoreLocalStatesUpdate(id, perEventStateBatch[id]);
+      }
+      perEventStateBatch[id] = new LocalState();
+    }
+  }
+
+  public void addStateToEventBatch(int id, LocalState newState) {
+    if (quickEventReleaseMode) {
+      for (String key : newState.getAllKeys()) {
+        perEventStateBatch[id].setKeyValue(key, newState.getValue(key));
+      }
+    } else {
+      addOrIgnoreLocalStatesUpdate(id, newState);
+    }
   }
 
   public void updateLocalState(int id, int state) {
@@ -724,6 +768,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     boolean result;
     if (!event.getPacket().isObsolete()) {
       try {
+        // Enable event.
         fileWatcher.enableEvent(event);
 
         // Performance evaluation
@@ -870,6 +915,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     localState = new int[numNode];
     senderSequencer = new int[numNode];
     receiverSequencer = new int[numNode];
+    stateUpdateBook = new String[numNode];
+    perEventStateBatch = new LocalState[numNode];
     timeoutEventCounter = new int[numNode];
     initTimeoutEnabling = new boolean[numNode];
     for (int i = 0; i < numNode; i++) {
@@ -877,6 +924,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       initTimeoutEnabling[i] = false;
       senderSequencer[i] = 0;
       receiverSequencer[i] = 0;
+      stateUpdateBook[i] = "";
+      perEventStateBatch[i] = new LocalState();
     }
     isQuickEventStep = false;
     waitForNextLE = false;

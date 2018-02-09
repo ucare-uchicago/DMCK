@@ -1248,6 +1248,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         }
       }
       if (isNewAEC) {
+        LOG.debug("NEW EVENT CONSEQUENCES=" + aec.toString());
         eventImpacts.add(aec);
       }
     } else {
@@ -1589,11 +1590,12 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         if (prevLocalStates.size() == 0) {
           currentGlobalState = getInitialGlobalStates();
         } else {
-          currentGlobalState = copyLocalState(prevLocalStates.getLast());
           int nodeId = currentExploringPath.getLast().getId();
+          currentGlobalState = copyLocalState(prevLocalStates.getLast());
           if (isQuickEventStep) {
             currentGlobalState[nodeId] = predictedLS.clone();
             collectDebug("QUICK EVENT: predictedLS=" + predictedLS.toString() + "\n");
+            addLocalStatesUpdate(nodeId, currentGlobalState[nodeId]);
           } else {
             currentGlobalState[nodeId] = localStates[nodeId].clone();
             collectDebug("SLOW EVENT: updatedLS=" + localStates[nodeId].toString() + "\n");
@@ -1679,6 +1681,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         updateSAMCQueueAfterEventExecution(nextEvent);
         updateSAMCQueueWithoutLog();
       }
+
+      // Add lists of state changes together to the local states update.
+      addOrIgnorePerBatchUpdates();
 
       if (isSAMC) {
         Transition concreteEvent = null;

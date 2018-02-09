@@ -25,7 +25,7 @@ public class LocalState implements Serializable {
     keyValuePairs.put(key, value);
   }
 
-  public synchronized Object getValue(String key) {
+  public synchronized Serializable getValue(String key) {
     return keyValuePairs.get(key);
   }
 
