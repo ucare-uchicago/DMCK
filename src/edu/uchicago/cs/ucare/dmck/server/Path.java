@@ -16,20 +16,31 @@ public class Path extends LinkedList<Transition> implements Serializable {
    */
   private static final long serialVersionUID = 7359356166185399233L;
 
-  private int myId = 0;
+  private int myId;
 
-  private int myParentId = 0;
+  private int myParentId;
 
+  /**
+   * Only use this constructor if we only care about it as collection. The pathId and parentPathId
+   * by default will set to -1. If pathId and parentPathId is matter in intialization, use the the
+   * alternative constructor {@code Path(int pathId, int parentId)}
+   */
   public Path() {
     super();
+    this.myId = -1;
+    this.myParentId = -1;
   }
 
-  public Path(Collection<Transition> transitions) {
-    super(transitions);
+  public Path(int pathId, int parentId) {
+    super();
+    this.myId = pathId;
+    this.myParentId = parentId;
   }
 
-  public Path(Path transitions) {
+  private Path(Path transitions) {
     super(transitions);
+    this.myId = transitions.getId();
+    this.myParentId = transitions.getParentId();
   }
 
   public void setId(int id) {
@@ -57,8 +68,9 @@ public class Path extends LinkedList<Transition> implements Serializable {
     return new Path(this);
   }
 
+  @Deprecated
   public Path getSerializable(int numNode) {
-    Path retVal = new Path(new LinkedList<Transition>());
+    Path retVal = new Path(this.myId, this.myParentId);
 
     for (Transition transition : this) {
       retVal.add(transition.getSerializable(numNode));

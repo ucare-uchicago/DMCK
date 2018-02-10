@@ -27,6 +27,11 @@ public class ParallelPath implements Serializable {
   // private LinkedList<EventCausality> eventCausality;
   private Hashtable<Transition, List<Transition>> dependencies;
 
+  // riza
+  private int pathId;
+  private int firstParentId;
+  private int secondParentId;
+
   public ParallelPath(Path newPath, Hashtable<Transition, List<Transition>> dependencies) {
     path = newPath.clone();
 
@@ -47,6 +52,11 @@ public class ParallelPath implements Serializable {
 
     // buildCausalityEventsChain(dependencies);
     this.dependencies = dependencies;
+
+    // riza
+    this.pathId = newPath.getId();
+    this.firstParentId = newPath.getParentId();
+    this.secondParentId = newPath.getParentId();
   }
 
   public ParallelPath(Path newPath, ArrayList<Transition> events, ArrayList<Integer> nodes,
@@ -55,6 +65,11 @@ public class ParallelPath implements Serializable {
     reorderedEvents = events;
     reorderedNodes = nodes;
     this.dependencies = dependencies;
+
+    // riza
+    this.pathId = newPath.getId();
+    this.firstParentId = newPath.getParentId();
+    this.secondParentId = newPath.getParentId();
   }
 
   public Path getPath() {
@@ -303,6 +318,11 @@ public class ParallelPath implements Serializable {
 
         LOG.debug(debugPath);
 
+        // riza
+        newCombinedPath.pathId = -1;
+        newCombinedPath.firstParentId = this.pathId;
+        newCombinedPath.secondParentId = otherPath.pathId;
+        newCombinedPath.getPath().setParentId(this.pathId);
         return newCombinedPath;
       }
     } else {
@@ -315,14 +335,14 @@ public class ParallelPath implements Serializable {
      * myNode) { LOG. debug("Cannot combine paths because they are processed in the same node: " +
      * this.reorderedNodes.toString() + " vs " + otherPath.getReorderedNodes().toString()); return
      * null; } } }
-     * 
+     *
      * Path combinePath = new Path(); int minimumPath = this.path.size() <
      * otherPath.getPath().size() ? this.path.size() : otherPath.getPath().size(); int startingDiff
      * = -1; for (int k = 0; k < minimumPath; k++) { if
      * (this.path.get(k).transition.getTransitionId() == otherPath.getPath().get(k).transition
      * .getTransitionId()) { combinePath.add(this.path.get(k)); } else { startingDiff = k; break; }
      * }
-     * 
+     *
      * // Filter 2: reordered events cannot be dependent events in the other // reordered path for
      * (Transition t1 : this.reorderedEvents) { for (Transition t2 : otherPath.getReorderedEvents())
      * { if ((dependencies.get(t1) != null && dependencies.get(t1).contains(t2)) ||
@@ -333,10 +353,10 @@ public class ParallelPath implements Serializable {
      * NodeOperationTransition) { LOG.debug(
      * "One of the reordered pairs are crash/reboot events. Have not figured out how to handle it"
      * ); return null; } } }
-     * 
+     *
      * // starting to mix the 2 different path boolean unsafeMix = false; if (startingDiff > -1) {
      * int k1 = startingDiff; int k2 = startingDiff;
-     * 
+     *
      * while (k1 < this.path.size() || k2 < otherPath.getPath().size()) { if (k1 >=
      * this.path.size()) { addEventIntoPath(combinePath, otherPath.getPath().get(k2)); k2++; } else
      * if (k2 >= otherPath.getPath().size()) { addEventIntoPath(combinePath, this.path.get(k1));
@@ -356,23 +376,23 @@ public class ParallelPath implements Serializable {
      * addEventIntoPath(combinePath, otherPath.getPath().get(k2)); k2++; } else {
      * addEventIntoPath(combinePath, this.path.get(k1)); addEventIntoPath(combinePath,
      * otherPath.getPath().get(k2)); k1++; k2++; } } }
-     * 
+     *
      * // Filter 3: if it is unsafe to mix the paths if (unsafeMix) {
      * LOG.debug("Unsafe Paths Combination"); return null; } else { ParallelPath newCombinedPath =
      * new ParallelPath(this.getPath(), this.getReorderedEvents(), this.getReorderedNodes(),
      * this.getDependencies()); newCombinedPath.setPath(combinePath.clone());
      * newCombinedPath.addMoreReorderedNodes(otherPath.getReorderedNodes());
      * newCombinedPath.addMoreReorderedEvents(otherPath.getReorderedEvents() );
-     * 
+     *
      * String debugPath = "Path 1 to combine:\n"; for (TransitionTuple t : this.path) { debugPath +=
      * t.transition.toString() + "\n"; } debugPath += "Path 2 to combine:\n"; for (TransitionTuple t
      * : otherPath.getPath()) { debugPath += t.transition.toString() + "\n"; }
-     * 
+     *
      * debugPath += "Combination Path:\n"; for (TransitionTuple t : newCombinedPath.getPath()) {
      * debugPath += t.transition.toString() + "\n"; }
-     * 
+     *
      * LOG.debug(debugPath);
-     * 
+     *
      * return newCombinedPath; } } else { LOG.debug("Paths that are compared are identical.");
      * return null; }
      */
@@ -474,5 +494,32 @@ public class ParallelPath implements Serializable {
 
       eventCausality.add(ev);
     }
+  }
+
+  /**
+   *
+   * @return If its a product of path combination, it will return -1. If its not a product of path
+   *         combination, it will return the original pathId.
+   */
+  public int getId() {
+    return this.pathId;
+  }
+
+  /**
+   *
+   * @return If its a product of path combination, it will return the first parent pathId. If its
+   *         not a product of path combination, it will return the original parent pathId.
+   */
+  public int getFirstParentId() {
+    return this.firstParentId;
+  }
+
+  /**
+   *
+   * @return If its a product of path combination, it will return the second parent pathId. If its
+   *         not a product of path combination, it will return the original parent pathId.
+   */
+  public int getSecondParentId() {
+    return this.secondParentId;
   }
 }

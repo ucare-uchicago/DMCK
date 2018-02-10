@@ -13,7 +13,6 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -64,7 +63,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   HashSet<PathMeta> currentFinishedInitialPaths;
   HashSet<PathMeta> initialPathSecondAttempt;
   Path currentInitialPath;
-  Path currentExploringPath = new Path();
+  Path currentExploringPath = new Path(1, 0);
 
   // record all transition global states before and after
   Hashtable<Long, Transition> allEventsDB;
@@ -88,6 +87,10 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
   // record policy effectiveness
   Hashtable<String, Integer> policyRecord;
+
+  // for pathId
+  private int lastPathId = 1;
+  private int lastDiscardedPathId = -10;
 
   public ReductionAlgorithmsModelChecker(String dmckName, FileWatcher fileWatcher, int numNode,
       int numCrash, int numReboot, String globalStatePathDir, String packetRecordDir,
@@ -124,6 +127,22 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     resetTest();
   }
 
+  private int nextPathId() {
+    return ++lastPathId;
+  }
+
+  private int nextDiscardedPathId() {
+    return --lastDiscardedPathId;
+  }
+
+  private void updateLastKnownPathId(int id) {
+    if (id < 0) {
+      lastDiscardedPathId = Math.min(lastDiscardedPathId, id);
+    } else {
+      lastPathId = Math.max(lastPathId, id);
+    }
+  }
+
   @Override
   public void resetTest() {
     if (exploredBranchRecorder == null) {
@@ -134,7 +153,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     currentReboot = 0;
     modelChecking = new PathTraversalWorker();
     currentEnabledTransitions = new LinkedList<Transition>();
-    currentExploringPath = new Path();
+    currentExploringPath = new Path(1, 0);
     exploredBranchRecorder.resetTraversal();
     prevOnlineStatus = new LinkedList<boolean[]>();
     File waiting = new File(stateDir + "/.waiting");
@@ -264,14 +283,13 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           PathMeta[] arrPathMeta = gson.fromJson(fileContents.toString(), PathMeta[].class);
 
           for (PathMeta meta : arrPathMeta) {
-            Path initPath = new Path();
-            initPath.setId(meta.getId());
-            initPath.setParentId(meta.getParentId());
+            Path initPath = new Path(meta.getId(), meta.getParentId());
             String[] eventIDs = meta.getPathString().trim().split(",");
             for (String eventID : eventIDs) {
               initPath.add(allEventsDB.get(Long.parseLong(eventID)));
             }
             pathQueue.add(initPath);
+            updateLastKnownPathId(initPath.getId());
           }
         } catch (Exception e) {
           e.printStackTrace();
@@ -296,7 +314,10 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
           Gson gson = new Gson();
           PathMeta[] arrPathMeta = gson.fromJson(fileContents.toString(), PathMeta[].class);
-          pathQueue.addAll(Arrays.asList(arrPathMeta));
+          for (PathMeta pathMeta : arrPathMeta) {
+            pathQueue.add(pathMeta);
+            updateLastKnownPathId(pathMeta.getId());
+          }
         } catch (FileNotFoundException e) {
           e.printStackTrace();
         } catch (IOException e) {
@@ -593,8 +614,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   protected void addPathToFinishedInitialPath(Path path) {
-    String newHistoryPath = pathToString(path);
-    currentFinishedInitialPaths.add(new PathMeta(newHistoryPath));
+    currentFinishedInitialPaths.add(path.toPathMeta());
   }
 
   protected boolean isIdenticalHistoricalPath(String currentPath, String historicalPathNodes) {
@@ -626,6 +646,11 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   protected void addToInitialPathList(Path initialPath) {
     convertExecutedAbstractTransitionToReal(initialPath);
     if (!pathExistInHistory(initialPath)) {
+
+      // new pathId inheritance
+      initialPath.setParentId(initialPath.getId());
+      initialPath.setId(nextPathId());
+
       initialPaths.add(initialPath);
       addPathToFinishedInitialPath(initialPath);
     }
@@ -788,6 +813,12 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       Transition oldTransition, Transition newTransition) {
     // mark the initial path plus the old event as explored
     Path oldPath = (Path) initialPath.clone();
+
+    // this path is skipable and only memorized for historical purpose. We assign negative pathId
+    // here because we will not explore this path in the future.
+    oldPath.setParentId(initialPath.getId());
+    oldPath.setId(nextDiscardedPathId());
+
     convertExecutedAbstractTransitionToReal(oldPath);
     oldPath.addTransition(oldTransition);
     addPathToFinishedInitialPath(oldPath);
@@ -808,6 +839,11 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     if (!pathExistInHistory(newInitialPath)) {
       LOG.info("Transition " + newTransition.getTransitionId() + " needs to be reordered with "
           + oldTransition.getTransitionId());
+
+      // new pathId inheritance
+      newInitialPath.setParentId(initialPath.getId());
+      newInitialPath.setId(nextPathId());
+
       initialPaths.add(newInitialPath);
       if (!reductionAlgorithms.contains("parallelism")) {
         addPathToFinishedInitialPath(newInitialPath);
@@ -1068,6 +1104,12 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
     for (ParallelPath newPath : transformedInitialPaths) {
       if (!pathExistInHistory(newPath.getPath())) {
+
+        // new pathId inheritance
+        int parentId = newPath.getId() < 0 ? newPath.getFirstParentId() : newPath.getId();
+        newPath.getPath().setId(parentId);
+        newPath.getPath().setId(nextPathId());
+
         currentImportantInitialPaths.add(newPath.getPath());
         addPathToFinishedInitialPath(newPath.getPath());
 

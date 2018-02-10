@@ -129,9 +129,9 @@
         <delete dir="${ivy.jar.dir}" />
     </target>
     <!--
- 		================================= 
-			target: clean-cache              
-		================================= 
+		=================================
+			target: clean-cache
+		=================================
 	-->
     <target name="clean-cache" depends="install-ivy" description="--> clean the ivy cache">
         <ivy:cleancache />

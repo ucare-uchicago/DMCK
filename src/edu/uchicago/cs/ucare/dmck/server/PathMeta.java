@@ -14,21 +14,6 @@ public class PathMeta implements Comparable<PathMeta> {
     this.parentPathId = parentId;
   }
 
-  public PathMeta(Path path) {
-    this.pathId = path.getId();
-    this.parentPathId = path.getParentId();
-    this.pathString = Path.pathToString(path);
-  }
-
-  @Deprecated
-  public PathMeta(String pathString) {
-    // TODO: this constructor is temporary and will be removed after we finalize
-    // JSON serialization and pathId inheritance
-    this.pathId = 0;
-    this.parentPathId = 0;
-    this.pathString = pathString;
-  }
-
   public String getPathString() {
     return pathString;
   }
