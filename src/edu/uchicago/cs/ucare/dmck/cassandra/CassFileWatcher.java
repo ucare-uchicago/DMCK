@@ -1,11 +1,12 @@
 package edu.uchicago.cs.ucare.dmck.cassandra;
 
+import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Properties;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.server.FileWatcher;
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
+import edu.uchicago.cs.ucare.dmck.util.LocalState;
 
 public class CassFileWatcher extends FileWatcher {
 
@@ -21,7 +22,8 @@ public class CassFileWatcher extends FileWatcher {
       String verb = ev.getProperty("verb");
 
       int clientRequest = -1;
-      if (verb.equals("PAXOS_PREPARE") || verb.equals("PAXOS_PROPOSE") || verb.equals("PAXOS_COMMIT")) {
+      if (verb.equals("PAXOS_PREPARE") || verb.equals("PAXOS_PROPOSE")
+          || verb.equals("PAXOS_COMMIT")) {
         clientRequest = sender;
       } else if (verb.equals("PAXOS_PREPARE_RESPONSE") || verb.equals("PAXOS_PROPOSE_RESPONSE")
           || verb.equals("PAXOS_COMMIT_RESPONSE")) {
@@ -61,9 +63,9 @@ public class CassFileWatcher extends FileWatcher {
       event.addKeyValue("clientRequest", clientRequest);
       event.setVectorClock(dmck.getVectorClock(sender, recv));
 
-      LOG.debug("DMCK receives Cass Paxos event with hashId-" + hashId + " sender-" + sender + " recv-" + recv
-          + " verb-" + verb + " payload: " + payload.toString() + " usrval: " + usrval.toString() + " clientRequest-"
-          + clientRequest + " filename-" + filename);
+      LOG.debug("DMCK receives Cass Paxos event with hashId-" + hashId + " sender-" + sender
+          + " recv-" + recv + " verb-" + verb + " payload: " + payload.toString() + " usrval: "
+          + usrval.toString() + " clientRequest-" + clientRequest + " filename-" + filename);
 
       dmck.offerPacket(event);
     } else if (filename.startsWith("cassUpdate-")) {
@@ -71,33 +73,69 @@ public class CassFileWatcher extends FileWatcher {
       String type = ev.getProperty("type");
       String ballot = ev.getProperty("ballot");
       int key = Integer.parseInt(ev.getProperty("key"));
-      int value = Integer.parseInt(ev.getProperty("value"));
 
-      LOG.debug("Update state node-" + sender + " type-" + type + " ballot-" + ballot + " key-" + key + " value-"
-          + value + " filename-" + filename);
+      LOG.debug("Update state node-" + sender + " type-" + type + " ballot-" + ballot + " key-"
+          + key + " filename-" + filename);
 
-      dmck.localStates[sender].setKeyValue(type + "Ballot-" + key, ballot);
-      dmck.localStates[sender].setKeyValue(type + "Value-" + key, value);
+      // Evaluate latest state update whether to ignore it or accept it.
+      LocalState newState = new LocalState();
+      newState.setKeyValue(type + "Ballot-" + key, ballot);
+      dmck.addStateToEventBatch(sender, newState);
     } else if (filename.startsWith("cassResponseUpdate-")) {
       int id = Integer.parseInt(ev.getProperty("recv"));
       String type = ev.getProperty("type");
       int resp = Integer.parseInt(ev.getProperty("response"));
 
-      LOG.debug("Update state node-" + id + " type-" + type + " response-" + resp + " filename-" + filename);
+      LOG.debug("Update state node-" + id + " type-" + type + " response-" + resp + " filename-"
+          + filename);
 
-      int currentResp = dmck.localStates[id].getValue(type) == null ? 0 + resp
-          : (int) dmck.localStates[id].getValue(type) + resp;
-      dmck.localStates[id].setKeyValue(type, currentResp);
+      // Evaluate latest state update whether to ignore it or accept it.
+      LocalState newState = new LocalState();
+      newState.setKeyValue(type, resp);
+      dmck.addStateToEventBatch(id, newState);
     } else if (filename.startsWith("cassWorkloadUpdate-")) {
       int id = Integer.parseInt(ev.getProperty("id"));
       String isApplied = ev.getProperty("isApplied");
 
-      dmck.isApplied.put(id, isApplied);
+      dmck.workloadHasApplied.put(id, isApplied);
 
       LOG.debug("DMCK receives Cass Workload Accomplishment Update filename-" + filename);
     }
 
     removeProceedFile(filename);
+  }
+
+  @Override
+  protected void sequencerEnablingSignal(Event packet) {
+    try {
+      dmck.senderSequencer[packet.getFromId()]++;
+      dmck.receiverSequencer[packet.getToId()]++;
+
+      // Sender Sequencer
+      String sendSeqFile = String.valueOf(packet.getValue(Event.FILENAME));
+      PrintWriter writer = new PrintWriter(ipcDir + "/new/" + sendSeqFile, "UTF-8");
+      writer.println("eventId=" + packet.getId());
+      writer.println("recvNode=" + packet.getToId());
+      writer.println("dmckStep=" + dmck.senderSequencer[packet.getFromId()]);
+      writer.println("execute=true");
+      writer.close();
+
+      // Receiver Sequencer
+      String recvSeqFile =
+          "recv-" + packet.getToId() + "-" + dmck.receiverSequencer[packet.getToId()];
+      writer = new PrintWriter(ipcDir + "/new/" + recvSeqFile, "UTF-8");
+      writer.println("sendNode=" + packet.getFromId());
+      writer.println("verb=" + packet.getValue("verb"));
+      writer.println("execute=true");
+      writer.close();
+
+      Runtime.getRuntime()
+          .exec("mv " + ipcDir + "/new/" + recvSeqFile + " " + ipcDir + "/ack/" + recvSeqFile);
+      Runtime.getRuntime()
+          .exec("mv " + ipcDir + "/new/" + sendSeqFile + " " + ipcDir + "/ack/" + sendSeqFile);
+    } catch (Exception e) {
+      LOG.error("Error when enabling event with sequencer method=" + packet.toString());
+    }
   }
 
 }

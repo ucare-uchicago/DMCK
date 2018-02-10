@@ -3,9 +3,7 @@ package edu.uchicago.cs.ucare.dmck.scm;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-
 import edu.uchicago.cs.ucare.dmck.server.WorkloadDriver;
-
 import java.io.IOException;
 
 public class SCMWorkloadDriver extends WorkloadDriver {
@@ -16,7 +14,8 @@ public class SCMWorkloadDriver extends WorkloadDriver {
   private Thread consoleWriter;
   private FileOutputStream[] consoleLog;
 
-  public SCMWorkloadDriver(int numNode, String workingDir, String ipcDir, String samcDir, String targetSysDir) {
+  public SCMWorkloadDriver(int numNode, String workingDir, String ipcDir, String samcDir,
+      String targetSysDir) {
     super(numNode, workingDir, ipcDir, samcDir, targetSysDir);
     ipcScmDir = ipcDir + "-scm";
     node = new Process[numNode];
@@ -30,13 +29,13 @@ public class SCMWorkloadDriver extends WorkloadDriver {
     try {
       // start receiver first
       if (id == 0) {
-        node[id] = Runtime.getRuntime()
-            .exec(workingDir + "/startSCMReceiver.sh " + ipcScmDir + " " + ipcDir + " " + (numNode - 1) + " " + testId);
+        node[id] = Runtime.getRuntime().exec(workingDir + "/startSCMReceiver.sh " + ipcScmDir + " "
+            + ipcDir + " " + (numNode - 1) + " " + testId);
         LOG.info("Start Receiver-" + id);
         Thread.sleep(50);
       } else {
-        node[id] = Runtime.getRuntime()
-            .exec(workingDir + "/startSCMSender.sh " + ipcScmDir + " " + ipcDir + " " + id + " " + testId);
+        node[id] = Runtime.getRuntime().exec(workingDir + "/startSCMSender.sh " + ipcScmDir + " "
+            + ipcDir + " " + id + " " + testId);
         LOG.info("Start Sender node-" + id);
       }
       Thread.sleep(50);

@@ -1,7 +1,6 @@
 package edu.uchicago.cs.ucare.dmck.election;
 
 import java.io.Serializable;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.example.election.LeaderElectionMain;
 
@@ -29,8 +28,8 @@ public class LeaderElectionVote implements Serializable {
     this.leader = leader;
   }
 
-  public static boolean isMoreInteresting(LeaderElectionVote newVote, LeaderElectionVote oldVote, int currentRole,
-      int currentLeader) {
+  public static boolean isMoreInteresting(LeaderElectionVote newVote, LeaderElectionVote oldVote,
+      int currentRole, int currentLeader) {
     if (currentRole == LeaderElectionMain.LOOKING) {
       if (oldVote.role == LeaderElectionMain.LOOKING) {
         if (newVote.role == LeaderElectionMain.LOOKING) {
@@ -46,7 +45,8 @@ public class LeaderElectionVote implements Serializable {
   }
 
   public String toString() {
-    return "Vote from " + sender + " : role=" + LeaderElectionMain.getRoleName(role) + ", leader=" + leader;
+    return "Vote from " + sender + " : role=" + LeaderElectionMain.getRoleName(role) + ", leader="
+        + leader;
   }
 
 }

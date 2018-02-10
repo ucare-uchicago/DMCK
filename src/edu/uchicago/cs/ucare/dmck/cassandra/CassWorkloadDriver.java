@@ -4,7 +4,8 @@ import edu.uchicago.cs.ucare.dmck.server.WorkloadDriver;
 
 public class CassWorkloadDriver extends WorkloadDriver {
 
-  public CassWorkloadDriver(int numNode, String workingDir, String ipcDir, String samcDir, String targetSysDir) {
+  public CassWorkloadDriver(int numNode, String workingDir, String ipcDir, String samcDir,
+      String targetSysDir) {
     super(numNode, workingDir, ipcDir, samcDir, targetSysDir);
   }
 

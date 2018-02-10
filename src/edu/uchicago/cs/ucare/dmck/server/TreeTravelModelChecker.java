@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.ListIterator;
 import com.almworks.sqlite4java.SQLiteException;
-
 import edu.uchicago.cs.ucare.dmck.transition.NodeCrashTransition;
 import edu.uchicago.cs.ucare.dmck.transition.NodeStartTransition;
 import edu.uchicago.cs.ucare.dmck.transition.Transition;
@@ -21,9 +20,9 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
   protected int currentCrash;
   protected int currentReboot;
 
-  public TreeTravelModelChecker(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash, int numReboot,
-      String globalStatePathDir, String packetRecordDir, String workingDir, WorkloadDriver workloadDriver,
-      String ipcDir) {
+  public TreeTravelModelChecker(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash,
+      int numReboot, String globalStatePathDir, String packetRecordDir, String workingDir,
+      WorkloadDriver workloadDriver, String ipcDir) {
     super(dmckName, fileWatcher, numNode, globalStatePathDir, workingDir, workloadDriver, ipcDir);
     try {
       this.numCrash = numCrash;
@@ -117,45 +116,30 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
     exploredBranchRecorder.noteThisNode(".test_id", testId + "");
   }
 
-  protected void saveNextTransition(String nextTransition) {
-    try {
-      localRecordFile.write(("Next Execute: " + nextTransition + "\n").getBytes());
-    } catch (IOException e) {
-      LOG.error("", e);
-    }
-  }
-
-  protected void saveFinishedPath() {
-    try {
-      localRecordFile.write(("Finished Path: " + exploredBranchRecorder.getCurrentPath() + "\n").getBytes());
-    } catch (IOException e) {
-      LOG.error("", e);
-    }
-  }
-
   class PathTraversalWorker extends Thread {
     @Override
     @SuppressWarnings("unchecked")
     public void run() {
       boolean hasExploredAll = false;
       boolean hasWaited = waitEndExploration == 0;
-      LinkedList<LinkedList<Transition>> pastEnabledTransitionList = new LinkedList<LinkedList<Transition>>();
+      LinkedList<LinkedList<Transition>> pastEnabledTransitionList =
+          new LinkedList<LinkedList<Transition>>();
       while (true) {
         executeMidWorkload();
-        updateSAMCQueue();
+        updateSAMCQueue(localStates);
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
         if (terminationPoint && hasWaited) {
           LOG.info("---- End of a Path Execution ----");
 
           // Performance evaluation
-          collectPerformanceMetrics();
+          collectPerformancePerEventMetrics();
+          collectPerformancePerPathMetrics();
 
           boolean verifiedResult = verifier.verify();
           String detail = verifier.verificationDetail();
-          saveResult(verifiedResult + "; " + detail + "\n");
+          saveResult(verifiedResult, detail);
           recordTestId();
           exploredBranchRecorder.markBelowSubtreeFinished();
-          saveFinishedPath();
           int currentStep = 0;
           for (LinkedList<Transition> pastTransitions : pastEnabledTransitionList) {
             currentStep++;
@@ -164,7 +148,6 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
               Transition transition = nextTransition(pastTransitions);
               if (transition == null) {
                 exploredBranchRecorder.markBelowSubtreeFinished();
-                saveFinishedPath();
                 hasExploredAll = true;
               } else {
                 hasExploredAll = false;
@@ -174,8 +157,8 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
               break;
             }
           }
+          LOG.info("---- End of Path Evaluation ----");
           if (!hasExploredAll) {
-            LOG.debug("Reset Test");
             resetTest();
           } else if (exploredBranchRecorder.getCurrentDepth() == 0) {
             hasFinishedAllExploration = true;
@@ -184,7 +167,8 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
           break;
         } else if (terminationPoint) {
           try {
-            if (dmckName.equals("raftModelChecker") && waitForNextLE && waitedForNextLEInDiffTermCounter < 20) {
+            if (dmckName.equals("raftModelChecker") && waitForNextLE
+                && waitedForNextLEInDiffTermCounter < 20) {
               Thread.sleep(leaderElectionTimeout);
             } else {
               hasWaited = true;
@@ -196,7 +180,8 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
           }
           continue;
         }
-        pastEnabledTransitionList.addFirst((LinkedList<Transition>) currentEnabledTransitions.clone());
+        pastEnabledTransitionList
+            .addFirst((LinkedList<Transition>) currentEnabledTransitions.clone());
         Transition transition;
         boolean recordPath = true;
         if (hasDirectedInitialPath && !hasFinishedDirectedInitialPath) {
@@ -206,7 +191,6 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
           transition = nextTransition(currentEnabledTransitions);
         }
         if (transition != null) {
-          saveNextTransition(transition.toString());
           if (recordPath) {
             exploredBranchRecorder.createChild(transition.getTransitionId());
             exploredBranchRecorder.traverseDownTo(transition.getTransitionId());
@@ -214,16 +198,11 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
           }
           LOG.info("[NEXT TRANSITION] " + transition.toString());
           collectDebugNextTransition(transition);
-          try {
-            if (transition.apply()) {
-              pathRecordFile.write((transition.toString() + "\n").getBytes());
-              updateGlobalState();
-              updateSAMCQueueAfterEventExecution(transition);
-            } else {
-              LOG.warn(transition.toString() + " IS NOT EXECUTED!");
-            }
-          } catch (Exception e) {
-            LOG.error("", e);
+          if (transition.apply()) {
+            recordEventToPathFile(transition.toString());
+            updateSAMCQueueAfterEventExecution(transition);
+          } else {
+            LOG.warn(transition.toString() + " IS NOT EXECUTED!");
           }
         } else {
           if (!hasWaited) {
@@ -237,7 +216,6 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
             }
             continue;
           } else {
-            saveFinishedPath();
             LOG.error("There might be some errors");
             hasFinishedAllExploration = true;
             signalWaitingFile();

@@ -1,10 +1,8 @@
 package edu.uchicago.cs.ucare.dmck.transition;
 
 import java.util.LinkedList;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
 
 @SuppressWarnings("serial")
@@ -52,7 +50,8 @@ public class AbstractNodeStartTransition extends AbstractNodeOperationTransition
   @Override
   public NodeStartTransition getRealNodeOperationTransition() {
     if (isRandom) {
-      LinkedList<NodeOperationTransition> allPossible = getAllRealNodeOperationTransitions(dmck.isNodeOnline);
+      LinkedList<NodeOperationTransition> allPossible =
+          getAllRealNodeOperationTransitions(dmck.isNodeOnline);
       if (allPossible.isEmpty()) {
         LOG.debug("Try to execute start node event, but currently there is no offline node");
         return null;
@@ -85,7 +84,8 @@ public class AbstractNodeStartTransition extends AbstractNodeOperationTransition
   }
 
   @Override
-  public LinkedList<NodeOperationTransition> getAllRealNodeOperationTransitions(boolean[] onlineStatus) {
+  public LinkedList<NodeOperationTransition> getAllRealNodeOperationTransitions(
+      boolean[] onlineStatus) {
     LinkedList<NodeOperationTransition> result = new LinkedList<NodeOperationTransition>();
     for (int i = 0; i < onlineStatus.length; ++i) {
       if (!onlineStatus[i]) {

@@ -3,7 +3,6 @@ package edu.uchicago.cs.ucare.dmck.transition;
 import java.io.Serializable;
 import java.util.Comparator;
 import java.util.List;
-
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
 
 @SuppressWarnings("serial")
@@ -14,6 +13,18 @@ public abstract class Transition implements Serializable {
   public abstract boolean apply();
 
   public abstract long getTransitionId();
+
+  // Represents the message receiver node ID, or the local event / crash / reboot
+  // executor
+  protected int id;
+
+  public void setId(int id) {
+    this.id = id;
+  }
+
+  public int getId() {
+    return id;
+  }
 
   public static final Comparator<Transition> COMPARATOR = new Comparator<Transition>() {
     public int compare(Transition o1, Transition o2) {

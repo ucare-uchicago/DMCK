@@ -1,7 +1,6 @@
 package edu.uchicago.cs.ucare.dmck.zookeeper;
 
 import java.util.HashMap;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.server.EvaluationModelChecker;
 import edu.uchicago.cs.ucare.dmck.server.FileWatcher;
@@ -15,17 +14,17 @@ import edu.uchicago.cs.ucare.dmck.util.LocalState;
 public class ZKSAMC extends EvaluationModelChecker {
 
   public ZKSAMC(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash, int numReboot,
-      String globalStatePathDir, String packetRecordDir, String cacheDir, WorkloadDriver workloadDriver,
-      String ipcDir) {
-    super(dmckName, fileWatcher, numNode, numCrash, numReboot, globalStatePathDir, packetRecordDir, cacheDir,
-        workloadDriver, ipcDir);
+      String globalStatePathDir, String packetRecordDir, String cacheDir,
+      WorkloadDriver workloadDriver, String ipcDir) {
+    super(dmckName, fileWatcher, numNode, numCrash, numReboot, globalStatePathDir, packetRecordDir,
+        cacheDir, workloadDriver, ipcDir);
   }
 
   @Override
   public boolean isLMDependent(LocalState state, Event e1, Event e2) {
     // only if both msgs are LeaderElection msgs
-    if (e1.getFromId() != e1.getToId() && e2.getFromId() != e2.getToId() && e1.getValue("epoch") != null
-        && e2.getValue("epoch") != null) {
+    if (e1.getFromId() != e1.getToId() && e2.getFromId() != e2.getToId()
+        && e1.getValue("epoch") != null && e2.getValue("epoch") != null) {
       if (isDiscardMsg(state, e1) && isDiscardMsg(state, e2)) {
         recordPolicyEffectiveness("lmi");
         return false;
@@ -33,7 +32,7 @@ public class ZKSAMC extends EvaluationModelChecker {
     }
 
     // if one msg is zkUpToDate and the other msg is zkLE, do not reorder
-    if (this.enableMsgWWDisjoint) {
+    if (reductionAlgorithms.contains("msg_ww_disjoint")) {
       if ((e1.getValue("filename").toString().startsWith("zkUpToDate")
           && e2.getValue("filename").toString().startsWith("zkLE"))
           || (e2.getValue("filename").toString().startsWith("zkUpToDate")
@@ -44,7 +43,7 @@ public class ZKSAMC extends EvaluationModelChecker {
     }
 
     // if one of it is msg and the other is local disk write event
-    if (this.enableDiskRW) {
+    if (reductionAlgorithms.contains("disk_rw")) {
       if ((e1.getFromId() == e1.getToId() && e2.getFromId() != e2.getToId())
           || (e2.getFromId() == e2.getToId() && e1.getFromId() != e1.getToId())) {
         recordPolicyEffectiveness("diskRW");
@@ -67,7 +66,8 @@ public class ZKSAMC extends EvaluationModelChecker {
 
     // if after the crash event, majority nodes are still alive AND the node
     // that we will crash is a Follower
-    if (nodesOnline - 1 > numNode / 2 && (int) wasLocalState[crash.getId()].getValue("state") == 1) {
+    if (nodesOnline - 1 > numNode / 2
+        && (int) wasLocalState[crash.getId()].getValue("state") == 1) {
       recordPolicyEffectiveness("cmi");
       return false;
     }
@@ -76,9 +76,9 @@ public class ZKSAMC extends EvaluationModelChecker {
   }
 
   @Override
-  public boolean isCCDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, NodeCrashTransition crash1,
-      NodeCrashTransition crash2) {
-    if (this.enableCrash2NoImpact) {
+  public boolean isCCDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState,
+      NodeCrashTransition crash1, NodeCrashTransition crash2) {
+    if (reductionAlgorithms.contains("crash_2_noimpact")) {
       for (int i = 0; i < numNode; i++) {
         if (wasNodeOnline[i] && i != crash1.getId() && i != crash2.getId()) {
           if ((int) wasLocalState[i].getValue("state") != 0) {
@@ -95,7 +95,8 @@ public class ZKSAMC extends EvaluationModelChecker {
   }
 
   @Override
-  public boolean isCRSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, Transition event) {
+  public boolean isCRSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState,
+      Transition event) {
     NodeCrashTransition crashEvent = (NodeCrashTransition) event;
     if (wasNodeOnline[crashEvent.getId()] && isSymmetric(wasLocalState, crashEvent)) {
       recordPolicyEffectiveness("crs");
@@ -105,7 +106,8 @@ public class ZKSAMC extends EvaluationModelChecker {
   }
 
   @Override
-  public boolean isRSSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, Transition event) {
+  public boolean isRSSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState,
+      Transition event) {
     NodeStartTransition rebootEvent = (NodeStartTransition) event;
     if (!wasNodeOnline[rebootEvent.getId()] && isSymmetric(wasLocalState, rebootEvent)) {
       recordPolicyEffectiveness("rss");
@@ -117,7 +119,7 @@ public class ZKSAMC extends EvaluationModelChecker {
   @Override
   public boolean isNotDiscardReorder(boolean[] wasNodeOnline, LocalState[] wasLocalState,
       NodeOperationTransition crashOrRebootEvent, Event msg) {
-    if (this.enableCrashRebootDis) {
+    if (reductionAlgorithms.contains("crash_reboot_dis")) {
       if (isDiscardMsg(wasLocalState[msg.getToId()], msg)) {
         recordPolicyEffectiveness("crDis");
         return false;

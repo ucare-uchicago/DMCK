@@ -11,6 +11,7 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -25,7 +26,6 @@ import java.util.Properties;
 
 import com.almworks.sqlite4java.SQLiteException;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 import edu.uchicago.cs.ucare.dmck.transition.AbstractEventConsequence;
 import edu.uchicago.cs.ucare.dmck.transition.AbstractGlobalStates;
@@ -67,21 +67,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   Path currentExploringPath = new Path();
 
   // record all transition global states before and after
-  LinkedList<AbstractGlobalStates> incompleteEventHistory;
+  Hashtable<Long, Transition> allEventsDB;
   LinkedList<AbstractGlobalStates> eventHistory;
   LinkedList<AbstractEventConsequence> eventImpacts;
+  int recordedEventHistory;
   int recordedEventImpacts;
 
   protected boolean isSAMC;
-  protected boolean enableMsgWWDisjoint;
-  protected boolean enableMsgAlwaysDis;
-  protected boolean enableDiskRW;
-  protected boolean enableParallelism;
-  protected boolean enableCrash2NoImpact;
-  protected boolean enableCrashRebootDis;
-  protected boolean enableSymmetry;
-  protected boolean enableSymmetryDoubleCheck;
-  protected boolean enableCRSRSSRuntime;
+  protected ArrayList<String> reductionAlgorithms;
 
   String stateDir;
 
@@ -90,17 +83,15 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   int currentCrash;
   int currentReboot;
 
-  int globalState2;
   LinkedList<boolean[]> prevOnlineStatus;
-
   LinkedList<LocalState[]> prevLocalStates;
 
   // record policy effectiveness
   Hashtable<String, Integer> policyRecord;
 
-  public ReductionAlgorithmsModelChecker(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash,
-      int numReboot, String globalStatePathDir, String packetRecordDir, String workingDir,
-      WorkloadDriver workloadDriver, String ipcDir) {
+  public ReductionAlgorithmsModelChecker(String dmckName, FileWatcher fileWatcher, int numNode,
+      int numCrash, int numReboot, String globalStatePathDir, String packetRecordDir,
+      String workingDir, WorkloadDriver workloadDriver, String ipcDir) {
     super(dmckName, fileWatcher, numNode, globalStatePathDir, workingDir, workloadDriver, ipcDir);
     importantInitialPaths = new LinkedList<Path>();
     currentImportantInitialPaths = new LinkedList<Path>();
@@ -111,21 +102,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     finishedInitialPaths = new HashSet<PathMeta>();
     currentFinishedInitialPaths = new HashSet<PathMeta>();
     initialPathSecondAttempt = new HashSet<PathMeta>();
-    incompleteEventHistory = new LinkedList<AbstractGlobalStates>();
     eventHistory = new LinkedList<AbstractGlobalStates>();
     eventImpacts = new LinkedList<AbstractEventConsequence>();
+    recordedEventHistory = 0;
     recordedEventImpacts = 0;
     this.numCrash = numCrash;
     this.numReboot = numReboot;
     isSAMC = true;
-    enableMsgWWDisjoint = false;
-    enableMsgAlwaysDis = false;
-    enableDiskRW = false;
-    enableParallelism = false;
-    enableCrash2NoImpact = false;
-    enableCrashRebootDis = false;
-    enableSymmetry = false;
-    enableCRSRSSRuntime = false;
+    reductionAlgorithms = new ArrayList<String>();
     policyRecord = new Hashtable<String, Integer>();
 
     stateDir = packetRecordDir;
@@ -136,7 +120,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
 
     getSAMCConfig();
-    loadInitialPathsFromFile();
+    loadExistingDataFromFile();
     resetTest();
   }
 
@@ -181,19 +165,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         nonAbstractEventKeys = samcConf.getProperty("non_abstract_event") != null
             ? samcConf.getProperty("non_abstract_event").split(",")
             : null;
-        this.enableMsgWWDisjoint = samcConf.getProperty("msg_ww_disjoint", "false").equals("true");
-        this.enableMsgAlwaysDis = samcConf.getProperty("msg_always_dis", "false").equals("true");
-        this.enableDiskRW = samcConf.getProperty("disk_rw", "false").equals("true");
-        this.enableCrash2NoImpact = samcConf.getProperty("crash_2_noimpact", "false").equals("true");
-        this.enableCrashRebootDis = samcConf.getProperty("crash_reboot_dis", "false").equals("true");
-        this.enableParallelism = samcConf.getProperty("parallelism", "false").equals("true");
-        this.enableSymmetry = samcConf.getProperty("symmetry", "false").equals("true");
-        this.enableSymmetryDoubleCheck = samcConf.getProperty("symmetry_double_check", "false").equals("true");
-        this.enableCRSRSSRuntime = samcConf.getProperty("crs_rss_runtime", "false").equals("true");
+        for (String algorithm : samcConf.getProperty("reduction_algorithms", "").split(",")) {
+          reductionAlgorithms.add(algorithm);
+        }
 
         // sanity check
-        if (this.enableSymmetry && nonAbstractEventKeys == null) {
-          LOG.error("In samc.conf, you have configured symmetry=true, but you have not specified non_abstract_event.");
+        if (reductionAlgorithms.contains("symmetry") && nonAbstractEventKeys == null) {
+          LOG.error(
+              "In samc.conf, you have configured symmetry=true, but you have not specified non_abstract_event.");
           System.exit(1);
         }
       } catch (Exception e) {
@@ -219,14 +198,61 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return allEvents;
   }
 
+  @SuppressWarnings("unchecked")
+  protected void loadEventConsequences(int numRecord) {
+    for (int record = 1; record <= numRecord; record++) {
+      File serializedEvConsFile =
+          new File(testRecordDirPath + "/" + record + "/serializedEventConsequences");
+      if (serializedEvConsFile.exists()) {
+        ObjectInputStream ois;
+        try {
+          ois = new ObjectInputStream(new FileInputStream(serializedEvConsFile));
+          ArrayList<AbstractEventConsequence> tempEvImpacts =
+              (ArrayList<AbstractEventConsequence>) ois.readObject();
+          for (AbstractEventConsequence aec : tempEvImpacts) {
+            eventImpacts.add(aec.getRealAbsEvCons(this));
+          }
+          ois.close();
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      }
+    }
+    recordedEventImpacts = eventImpacts.size();
+  }
+
+  @SuppressWarnings("unchecked")
+  protected void loadEventHistory(int numRecord) {
+    for (int record = 1; record <= numRecord; record++) {
+      File serializedEvHistFile =
+          new File(testRecordDirPath + "/" + record + "/serializedEventHistory");
+      if (serializedEvHistFile.exists()) {
+        ObjectInputStream ois;
+        try {
+          ois = new ObjectInputStream(new FileInputStream(serializedEvHistFile));
+          ArrayList<AbstractGlobalStates> tempEvHistory =
+              (ArrayList<AbstractGlobalStates>) ois.readObject();
+          for (AbstractGlobalStates ags : tempEvHistory) {
+            eventHistory.add(ags.getRealAbsEvCons(this));
+          }
+          ois.close();
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      }
+    }
+    recordedEventHistory = eventHistory.size();
+  }
+
   // load existing list of paths to particular queue
-  protected void loadPaths(Hashtable<Long, Transition> allEventsDB, LinkedList<Path> pathQueue, int numRecord,
-      String fileName) {
+  protected void loadPaths(Hashtable<Long, Transition> allEventsDB, LinkedList<Path> pathQueue,
+      int numRecord, String fileName) {
     for (int record = 1; record <= numRecord; record++) {
       File initialPathFile = new File(testRecordDirPath + "/" + record + "/" + fileName);
       if (initialPathFile.exists()) {
         try {
-          BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(initialPathFile)));
+          BufferedReader br =
+              new BufferedReader(new InputStreamReader(new FileInputStream(initialPathFile)));
           StringBuffer fileContents = new StringBuffer();
           String path;
           while ((path = br.readLine()) != null) {
@@ -259,7 +285,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       File listOfPathsFile = new File(testRecordDirPath + "/" + i + "/" + fileName);
       if (listOfPathsFile.exists()) {
         try {
-          BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(listOfPathsFile)));
+          BufferedReader br =
+              new BufferedReader(new InputStreamReader(new FileInputStream(listOfPathsFile)));
           StringBuffer fileContents = new StringBuffer();
           String path;
           while ((path = br.readLine()) != null) {
@@ -279,19 +306,35 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
   }
 
-  protected void loadInitialPathsFromFile() {
+  protected void loadExistingDataFromFile() {
     try {
       // Grab the max record directory
       File recordDir = new File(testRecordDirPath);
       File[] listOfRecordDir = recordDir.listFiles();
       int numRecord = listOfRecordDir.length;
 
-      // Load all events DB
-      Hashtable<Long, Transition> allEventsDB = loadAllEventsDB();
+      // Load all events DB.
+      allEventsDB = loadAllEventsDB();
+      if (allEventsDB.size() > 0) {
+        LOG.info("Total Events that is loaded to allEventsDB=" + allEventsDB.size());
+      }
 
-      if (enableParallelism) {
+      // Load eventImpacts.
+      loadEventConsequences(numRecord);
+      if (eventImpacts.size() > 0) {
+        LOG.info("Total AbsEvConsequence that is loaded to eventImpacts=" + eventImpacts.size());
+      }
+
+      // Load eventHistory.
+      loadEventHistory(numRecord);
+      if (eventHistory.size() > 0) {
+        LOG.info("Total AGS that is loaded to eventHistory=" + eventHistory.size());
+      }
+
+      if (reductionAlgorithms.contains("parallelism")) {
         loadPaths(allEventsDB, importantInitialPaths, numRecord, "importantInitialPathsInQueue");
-        loadPaths(allEventsDB, unnecessaryInitialPaths, numRecord, "unnecessaryInitialPathsInQueue");
+        loadPaths(allEventsDB, unnecessaryInitialPaths, numRecord,
+            "unnecessaryInitialPathsInQueue");
       }
 
       loadPaths(allEventsDB, initialPaths, numRecord, "initialPathsInQueue");
@@ -299,12 +342,13 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       for (int i = 1; i <= numRecord; i++) {
         File initialPathFile = new File(testRecordDirPath + "/" + i + "/currentInitialPath");
         if (initialPathFile.exists()) {
-          BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(initialPathFile)));
+          BufferedReader br =
+              new BufferedReader(new InputStreamReader(new FileInputStream(initialPathFile)));
           String path = null;
           while ((path = br.readLine()) != null) {
             path = path.trim();
             boolean hasRemovedPath = false;
-            if (enableParallelism) {
+            if (reductionAlgorithms.contains("parallelism")) {
               for (Path p : importantInitialPaths) {
                 if (pathToString(p).equals(path)) {
                   importantInitialPaths.remove(p);
@@ -322,7 +366,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
                 }
               }
             }
-            if (enableParallelism && !hasRemovedPath) {
+            if (reductionAlgorithms.contains("parallelism") && !hasRemovedPath) {
               for (Path p : unnecessaryInitialPaths) {
                 if (pathToString(p).equals(path)) {
                   unnecessaryInitialPaths.remove(p);
@@ -338,9 +382,17 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
       loadEventIDsPaths(finishedInitialPaths, numRecord, "finishedInitialPaths");
 
-      LOG.info("Total Important Initial Path that has been loaded:" + importantInitialPaths.size());
-      LOG.info("Total Initial Path that has been loaded:" + initialPaths.size());
-      LOG.info("Total Unnecessary Initial Path that has been loaded:" + unnecessaryInitialPaths.size());
+      if (importantInitialPaths.size() > 0) {
+        LOG.info(
+            "Total Important Initial Path that has been loaded=" + importantInitialPaths.size());
+      }
+      if (initialPaths.size() > 0) {
+        LOG.info("Total Initial Path that has been loaded=" + initialPaths.size());
+      }
+      if (unnecessaryInitialPaths.size() > 0) {
+        LOG.info("Total Unnecessary Initial Path that has been loaded="
+            + unnecessaryInitialPaths.size());
+      }
 
       loadNextInitialPath(false, false);
 
@@ -369,7 +421,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         }
       }
 
-      if (this.enableSymmetryDoubleCheck && currentInitialPath != null) {
+      if (reductionAlgorithms.contains("symmetry_double_check") && currentInitialPath != null) {
         if (!isSymmetricPath(currentInitialPath)) {
           break;
         }
@@ -387,7 +439,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   public Transition nextTransition(LinkedList<Transition> transitions) {
-    // CRS runtime checking
     if (this.isSAMC && (this.numCrash > 0 || this.numReboot > 0)) {
       ListIterator<Transition> iter = transitions.listIterator();
       LinkedList<Transition> tempContainer = new LinkedList<Transition>();
@@ -395,36 +446,37 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       int continueCounter = 0;
       while (iter.hasNext()) {
         Transition transition = iter.next();
-        if (this.enableCRSRSSRuntime) {
+        // CRS runtime checking
+        if (reductionAlgorithms.contains("crs_rss_runtime")) {
           int isSymmetric = isRuntimeCrashRebootSymmetric(transition);
 
           if (isSymmetric == -1 && continueCounter < queueSize) {
-            LOG.debug("Abstract Event has been executed before in the history. transition=" + transition.toString());
+            LOG.debug("Abstract Event has been executed before in the history. transition="
+                + transition.toString());
             continueCounter++;
             tempContainer.add(transition);
             continue;
           } else if (isSymmetric >= 0) {
             AbstractNodeOperationTransition tmp = (AbstractNodeOperationTransition) transition;
-            tmp.id = isSymmetric;
+            tmp.setId(isSymmetric);
             transition = tmp;
-            LOG.debug("NextTransition is suggested to transform " + transition.toString() + " to " + tmp.id);
+            LOG.debug("NextTransition is suggested to transform " + transition.toString() + " to "
+                + tmp.getId());
           }
         }
         if (continueCounter >= queueSize) {
-          LOG.debug("Queue only consists of uninteresting abstract event. DMCK decided to choose the first event.");
+          LOG.debug(
+              "Queue only consists of uninteresting abstract event. DMCK decided to choose the first event.");
         }
         if (!exploredBranchRecorder.isSubtreeBelowChildFinished(transition.getTransitionId())) {
-          iter.remove();
           return transition;
         }
       }
       if (tempContainer.size() > 0) {
-        Transition result = tempContainer.getFirst();
-        transitions.remove(result);
-        return result;
+        return tempContainer.getFirst();
       }
     } else if (transitions.size() > 0) {
-      return transitions.removeFirst();
+      return transitions.getFirst();
     }
 
     return null;
@@ -459,7 +511,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
   }
 
-  protected void markPacketsObsolete(int obsoleteBy, int crashingNode, LinkedList<Transition> enabledTransitions) {
+  protected void markPacketsObsolete(int obsoleteBy, int crashingNode,
+      LinkedList<Transition> enabledTransitions) {
     ListIterator<Transition> iter = enabledTransitions.listIterator();
     while (iter.hasNext()) {
       Transition t = iter.next();
@@ -473,33 +526,20 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
   }
 
-  public void updateGlobalState2() {
-    int prime = 31;
-    globalState2 = getGlobalState();
-    globalState2 = prime * globalState2 + currentEnabledTransitions.hashCode();
-    for (int i = 0; i < numNode; ++i) {
-      for (int j = 0; j < numNode; ++j) {
-        globalState2 = prime * globalState2 + Arrays.hashCode(messagesQueues[i][j].toArray());
-      }
-    }
-  }
-
-  protected int getGlobalState2() {
-    return globalState2;
-  }
-
   protected void convertExecutedAbstractTransitionToReal(Path executedPath) {
     ListIterator<Transition> iter = executedPath.listIterator();
     while (iter.hasNext()) {
       Transition iterItem = iter.next();
       if (iterItem instanceof AbstractNodeCrashTransition) {
         AbstractNodeCrashTransition crash = (AbstractNodeCrashTransition) iterItem;
-        NodeCrashTransition crashTransition = new NodeCrashTransition(ReductionAlgorithmsModelChecker.this, crash.id);
+        NodeCrashTransition crashTransition =
+            new NodeCrashTransition(ReductionAlgorithmsModelChecker.this, crash.getId());
         crashTransition.setVectorClock(crash.getPossibleVectorClock(crash.getId()));
         iter.set(crashTransition);
       } else if (iterItem instanceof AbstractNodeStartTransition) {
         AbstractNodeStartTransition start = (AbstractNodeStartTransition) iterItem;
-        NodeStartTransition startTransition = new NodeStartTransition(ReductionAlgorithmsModelChecker.this, start.id);
+        NodeStartTransition startTransition =
+            new NodeStartTransition(ReductionAlgorithmsModelChecker.this, start.getId());
         startTransition.setVectorClock(start.getPossibleVectorClock(start.getId()));
         iter.set(startTransition);
       }
@@ -595,12 +635,16 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     String result = "[";
     boolean isFirst = true;
     for (String key : abstractGlobalStateKeys) {
-      if (isFirst) {
-        isFirst = false;
-      } else {
-        result += ", ";
+      Object v = ls.getValue(key);
+      if (v != null) {
+        String temp = key + "=" + v;
+        if (isFirst) {
+          isFirst = false;
+          result += temp;
+        } else {
+          result += ", " + temp;
+        }
       }
-      result += key + "=" + ls.getValue(key);
     }
     result += "]";
     return result;
@@ -624,12 +668,16 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           continue;
         }
 
-        if (isFirst) {
-          isFirst = false;
-        } else {
-          result += ", ";
+        Object v = msg.getPacket().getValue(key);
+        if (v != null) {
+          String temp = key + "=" + v;
+          if (isFirst) {
+            isFirst = false;
+            result += temp;
+          } else {
+            result += ", " + temp;
+          }
         }
-        result += key + "=" + msg.getPacket().getValue(key);
       }
     } else if (ev instanceof AbstractNodeCrashTransition || ev instanceof NodeCrashTransition) {
       result = "abstract-crash";
@@ -637,6 +685,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       result = "abstract-reboot";
     }
     return result;
+  }
+
+  public static ArrayList<String> getAbstractEventQueue(LinkedList<Transition> queue) {
+    ArrayList<String> absEvQueue = new ArrayList<String>();
+    for (Transition ev : queue) {
+      absEvQueue.add(getAbstractEvent(ev));
+    }
+    return absEvQueue;
   }
 
   public static boolean isIdenticalAbstractLocalStates(LocalState ls1, LocalState ls2) {
@@ -675,7 +731,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         }
 
         // if value in m1 and m2 are different, then these messages are not identical
-        if (!m1.getPacket().getValue(key).toString().equals(m2.getPacket().getValue(key).toString())) {
+        if (!m1.getPacket().getValue(key).toString()
+            .equals(m2.getPacket().getValue(key).toString())) {
           return false;
         }
       }
@@ -692,8 +749,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   // focus on swapping the newTransition before oldTransition
-  protected Path reorderEvents(LocalState[] wasLocalStates, Path initialPath, Transition oldTransition,
-      Transition newTransition) {
+  protected Path reorderEvents(LocalState[] wasLocalStates, Path initialPath,
+      Transition oldTransition, Transition newTransition) {
     Path reorderingEvents = new Path();
 
     // compare initial path with dependency path that includes initial path
@@ -727,8 +784,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return reorderingEvents;
   }
 
-  protected boolean addNewInitialPath(LocalState[] wasLocalStates, Path initialPath, Transition oldTransition,
-      Transition newTransition) {
+  protected boolean addNewInitialPath(LocalState[] wasLocalStates, Path initialPath,
+      Transition oldTransition, Transition newTransition) {
     // mark the initial path plus the old event as explored
     Path oldPath = (Path) initialPath.clone();
     convertExecutedAbstractTransitionToReal(oldPath);
@@ -738,7 +795,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     Path newInitialPath = (Path) initialPath.clone();
     convertExecutedAbstractTransitionToReal(newInitialPath);
 
-    Path reorderedEvents = reorderEvents(wasLocalStates, newInitialPath, oldTransition, newTransition);
+    Path reorderedEvents =
+        reorderEvents(wasLocalStates, newInitialPath, oldTransition, newTransition);
 
     newInitialPath.addAll(reorderedEvents);
 
@@ -751,7 +809,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       LOG.info("Transition " + newTransition.getTransitionId() + " needs to be reordered with "
           + oldTransition.getTransitionId());
       initialPaths.add(newInitialPath);
-      if (!this.enableParallelism) {
+      if (!reductionAlgorithms.contains("parallelism")) {
         addPathToFinishedInitialPath(newInitialPath);
       }
 
@@ -780,6 +838,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         }
       }
       if (isNewEv) {
+        allEventsDB.put(transition.getTransitionId(), transition);
         try {
           // Save per event to all-events-db directory
           ObjectOutputStream evStream = new ObjectOutputStream(
@@ -797,8 +856,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   protected boolean savePaths(LinkedList<Path> pathsQueue, String fileName) {
     if (pathsQueue.size() > 0) {
       try {
-        BufferedWriter bw = new BufferedWriter(
-            new OutputStreamWriter(new FileOutputStream(new File(idRecordDirPath + "/" + fileName))));
+        BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
+            new FileOutputStream(new File(idRecordDirPath + "/" + fileName))));
         Iterator<Path> pathsQueueIter = pathsQueue.iterator();
 
         List<PathMeta> meta = new ArrayList<PathMeta>();
@@ -825,8 +884,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   protected boolean saveEventIDsPaths(Collection<PathMeta> pathsQueue, String fileName) {
     if (pathsQueue.size() > 0) {
       try {
-        BufferedWriter bw = new BufferedWriter(
-            new OutputStreamWriter(new FileOutputStream(new File(idRecordDirPath + "/" + fileName))));
+        BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
+            new FileOutputStream(new File(idRecordDirPath + "/" + fileName))));
 
         Gson gson = new Gson();
         String paths = gson.toJson(pathsQueue);
@@ -841,6 +900,53 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       }
     }
     return false;
+  }
+
+  protected void saveEventConsequences() {
+    try {
+      // Readable event consequence file version.
+      BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
+          new FileOutputStream(new File(idRecordDirPath + "/" + "eventConsequences"))));
+      String eventConsequences = "";
+      // Serialized object event consequence file version
+      ObjectOutputStream evStream = new ObjectOutputStream(
+          new FileOutputStream(idRecordDirPath + "/" + "serializedEventConsequences"));
+      ArrayList<AbstractEventConsequence> tempEvImpacts = new ArrayList<AbstractEventConsequence>();
+      for (int i = recordedEventImpacts; i < eventImpacts.size(); i++) {
+        eventConsequences += eventImpacts.get(i) + "\n";
+        tempEvImpacts.add(eventImpacts.get(i).getSerializable(numNode));
+      }
+      bw.write(eventConsequences);
+      bw.close();
+      evStream.writeObject(tempEvImpacts);
+      evStream.close();
+
+      recordedEventImpacts = eventImpacts.size();
+    } catch (FileNotFoundException e) {
+      LOG.error("", e);
+    } catch (IOException e) {
+      LOG.error("", e);
+    }
+  }
+
+  protected void saveEventHistory() {
+    try {
+      // Serialized object event consequence file version
+      ObjectOutputStream evStream = new ObjectOutputStream(
+          new FileOutputStream(idRecordDirPath + "/" + "serializedEventHistory"));
+      ArrayList<AbstractGlobalStates> tempEvHistory = new ArrayList<AbstractGlobalStates>();
+      for (int i = recordedEventHistory; i < eventHistory.size(); i++) {
+        tempEvHistory.add(eventHistory.get(i).getSerializable(numNode));
+      }
+      evStream.writeObject(tempEvHistory);
+      evStream.close();
+
+      recordedEventHistory = eventHistory.size();
+    } catch (FileNotFoundException e) {
+      LOG.error("", e);
+    } catch (IOException e) {
+      LOG.error("", e);
+    }
   }
 
   // to log paths
@@ -868,13 +974,13 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   protected void saveGeneratedInitialPaths() {
     try {
       if (currentInitialPath != null) {
-        BufferedWriter bw = new BufferedWriter(
-            new OutputStreamWriter(new FileOutputStream(new File(idRecordDirPath + "/currentInitialPath"))));
+        BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
+            new FileOutputStream(new File(idRecordDirPath + "/currentInitialPath"))));
         bw.write(pathToString(currentInitialPath));
         bw.close();
       }
 
-      if (this.enableParallelism) {
+      if (reductionAlgorithms.contains("parallelism")) {
         // to save high priority initial path
         if (savePaths(currentImportantInitialPaths, "importantInitialPathsInQueue")) {
           importantInitialPaths.addAll(currentImportantInitialPaths);
@@ -890,7 +996,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         printPaths("Initial Paths", initialPaths);
       }
 
-      if (this.enableParallelism) {
+      if (reductionAlgorithms.contains("parallelism")) {
         // to save low priority initial path
         if (savePaths(currentUnnecessaryInitialPaths, "unnecessaryInitialPathsInQueue")) {
           unnecessaryInitialPaths.addAll(currentUnnecessaryInitialPaths);
@@ -979,18 +1085,20 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   protected void evaluateExecutedPath() {
     saveAllExecutedEvents();
     saveEventConsequences();
+    saveEventHistory();
 
     backtrackExecutedPath();
     printPaths("Initial Paths", initialPaths);
 
-    if (this.enableParallelism) {
+    if (reductionAlgorithms.contains("parallelism")) {
       evaluateParallelismInitialPaths();
     }
 
     saveGeneratedInitialPaths();
   }
 
-  Hashtable<Transition, List<Transition>> dependencies = new Hashtable<Transition, List<Transition>>();
+  Hashtable<Transition, List<Transition>> dependencies =
+      new Hashtable<Transition, List<Transition>>();
 
   protected void calculateDependencyGraph() {
     dependencies.clear();
@@ -998,28 +1106,30 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     for (Transition transition : currentExploringPath) {
       if (transition instanceof AbstractNodeCrashTransition) {
         AbstractNodeCrashTransition abstractCrash = (AbstractNodeCrashTransition) transition;
-        NodeCrashTransition realCrash = new NodeCrashTransition(this, abstractCrash.id);
-        realCrash.setVectorClock(abstractCrash.getPossibleVectorClock(abstractCrash.id));
+        NodeCrashTransition realCrash = new NodeCrashTransition(this, abstractCrash.getId());
+        realCrash.setVectorClock(abstractCrash.getPossibleVectorClock(abstractCrash.getId()));
         realExecutionPath.addTransition(realCrash);
       } else if (transition instanceof AbstractNodeStartTransition) {
         AbstractNodeStartTransition abstractStart = (AbstractNodeStartTransition) transition;
-        NodeStartTransition realStart = new NodeStartTransition(this, abstractStart.id);
-        realStart.setVectorClock(abstractStart.getPossibleVectorClock(abstractStart.id));
+        NodeStartTransition realStart = new NodeStartTransition(this, abstractStart.getId());
+        realStart.setVectorClock(abstractStart.getPossibleVectorClock(abstractStart.getId()));
         realExecutionPath.addTransition(realStart);
       } else {
         realExecutionPath.addTransition(transition);
       }
     }
-    ListIterator<Transition> currentIter = (ListIterator<Transition>) realExecutionPath
-        .listIterator(realExecutionPath.size());
+    ListIterator<Transition> currentIter =
+        (ListIterator<Transition>) realExecutionPath.listIterator(realExecutionPath.size());
     while (currentIter.hasPrevious()) {
       Transition current = currentIter.previous();
       LinkedList<Transition> partialOrder = new LinkedList<Transition>();
       if (currentIter.hasPrevious()) {
-        ListIterator<Transition> comparingIter = realExecutionPath.listIterator(currentIter.nextIndex());
+        ListIterator<Transition> comparingIter =
+            realExecutionPath.listIterator(currentIter.nextIndex());
         while (comparingIter.hasPrevious()) {
           Transition comparing = comparingIter.previous();
-          int compareResult = VectorClockUtil.isConcurrent(current.getVectorClock(), comparing.getVectorClock());
+          int compareResult =
+              VectorClockUtil.isConcurrent(current.getVectorClock(), comparing.getVectorClock());
           if (compareResult == 1) {
             // hack solution for multiple client requests for
             // Cassandra system
@@ -1053,6 +1163,24 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return result;
   }
 
+  @Override
+  public void collectPerformancePerPathMetrics() {
+    // Performance evaluation: Collect time spent to execute a single path
+    endTimePathExecution = new Timestamp(System.currentTimeMillis());
+    long totalPathExecutionTime = endTimePathExecution.getTime() - startTimePathExecution.getTime();
+
+    String content = "-------\n";
+    content += "SUMMARY\n";
+    content += "-------\n";
+    content += "total-execution-path-time=" + totalPathExecutionTime + "ms;\n";
+    content += "total-ags-in-eventHistory=" + eventHistory.size() + ";\n";
+    try {
+      performanceRecordFile.write(content.getBytes());
+    } catch (Exception e) {
+      LOG.error("", e);
+    }
+  }
+
   protected void recordPolicyEffectiveness(String policy) {
     if (policyRecord.containsKey(policy)) {
       int currentRecord = (Integer) policyRecord.get(policy);
@@ -1065,8 +1193,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
   protected void storePolicyEffectiveness() {
     try {
-      BufferedWriter bw = new BufferedWriter(
-          new OutputStreamWriter(new FileOutputStream(new File(workingDirPath + "/policyEffect.txt"))));
+      BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
+          new FileOutputStream(new File(workingDirPath + "/policyEffect.txt"))));
 
       String policyEffect = "";
       Enumeration<String> keys = policyRecord.keys();
@@ -1082,30 +1210,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
   }
 
-  protected void saveEventConsequences() {
-    if (testId > 0) {
-      try {
-        BufferedWriter bw = new BufferedWriter(
-            new OutputStreamWriter(new FileOutputStream(new File(idRecordDirPath + "/" + "eventConsequences"))));
-        String eventConsequences = "";
-        for (int i = recordedEventImpacts; i < eventImpacts.size(); i++) {
-          eventConsequences += eventImpacts.get(i) + "\n";
-        }
-        bw.write(eventConsequences);
-        bw.close();
-
-        recordedEventImpacts = eventImpacts.size();
-      } catch (FileNotFoundException e) {
-        LOG.error("", e);
-      } catch (IOException e) {
-        LOG.error("", e);
-      }
-    }
-
-  }
-
   public boolean isSymmetricPath(Path initialPath) {
-    if (this.enableSymmetry) {
+    if (reductionAlgorithms.contains("symmetry")) {
       LocalState[] globalStates = getInitialGlobalStates();
       for (Transition event : initialPath) {
         AbstractGlobalStates ags = new AbstractGlobalStates(globalStates, event);
@@ -1115,8 +1221,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             if (newLS != null) {
               globalStates[nodeId] = newLS.clone();
             } else {
-              LOG.debug("SYMMETRY CHECK: node with state=" + globalStates[nodeId].toString() + " executes "
-                  + ags.getEvent().toString() + " transform to unknown state");
+              LOG.debug("SYMMETRY CHECK: node with state=" + globalStates[nodeId].toString()
+                  + " executes " + ags.getEvent().toString() + " transform to unknown state");
               return false;
             }
             break;
@@ -1133,58 +1239,49 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   public boolean isSymmetric(LocalState[] localStates, Transition event) {
-    AbstractGlobalStates crashGS = new AbstractGlobalStates(localStates, event);
-    boolean isSymmetric = false;
-    for (AbstractGlobalStates historicalAGS : incompleteEventHistory) {
-      if (historicalAGS.equals(crashGS)) {
-        isSymmetric = true;
-        break;
-      }
-    }
-    return isSymmetric;
+    return findLocalStateChange(localStates, event) != null;
   }
 
-  public boolean addEventToIncompleteHistory(LocalState[] localStates, Transition event) {
-    // do not add null event to history
-    if (event == null) {
-      return false;
-    }
-
-    AbstractGlobalStates ags = new AbstractGlobalStates(localStates, event);
-    if (isSymmetricEvent(ags) == -1) {
-      incompleteEventHistory.add(ags);
-      return true;
-    }
-    return false;
-  }
-
-  public void moveIncompleteEventToEventHistory(LocalState[] oldLocalStates, LocalState[] newLocalStates,
-      Transition event) {
-    AbstractGlobalStates ags = new AbstractGlobalStates(oldLocalStates, event);
-    int eventIndex = -1;
-    for (int x = 0; x < incompleteEventHistory.size(); x++) {
-      if (incompleteEventHistory.get(x).equals(ags)) {
-        eventIndex = x;
+  public boolean addEventToHistory(LocalState[] globalStateBefore, LocalState[] globalStateAfter,
+      Transition event, ArrayList<String> causalNewEvents) {
+    AbstractGlobalStates ags = new AbstractGlobalStates(globalStateBefore, event);
+    boolean isNewAGS = true;
+    int index = 0;
+    while (index < eventHistory.size()) {
+      if (eventHistory.get(index).equals(ags)) {
+        isNewAGS = false;
         break;
       }
+      index++;
     }
-    if (eventIndex >= 0) {
-      incompleteEventHistory.remove(eventIndex);
-      ags.setAbstractGlobalStateAfter(newLocalStates);
-      // collect : stateBefore >> event >> stateAfter chains
-      AbstractEventConsequence newAEC = ags.getAbstractEventConsequence();
-      boolean record = true;
+    if (isNewAGS) {
+      ags.setAbstractGlobalStateAfter(globalStateAfter);
+      ags.setCausalNewEvents(causalNewEvents);
+
+      eventHistory.add(ags);
+      LOG.debug("New AGS=\n" + ags.toString());
+
+      boolean isNewAEC = true;
+      AbstractEventConsequence aec = ags.getAbstractEventConsequence();
       for (AbstractEventConsequence recordedAEC : eventImpacts) {
-        if (recordedAEC.isIdentical(newAEC)) {
-          record = false;
+        if (recordedAEC.isIdentical(aec)) {
+          isNewAEC = false;
           break;
         }
       }
-      if (record) {
-        eventImpacts.add(newAEC);
+      if (isNewAEC) {
+        LOG.debug("NEW EVENT CONSEQUENCES=" + aec.toString());
+        eventImpacts.add(aec);
       }
-      eventHistory.add(ags);
+    } else {
+      if (eventHistory.get(index).getAbstractGlobalStateAfter() == null) {
+        eventHistory.get(index).setAbstractGlobalStateAfter(globalStateAfter);
+      }
+      if (eventHistory.get(index).getCausalAbsNewEvents() == null) {
+        eventHistory.get(index).setCausalNewEvents(causalNewEvents);
+      }
     }
+    return isNewAGS;
   }
 
   // if symmetric, return id in history. otherwise, return -1.
@@ -1207,20 +1304,33 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return null;
   }
 
+  public LocalState findLocalStateChange(LocalState[] prevGS, Transition currentEv) {
+    AbstractGlobalStates ags = new AbstractGlobalStates(prevGS, currentEv);
+    for (AbstractGlobalStates historicalAGS : eventHistory) {
+      if (historicalAGS.equals(ags)) {
+        return historicalAGS.getExecutingNodeAfterState();
+      }
+    }
+    return null;
+  }
+
   protected abstract void backtrackExecutedPath();
 
   protected abstract int isRuntimeCrashRebootSymmetric(Transition nextTransition);
 
-  protected Transition transformStringToTransition(LinkedList<Transition> currentEnabledTransitions, String nextEvent) {
+  protected Transition transformStringToTransition(LinkedList<Transition> currentEnabledTransitions,
+      String nextEvent) {
     Transition t = null;
     if (nextEvent.startsWith("nodecrash")) {
       int id = Integer.parseInt(nextEvent.substring(13).trim());
-      NodeCrashTransition crashTransition = new NodeCrashTransition(ReductionAlgorithmsModelChecker.this, id);
+      NodeCrashTransition crashTransition =
+          new NodeCrashTransition(ReductionAlgorithmsModelChecker.this, id);
       boolean absExist = false;
       for (Transition tt : currentEnabledTransitions) {
         if (tt instanceof AbstractNodeCrashTransition) {
           absExist = true;
-          crashTransition.setVectorClock(((AbstractNodeCrashTransition) tt).getPossibleVectorClock(id));
+          crashTransition
+              .setVectorClock(((AbstractNodeCrashTransition) tt).getPossibleVectorClock(id));
           currentEnabledTransitions.remove(tt);
           break;
         }
@@ -1234,7 +1344,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       for (Transition tt : currentEnabledTransitions) {
         if (tt instanceof AbstractNodeStartTransition) {
           absExist = true;
-          startTransition.setVectorClock(((AbstractNodeStartTransition) tt).getPossibleVectorClock(id));
+          startTransition
+              .setVectorClock(((AbstractNodeStartTransition) tt).getPossibleVectorClock(id));
           currentEnabledTransitions.remove(tt);
           break;
         }
@@ -1258,17 +1369,22 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       return new SleepTransition(((SleepTransition) event).getSleepTime());
     }
     for (int index = 0; index < dmckQueue.size(); index++) {
-      if (event instanceof PacketSendTransition && dmckQueue.get(index) instanceof PacketSendTransition
+      if (event instanceof PacketSendTransition
+          && dmckQueue.get(index) instanceof PacketSendTransition
           && event.getTransitionId() == dmckQueue.get(index).getTransitionId()) {
-        return dmckQueue.remove(index);
-      } else if (event instanceof NodeCrashTransition && dmckQueue.get(index) instanceof AbstractNodeCrashTransition) {
-        AbstractNodeCrashTransition absCrashEvent = (AbstractNodeCrashTransition) dmckQueue.remove(index);
+        return dmckQueue.get(index);
+      } else if (event instanceof NodeCrashTransition
+          && dmckQueue.get(index) instanceof AbstractNodeCrashTransition) {
+        AbstractNodeCrashTransition absCrashEvent =
+            (AbstractNodeCrashTransition) dmckQueue.get(index);
         int crashId = ((NodeCrashTransition) event).getId();
         NodeCrashTransition crashEvent = new NodeCrashTransition(this, crashId);
         crashEvent.setVectorClock(absCrashEvent.getPossibleVectorClock(crashId));
         return crashEvent;
-      } else if (event instanceof NodeStartTransition && dmckQueue.get(index) instanceof AbstractNodeStartTransition) {
-        AbstractNodeStartTransition absRebootEvent = (AbstractNodeStartTransition) dmckQueue.remove(index);
+      } else if (event instanceof NodeStartTransition
+          && dmckQueue.get(index) instanceof AbstractNodeStartTransition) {
+        AbstractNodeStartTransition absRebootEvent =
+            (AbstractNodeStartTransition) dmckQueue.get(index);
         int rebootId = ((NodeStartTransition) event).getId();
         NodeStartTransition rebootEvent = new NodeStartTransition(this, rebootId);
         rebootEvent.setVectorClock(absRebootEvent.getPossibleVectorClock(rebootId));
@@ -1278,11 +1394,81 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     return null;
   }
 
+  @Override
+  public void waitForCausalNewEvents(PacketSendTransition event) throws InterruptedException {
+    // 1. Get current abstract global states.
+    LocalState[] prevOnlineState = getLatestGlobalState();
+    AbstractGlobalStates currentAGS = new AbstractGlobalStates(prevOnlineState, event);
+
+    // 2. Get expected causal new events.
+    ArrayList<String> expectedCausalNewEvents = null;
+    int counter = 0;
+    for (AbstractGlobalStates historicalAGS : eventHistory) {
+      if (currentAGS.equals(historicalAGS)) {
+        LOG.debug("matched historicalAGS=" + historicalAGS.toString());
+        expectedCausalNewEvents = historicalAGS.getCausalAbsNewEvents();
+        break;
+      }
+      counter++;
+    }
+
+    // 3. Wait for the expectedCausalNewEvents
+    if (expectedCausalNewEvents == null) {
+      LOG.warn("DMCK can predict the global state after the event is executed, "
+          + "but DMCK cannot get the expected causal new events.");
+      waitNodeSteady(event.getPacket().getToId());
+    } else {
+      if (expectedCausalNewEvents.size() > 0) {
+        boolean waitLonger = true;
+        int matchEvents = 0;
+        String log = "As after effect of executing event=" + event.toString()
+            + " wait for expected causal new events=" + expectedCausalNewEvents.size() + ":\n";
+        for (String newAbsEv : expectedCausalNewEvents) {
+          log += newAbsEv + "\n";
+        }
+        log += "Found in eventHistory, ags=" + counter + "\n";
+        log += "Here is the EventHistory AGS=" + eventHistory.get(counter).toString();
+        LOG.debug(log);
+        while (waitLonger) {
+          for (Transition queuedEvent : currentEnabledTransitions) {
+            if (queuedEvent instanceof PacketSendTransition) {
+              PacketSendTransition msgEvent = (PacketSendTransition) queuedEvent;
+              if (expectedCausalNewEvents.contains(getAbstractEvent(queuedEvent))
+                  && event.getPacket().getToId() == msgEvent.getPacket().getFromId()) {
+                matchEvents++;
+                if (matchEvents == expectedCausalNewEvents.size()) {
+                  waitLonger = false;
+                }
+              }
+            }
+          }
+          updateSAMCQueueWithoutLog();
+        }
+        LOG.debug("DMCK has intercepted all causal new events that are expected.");
+      } else {
+        LOG.debug("DMCK does not wait for any expected causal new events.");
+      }
+      setNodeSteady(event.getId(), true);
+    }
+  }
+
+  public LocalState[] getLatestGlobalState() {
+    if (prevLocalStates.size() == 0) {
+      return getInitialGlobalStates();
+    } else {
+      return prevLocalStates.getLast();
+    }
+  }
+
   class PathTraversalWorker extends Thread {
+
+    private LocalState[] currentGlobalState;
+    private LocalState predictedLS;
 
     @Override
     public void run() {
       int workloadRetry = 10;
+      // 1. Follow initial path if it exists.
       if (currentInitialPath != null && !currentInitialPath.isEmpty()) {
         LOG.info("Start with existing initial path first.");
         String tmp = "Current Initial Path:\n";
@@ -1292,37 +1478,32 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         LOG.info(tmp);
         collectDebug(tmp);
         int transitionCounter = 0;
-        for (Transition event : currentInitialPath) {
+        for (Transition expectedEvent : currentInitialPath) {
           transitionCounter++;
           executeMidWorkload();
-          updateSAMCQueue();
-          updateGlobalState2();
-          Transition nextEvent = retrieveEventFromQueue(currentEnabledTransitions, event);
-          for (int i = 0; i < 20; ++i) {
+          updateSAMCQueueWithoutLog();
+
+          // 2a. Transform expected event into real event from and remove it from DMCK Queue
+          Transition nextEvent = null;
+          int retryCounter = 0;
+          while (retryCounter < 20) {
+            nextEvent = retrieveEventFromQueue(currentEnabledTransitions, expectedEvent);
             if (nextEvent != null) {
               break;
-            } else {
-              try {
-                Thread.sleep(steadyStateTimeout / 2);
-                updateSAMCQueue();
-              } catch (InterruptedException e) {
-                LOG.error("", e);
-              }
             }
+            retryCounter = waitForExpectedEvent(retryCounter);
           }
           if (nextEvent == null) {
-            LOG.error("ERROR: Expected to execute " + event + ", but the event is not in queue.");
-            LOG.error("Being in wrong state, there is not transition " + event + " to apply");
-            try {
-              pathRecordFile.write(("no transition. looking for event with id=" + event + "\n").getBytes());
-            } catch (IOException e) {
-              LOG.error("", e);
-            }
-            if (!initialPathSecondAttempt.contains(pathToString(currentInitialPath))) {
+            LOG.error("ERROR: Expected to execute " + expectedEvent
+                + ", but the event was not in DMCK Queue.");
+            recordEventToPathFile("Expected event cannot be found in DMCK Queue. "
+                + "DMCK was looking for event with id=" + expectedEvent.toString());
+            if (!initialPathSecondAttempt.contains(currentInitialPath.toPathMeta())) {
               currentUnnecessaryInitialPaths.addFirst(currentInitialPath);
-              LOG.warn("Try this initial path once again, but at low priority. Total Low Priority Initial Path="
-                  + (unnecessaryInitialPaths.size() + currentUnnecessaryInitialPaths.size())
-                  + " Total Initial Path Second Attempt=" + initialPathSecondAttempt.size());
+              LOG.warn(
+                  "Try this initial path once again, but at low priority. Total Low Priority Initial Path="
+                      + (unnecessaryInitialPaths.size() + currentUnnecessaryInitialPaths.size())
+                      + " Total Initial Path Second Attempt=" + initialPathSecondAttempt.size());
               initialPathSecondAttempt.add(currentInitialPath.toPathMeta());
             }
             loadNextInitialPath(true, false);
@@ -1330,24 +1511,32 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             resetTest();
             return;
           } else {
+            // 3a. Execute the real event.
             executeEvent(nextEvent, transitionCounter <= directedInitialPath.size());
           }
         }
       }
-      LOG.info("Try to find new path/Continue from Initial Path");
+      // 2b. If current initial path is null then continue path execution with FIFO
+      LOG.info("Finding new path/Continuing from Initial Path");
       boolean hasWaited = waitEndExploration == 0;
       while (true) {
         executeMidWorkload();
-        updateSAMCQueue();
-        updateGlobalState2();
+        updateSAMCQueueWithoutLog();
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
+
+        // 3b. DMCK checks whether it reaches termination point or not
         if (terminationPoint && hasWaited) {
+          collectDebugData(localStates);
+          LOG.info("---- End of Path Execution ----");
+
           // Performance evaluation
-          collectPerformanceMetrics();
+          endTimePathExecution = new Timestamp(System.currentTimeMillis());
+          collectPerformancePerEventMetrics();
+          collectPerformancePerPathMetrics();
 
           boolean verifiedResult = verifier.verify();
           String detail = verifier.verificationDetail();
-          saveResult(verifiedResult + " ; " + detail + "\n");
+          saveResult(verifiedResult, detail);
           exploredBranchRecorder.markBelowSubtreeFinished();
           calculateDependencyGraph();
           String currentFinishedPath = "Finished execution path\n";
@@ -1360,12 +1549,13 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           addPathToFinishedInitialPath(finishedExploringPath);
           evaluateExecutedPath();
           loadNextInitialPath(true, true);
-          LOG.info("---- End of Path Execution ----");
+          LOG.info("---- End of Path Evaluation ----");
           resetTest();
           break;
         } else if (terminationPoint) {
           try {
-            if (dmckName.equals("raftModelChecker") && waitForNextLE && waitedForNextLEInDiffTermCounter < 20) {
+            if (dmckName.equals("raftModelChecker") && waitForNextLE
+                && waitedForNextLEInDiffTermCounter < 20) {
               Thread.sleep(leaderElectionTimeout);
             } else {
               hasWaited = true;
@@ -1378,9 +1568,12 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           continue;
         }
         hasWaited = waitEndExploration == 0;
+
+        // 4b. Decide the next event based on guided path or FIFO
         Transition nextEvent;
         boolean isDirectedEvent = false;
-        if (hasDirectedInitialPath && !hasFinishedDirectedInitialPath && currentInitialPath == null) {
+        if (hasDirectedInitialPath && !hasFinishedDirectedInitialPath
+            && currentInitialPath == null) {
           nextEvent = nextInitialTransition();
           isDirectedEvent = true;
         } else {
@@ -1397,7 +1590,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           }
           workloadRetry--;
           LOG.info(
-              "No Transition to execute, but DMCK has not reached termination point. workloadRetry=" + workloadRetry);
+              "No Transition to execute, but DMCK has not reached termination point. workloadRetry="
+                  + workloadRetry);
           try {
             Thread.sleep(steadyStateTimeout);
           } catch (InterruptedException e) {
@@ -1406,19 +1600,48 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           continue;
         } else {
           loadNextInitialPath(true, true);
-          try {
-            pathRecordFile.write("duplicated\n".getBytes());
-          } catch (IOException e) {
-            LOG.error("", e);
-          }
+          recordEventToPathFile("Duplicated path.");
           resetTest();
           break;
         }
       }
     }
 
+    protected void updateCurrentGlobalState() {
+      if (quickEventReleaseMode) {
+        if (prevLocalStates.size() == 0) {
+          currentGlobalState = getInitialGlobalStates();
+        } else {
+          int nodeId = currentExploringPath.getLast().getId();
+          currentGlobalState = copyLocalState(prevLocalStates.getLast());
+          if (isQuickEventStep) {
+            currentGlobalState[nodeId] = predictedLS.clone();
+            collectDebug("QUICK EVENT: predictedLS=" + predictedLS.toString() + "\n");
+            addLocalStatesUpdate(nodeId, currentGlobalState[nodeId]);
+          } else {
+            currentGlobalState[nodeId] = localStates[nodeId].clone();
+            collectDebug("SLOW EVENT: updatedLS=" + localStates[nodeId].toString() + "\n");
+          }
+        }
+      } else {
+        currentGlobalState = copyLocalState(localStates);
+      }
+    }
+
+    protected void updateIsQuickEventStep() {
+      if (quickEventReleaseMode) {
+        predictedLS =
+            findLocalStateChange(prevLocalStates.getLast(), currentExploringPath.getLast());
+        isQuickEventStep = predictedLS != null;
+        if (isQuickEventStep) {
+          LOG.debug("IS QUICK EVENT, PredictedLS=" + predictedLS.toString());
+        } else {
+          LOG.debug("IS SLOW EVENT");
+        }
+      }
+    }
+
     protected void executeEvent(Transition nextEvent, boolean isDirectedEvent) {
-      collectDebugNextTransition(nextEvent);
       if (isDirectedEvent) {
         LOG.debug("NEXT TRANSITION IS DIRECTED BY INITIAL PATH=" + nextEvent.toString());
       } else {
@@ -1426,50 +1649,100 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         exploredBranchRecorder.createChild(nextEvent.getTransitionId());
         exploredBranchRecorder.traverseDownTo(nextEvent.getTransitionId());
       }
-      try {
-        currentExploringPath.add(nextEvent);
-        prevOnlineStatus.add(isNodeOnline.clone());
-        prevLocalStates.add(copyLocalState(localStates));
-        saveLocalState();
 
-        if (nextEvent instanceof AbstractNodeOperationTransition) {
-          AbstractNodeOperationTransition nodeOperationTransition = (AbstractNodeOperationTransition) nextEvent;
+      // Transform abstract event to real event
+      if (nextEvent instanceof AbstractNodeOperationTransition) {
+        AbstractNodeOperationTransition nodeOperationTransition =
+            (AbstractNodeOperationTransition) nextEvent;
 
-          if (nodeOperationTransition.id > -1) {
-            nextEvent = ((AbstractNodeOperationTransition) nextEvent)
-                .getRealNodeOperationTransition(nodeOperationTransition.id);
-            LOG.debug("DMCK is going to follow the suggestion to execute=" + nextEvent.toString());
+        if (nodeOperationTransition.getId() > -1) {
+          nextEvent = ((AbstractNodeOperationTransition) nextEvent)
+              .getRealNodeOperationTransition(nodeOperationTransition.getId());
+          LOG.debug("DMCK is going to follow the suggestion to execute=" + nextEvent.toString());
+        } else {
+          nextEvent =
+              ((AbstractNodeOperationTransition) nextEvent).getRealNodeOperationTransition();
+        }
+        nodeOperationTransition.setId(((NodeOperationTransition) nextEvent).getId());
+      }
+
+      updateCurrentGlobalState();
+
+      currentExploringPath.add(nextEvent);
+      prevOnlineStatus.add(isNodeOnline.clone());
+      prevLocalStates.add(copyLocalState(currentGlobalState));
+
+      // Collect Logs
+      collectDebugData(prevLocalStates.getLast());
+
+      // Remove real next event from DMCK queue
+      removeEventFromQueue(currentEnabledTransitions, nextEvent);
+
+      // Get List of Prev Events in Queue
+      ArrayList<String> prevQueue = new ArrayList<String>();
+      for (Transition ev : currentEnabledTransitions) {
+        String absEv = getAbstractEvent(ev);
+        prevQueue.add(absEv);
+      }
+
+      // Let DMCK predict the global state changes
+      updateIsQuickEventStep();
+
+      // If current event will be released quickly,
+      // DMCK needs to guarantee that the current localStates
+      // is the same with what is recorded, before enable another event.
+      if (isQuickEventStep) {
+        localStates = currentGlobalState.clone();
+      }
+
+      // Collect Logs
+      collectDebugNextTransition(nextEvent);
+
+      if (nextEvent.apply()) {
+        recordEventToPathFile(nextEvent.toString());
+        updateSAMCQueueAfterEventExecution(nextEvent);
+        updateSAMCQueueWithoutLog();
+      }
+
+      // Add lists of state changes together to the local states update.
+      addOrIgnorePerBatchUpdates();
+
+      if (isSAMC) {
+        Transition concreteEvent = null;
+        if (nextEvent instanceof NodeCrashTransition) {
+          concreteEvent = ((NodeCrashTransition) nextEvent).clone();
+        } else if (nextEvent instanceof NodeStartTransition) {
+          concreteEvent = ((NodeStartTransition) nextEvent).clone();
+        } else if (nextEvent instanceof PacketSendTransition
+            && (reductionAlgorithms.contains("symmetry") || quickEventReleaseMode)) {
+          concreteEvent = ((PacketSendTransition) nextEvent).clone();
+        }
+
+        // Get List of Latest Events in Queue
+        ArrayList<String> newCausalEvents = new ArrayList<String>();
+        for (Transition ev : currentEnabledTransitions) {
+          String absEvent = getAbstractEvent(ev);
+          boolean isNewEv = true;
+          int i = 0;
+          while (i < prevQueue.size()) {
+            if (prevQueue.get(i).equals(absEvent)) {
+              isNewEv = false;
+              break;
+            }
+            i++;
+          }
+          if (isNewEv) {
+            newCausalEvents.add(absEvent);
           } else {
-            nextEvent = ((AbstractNodeOperationTransition) nextEvent).getRealNodeOperationTransition();
+            prevQueue.remove(i);
           }
-          nodeOperationTransition.id = ((NodeOperationTransition) nextEvent).getId();
         }
 
-        boolean eventAddedToHistory = false;
-        LocalState[] oldLocalStates = copyLocalState(localStates);
-        Transition event = null;
-        if (isSAMC) {
-          if (nextEvent instanceof NodeCrashTransition) {
-            event = ((NodeCrashTransition) nextEvent).clone();
-          } else if (nextEvent instanceof NodeStartTransition) {
-            event = ((NodeStartTransition) nextEvent).clone();
-          } else if (nextEvent instanceof PacketSendTransition && enableSymmetry) {
-            event = ((PacketSendTransition) nextEvent).clone();
-          }
-          eventAddedToHistory = addEventToIncompleteHistory(oldLocalStates, event);
+        // Add new AGS into eventHistory
+        if (concreteEvent != null && !isQuickEventStep) {
+          addEventToHistory(currentGlobalState, copyLocalState(localStates), concreteEvent,
+              newCausalEvents);
         }
-
-        if (nextEvent.apply()) {
-          pathRecordFile.write((nextEvent.toString() + "\n").getBytes());
-          updateGlobalState();
-          updateSAMCQueueAfterEventExecution(nextEvent);
-        }
-
-        if (eventAddedToHistory && enableSymmetry) {
-          moveIncompleteEventToEventHistory(oldLocalStates, copyLocalState(localStates), event);
-        }
-      } catch (IOException e) {
-        LOG.error("", e);
       }
     }
   }

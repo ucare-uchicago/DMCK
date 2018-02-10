@@ -11,11 +11,11 @@ import edu.uchicago.cs.ucare.dmck.util.LocalState;
 
 public class RaftSAMC extends EvaluationModelChecker {
 
-  public RaftSAMC(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash, int numReboot,
-      String globalStatePathDir, String packetRecordDir, String cacheDir, WorkloadDriver workloadDriver,
-      String ipcDir) {
-    super(dmckName, fileWatcher, numNode, numCrash, numReboot, globalStatePathDir, packetRecordDir, cacheDir,
-        workloadDriver, ipcDir);
+  public RaftSAMC(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash,
+      int numReboot, String globalStatePathDir, String packetRecordDir, String cacheDir,
+      WorkloadDriver workloadDriver, String ipcDir) {
+    super(dmckName, fileWatcher, numNode, numCrash, numReboot, globalStatePathDir, packetRecordDir,
+        cacheDir, workloadDriver, ipcDir);
   }
 
   @Override
@@ -36,18 +36,20 @@ public class RaftSAMC extends EvaluationModelChecker {
   }
 
   @Override
-  public boolean isCCDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, NodeCrashTransition crash1,
-      NodeCrashTransition crash2) {
+  public boolean isCCDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState,
+      NodeCrashTransition crash1, NodeCrashTransition crash2) {
     return true;
   }
 
   @Override
-  public boolean isCRSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalstate, Transition event) {
+  public boolean isCRSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalstate,
+      Transition event) {
     return true;
   }
 
   @Override
-  public boolean isRSSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, Transition event) {
+  public boolean isRSSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState,
+      Transition event) {
     return true;
   }
 

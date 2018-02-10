@@ -2,9 +2,7 @@ package edu.uchicago.cs.ucare.dmck.cassandra;
 
 import java.io.FileInputStream;
 import java.util.Properties;
-
 import org.apache.log4j.Logger;
-
 import edu.uchicago.cs.ucare.dmck.server.SpecVerifier;
 
 public class CassVerifier extends SpecVerifier {
@@ -46,18 +44,22 @@ public class CassVerifier extends SpecVerifier {
   private boolean checkDataConsistency() {
     try {
       LOG.debug("Executing checkDataConsistency script.");
-      Runtime.getRuntime().exec(modelCheckingServer.workingDirPath + "/checkConsistency.sh").waitFor();
+      Runtime.getRuntime().exec(modelCheckingServer.workingDirPath + "/checkConsistency.sh")
+          .waitFor();
 
       LOG.debug("Read DataConsistency file.");
-      FileInputStream verifyInputStream = new FileInputStream(modelCheckingServer.workingDirPath + "/temp-verify");
+      FileInputStream verifyInputStream =
+          new FileInputStream(modelCheckingServer.workingDirPath + "/temp-verify");
       kv.load(verifyInputStream);
       owner = kv.getProperty("owner");
       value_1 = kv.getProperty("value_1");
       value_2 = kv.getProperty("value_2");
 
-      applied_1 = this.modelCheckingServer.isApplied.containsKey(1) ? this.modelCheckingServer.isApplied.get(1)
+      applied_1 = this.modelCheckingServer.workloadHasApplied.containsKey(1)
+          ? this.modelCheckingServer.workloadHasApplied.get(1)
           : "false";
-      applied_2 = this.modelCheckingServer.isApplied.containsKey(2) ? this.modelCheckingServer.isApplied.get(2)
+      applied_2 = this.modelCheckingServer.workloadHasApplied.containsKey(2)
+          ? this.modelCheckingServer.workloadHasApplied.get(2)
           : "false";
 
       if (value_1.equals("A") && (value_2.equals("B"))) {

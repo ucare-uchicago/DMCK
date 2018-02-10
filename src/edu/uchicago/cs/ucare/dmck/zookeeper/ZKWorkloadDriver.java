@@ -4,7 +4,8 @@ import edu.uchicago.cs.ucare.dmck.server.WorkloadDriver;
 
 public class ZKWorkloadDriver extends WorkloadDriver {
 
-  public ZKWorkloadDriver(int numNode, String workingDir, String ipcDir, String samcDir, String targetSysDir) {
+  public ZKWorkloadDriver(int numNode, String workingDir, String ipcDir, String samcDir,
+      String targetSysDir) {
     super(numNode, workingDir, ipcDir, samcDir, targetSysDir);
   }
 

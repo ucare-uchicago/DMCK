@@ -1,10 +1,8 @@
 package edu.uchicago.cs.ucare.dmck.transition;
 
 import java.util.Arrays;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
 
 @SuppressWarnings("serial")
@@ -29,7 +27,8 @@ public class NodeCrashTransition extends NodeOperationTransition {
       dmck.numCurrentCrash++;
       for (Transition t : dmck.currentEnabledTransitions) {
         if (t instanceof AbstractNodeStartTransition) {
-          ((AbstractNodeStartTransition) t).setPossibleVectorClock(id, dmck.getVectorClock(id, dmck.numNode));
+          ((AbstractNodeStartTransition) t).setPossibleVectorClock(id,
+              dmck.getVectorClock(id, dmck.numNode));
         } else if (t instanceof NodeStartTransition) {
           if (((NodeStartTransition) t).id == id) {
             ((NodeStartTransition) t).setVectorClock(dmck.getVectorClock(id, dmck.numNode));

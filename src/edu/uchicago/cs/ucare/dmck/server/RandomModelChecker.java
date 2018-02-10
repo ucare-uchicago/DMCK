@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.Random;
 import com.almworks.sqlite4java.SQLiteException;
-
 import edu.uchicago.cs.ucare.dmck.transition.AbstractNodeCrashTransition;
 import edu.uchicago.cs.ucare.dmck.transition.AbstractNodeOperationTransition;
 import edu.uchicago.cs.ucare.dmck.transition.AbstractNodeStartTransition;
@@ -24,9 +23,9 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
   String stateDir;
   Random random;
 
-  public RandomModelChecker(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash, int numReboot,
-      String globalStatePathDir, String packetRecordDir, String workingDir, WorkloadDriver workloadDriver,
-      String ipcDir) {
+  public RandomModelChecker(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash,
+      int numReboot, String globalStatePathDir, String packetRecordDir, String workingDir,
+      WorkloadDriver workloadDriver, String ipcDir) {
     super(dmckName, fileWatcher, numNode, globalStatePathDir, workingDir, workloadDriver, ipcDir);
     this.numCrash = numCrash;
     this.numReboot = numReboot;
@@ -112,14 +111,6 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
     }
   }
 
-  protected void saveNextTransition(String nextTransition) {
-    try {
-      localRecordFile.write(("Next Execute: " + nextTransition + "\n").getBytes());
-    } catch (IOException e) {
-      LOG.error("", e);
-    }
-  }
-
   class PathTraversalWorker extends Thread {
 
     @Override
@@ -127,23 +118,27 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
       boolean hasWaited = waitEndExploration == 0;
       while (true) {
         executeMidWorkload();
-        updateSAMCQueue();
+        updateSAMCQueue(localStates);
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
         if (terminationPoint && hasWaited) {
+          LOG.info("---- End of Path Execution ----");
+
           // Performance evaluation
-          collectPerformanceMetrics();
+          collectPerformancePerEventMetrics();
+          collectPerformancePerPathMetrics();
 
           boolean verifiedResult = verifier.verify();
           String detail = verifier.verificationDetail();
-          saveResult(verifiedResult + " ; " + detail + "\n");
+          saveResult(verifiedResult, detail);
           recordTestId();
           exploredBranchRecorder.markBelowSubtreeFinished();
-          LOG.info("---- End of Path Execution ----");
+          LOG.info("---- End of Path Evaluation ----");
           resetTest();
           break;
         } else if (terminationPoint) {
           try {
-            if (dmckName.equals("raftModelChecker") && waitForNextLE && waitedForNextLEInDiffTermCounter < 20) {
+            if (dmckName.equals("raftModelChecker") && waitForNextLE
+                && waitedForNextLEInDiffTermCounter < 20) {
               Thread.sleep(leaderElectionTimeout);
             } else {
               hasWaited = true;
@@ -172,34 +167,26 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
             exploredBranchRecorder.traverseDownTo(transition.getTransitionId());
             exploredBranchRecorder.noteThisNode(".packets", transition.toString(), false);
           }
-          try {
-            if (transition instanceof AbstractNodeOperationTransition) {
-              AbstractNodeOperationTransition nodeOperationTransition = (AbstractNodeOperationTransition) transition;
-              transition = ((AbstractNodeOperationTransition) transition).getRealNodeOperationTransition();
-              if (transition == null) {
-                currentEnabledTransitions.add(nodeOperationTransition);
-                continue;
-              }
-              nodeOperationTransition.id = ((NodeOperationTransition) transition).getId();
+          if (transition instanceof AbstractNodeOperationTransition) {
+            AbstractNodeOperationTransition nodeOperationTransition =
+                (AbstractNodeOperationTransition) transition;
+            transition =
+                ((AbstractNodeOperationTransition) transition).getRealNodeOperationTransition();
+            if (transition == null) {
+              currentEnabledTransitions.add(nodeOperationTransition);
+              continue;
             }
-            saveNextTransition(transition.toString());
-            LOG.info("[NEXT TRANSITION] " + transition.toString());
-            if (transition.apply()) {
-              pathRecordFile.write((transition.toString() + "\n").getBytes());
-              updateGlobalState();
-              updateSAMCQueueAfterEventExecution(transition);
-            }
-          } catch (IOException e) {
-            LOG.error("", e);
+            nodeOperationTransition.setId(((NodeOperationTransition) transition).getId());
+          }
+          LOG.info("[NEXT TRANSITION] " + transition.toString());
+          if (transition.apply()) {
+            recordEventToPathFile(transition.toString());
+            updateSAMCQueueAfterEventExecution(transition);
           }
         } else if (exploredBranchRecorder.getCurrentDepth() == 0) {
           hasFinishedAllExploration = true;
         } else {
-          try {
-            pathRecordFile.write("duplicated\n".getBytes());
-          } catch (IOException e) {
-            LOG.error("", e);
-          }
+          recordEventToPathFile("Duplicated path.\n");
           resetTest();
           break;
         }

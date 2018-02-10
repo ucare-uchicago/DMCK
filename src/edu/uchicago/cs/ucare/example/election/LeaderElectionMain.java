@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
 import edu.uchicago.cs.ucare.example.election.interposition.LeaderElectionInterposition;
@@ -73,8 +72,8 @@ public class LeaderElectionMain {
       int nodeId = Integer.parseInt(tokens[0]);
       String[] inetSocketAddress = tokens[1].split(":");
       assert inetSocketAddress.length == 2;
-      InetSocketAddress nodeAddress = new InetSocketAddress(inetSocketAddress[0],
-          Integer.parseInt(inetSocketAddress[1]));
+      InetSocketAddress nodeAddress =
+          new InetSocketAddress(inetSocketAddress[0], Integer.parseInt(inetSocketAddress[1]));
       nodeMap.put(nodeId, nodeAddress);
       LOG.info("node " + nodeId + " is " + nodeAddress);
     }
@@ -257,7 +256,8 @@ public class LeaderElectionMain {
     role = LOOKING;
     leader = id;
 
-    LOG.info("Just started a node with id = " + id + " role = " + getRoleName(role) + " leader = " + leader);
+    LOG.info("Just started a node with id = " + id + " role = " + getRoleName(role) + " leader = "
+        + leader);
 
     electionTable = new HashMap<Integer, Integer>();
     electionTable.put(id, leader);
@@ -389,7 +389,8 @@ public class LeaderElectionMain {
     }
 
     // ipc interceptor
-    public void interceptMessage(ElectionMessage msg, int sender, int senderRole, int receiver, int leader) {
+    public void interceptMessage(ElectionMessage msg, int sender, int senderRole, int receiver,
+        int leader) {
 
       LOG.info("[DEBUG] before hash in node " + id);
       int eventId = LeaderElectionInterposition.hash(msg, receiver);
@@ -409,7 +410,8 @@ public class LeaderElectionMain {
 
       // move new file to send folder - commit message
       try {
-        Runtime.getRuntime().exec("mv " + ipcDir + "/new/le-" + eventId + " " + ipcDir + "/send/le-" + eventId);
+        Runtime.getRuntime()
+            .exec("mv " + ipcDir + "/new/le-" + eventId + " " + ipcDir + "/send/le-" + eventId);
       } catch (Exception e) {
         LOG.error("[ERROR] error in moving file to send folder : le-" + eventId);
       }
@@ -417,15 +419,13 @@ public class LeaderElectionMain {
       // msgIntercepted++;
       // inform steady state
       /*
-       * if(msgIntercepted == nodeMap.size() - 1){
-       * LOG.info("[DEBUG] Inform steady state from node " + sender); try{ PrintWriter
-       * writer = new PrintWriter(ipcDir + "/new/s-" + sender, "UTF-8");
+       * if(msgIntercepted == nodeMap.size() - 1){ LOG.info("[DEBUG] Inform steady state from node "
+       * + sender); try{ PrintWriter writer = new PrintWriter(ipcDir + "/new/s-" + sender, "UTF-8");
        * writer.println("sendNode=" + sender); writer.close(); } catch (Exception e){
        * e.printStackTrace(); }
        * 
-       * // move new file to send folder - commit message try{
-       * Runtime.getRuntime().exec("mv " + ipcDir + "/new/s-" + sender + " " + ipcDir
-       * + "/send/s-" + sender); } catch (Exception e){
+       * // move new file to send folder - commit message try{ Runtime.getRuntime().exec("mv " +
+       * ipcDir + "/new/s-" + sender + " " + ipcDir + "/send/s-" + sender); } catch (Exception e){
        * LOG.error("[ERROR] error in moving file to send folder : s-" + sender); } }
        */
 
@@ -475,7 +475,8 @@ public class LeaderElectionMain {
       ElectionMessage msg;
       while (true) {
         try {
-          LOG.info("Current role is " + (role == LEADING ? "Leading" : role == FOLLOWING ? "Following" : "Looking")
+          LOG.info("Current role is "
+              + (role == LEADING ? "Leading" : role == FOLLOWING ? "Following" : "Looking")
               + "; current leader is " + leader);
           msg = queue.take();
           LOG.info("Process message : " + msg.toString());

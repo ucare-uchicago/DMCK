@@ -2,7 +2,6 @@ package edu.uchicago.cs.ucare.dmck.transition;
 
 import java.util.LinkedList;
 import java.util.Random;
-
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
 
 @SuppressWarnings("serial")
@@ -42,7 +41,8 @@ public abstract class AbstractNodeOperationTransition extends NodeOperationTrans
 
   public abstract NodeOperationTransition getRealNodeOperationTransition(int suggestExecuteNodeId);
 
-  public abstract LinkedList<NodeOperationTransition> getAllRealNodeOperationTransitions(boolean[] onlineStatus);
+  public abstract LinkedList<NodeOperationTransition> getAllRealNodeOperationTransitions(
+      boolean[] onlineStatus);
 
   public abstract LinkedList<NodeOperationTransition> getAllRealNodeOperationTransitions();
 

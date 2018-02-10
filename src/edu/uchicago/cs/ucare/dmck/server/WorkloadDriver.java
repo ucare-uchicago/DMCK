@@ -16,7 +16,8 @@ public abstract class WorkloadDriver {
 
   public SpecVerifier verifier;
 
-  public WorkloadDriver(int numNode, String workingDir, String ipcDir, String samcDir, String targetSysDir) {
+  public WorkloadDriver(int numNode, String workingDir, String ipcDir, String samcDir,
+      String targetSysDir) {
     this.numNode = numNode;
     this.workingDir = workingDir;
     this.ipcDir = ipcDir;
@@ -75,9 +76,9 @@ public abstract class WorkloadDriver {
 
   public void clearIPCDir() {
     try {
-      Runtime.getRuntime().exec(new String[] { "sh", "-c", "rm " + ipcDir + "/new/*" });
-      Runtime.getRuntime().exec(new String[] { "sh", "-c", "rm " + ipcDir + "/send/*" });
-      Runtime.getRuntime().exec(new String[] { "sh", "-c", "rm " + ipcDir + "/ack/*" });
+      Runtime.getRuntime().exec(new String[] {"sh", "-c", "rm " + ipcDir + "/new/*"});
+      Runtime.getRuntime().exec(new String[] {"sh", "-c", "rm " + ipcDir + "/send/*"});
+      Runtime.getRuntime().exec(new String[] {"sh", "-c", "rm " + ipcDir + "/ack/*"});
       LOG.debug("[DEBUG] Remove all files in ipc directory");
     } catch (Exception e) {
       LOG.error("Error in clear IPC Dir");

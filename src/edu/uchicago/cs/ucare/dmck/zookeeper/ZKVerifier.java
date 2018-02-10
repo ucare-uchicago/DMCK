@@ -2,9 +2,7 @@ package edu.uchicago.cs.ucare.dmck.zookeeper;
 
 import java.io.FileInputStream;
 import java.util.Properties;
-
 import org.apache.log4j.Logger;
-
 import edu.uchicago.cs.ucare.dmck.server.SpecVerifier;
 import edu.uchicago.cs.ucare.dmck.util.LocalState;
 
@@ -12,7 +10,8 @@ public class ZKVerifier extends SpecVerifier {
 
   private static final Logger LOG = Logger.getLogger(ZKVerifier.class);
 
-  private static final String MORE_THAN_ONE_LEADER = "There is more than one leader in the system.\n";
+  private static final String MORE_THAN_ONE_LEADER =
+      "There is more than one leader in the system.\n";
   private static final String INCONSISTENT_VALUES = "Replicas are inconsistent.\n";
   private static final String NO_LEADER = "No leader is in place.\n";
 
@@ -88,14 +87,16 @@ public class ZKVerifier extends SpecVerifier {
           + modelCheckingServer.numNode + " /foo " + nodesAliveness).waitFor();
 
       LOG.debug("Read DataConsistency file.");
-      FileInputStream verifyInputStream = new FileInputStream(modelCheckingServer.workingDirPath + "/temp-verify");
+      FileInputStream verifyInputStream =
+          new FileInputStream(modelCheckingServer.workingDirPath + "/temp-verify");
       kv.load(verifyInputStream);
 
       String[] values = new String[modelCheckingServer.numNode];
       for (int i = 0; i < modelCheckingServer.numNode; i++) {
         values[i] = kv.getProperty(String.valueOf(i));
         if (i == 0) {
-          if (values[i].equals("-null-") || values[i].equals("-dead-") || values[i].equals("-exception-")) {
+          if (values[i].equals("-null-") || values[i].equals("-dead-")
+              || values[i].equals("-exception-")) {
             return false;
           }
         } else {

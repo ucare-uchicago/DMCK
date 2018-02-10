@@ -1,9 +1,7 @@
 package edu.uchicago.cs.ucare.dmck.cassandra;
 
 import java.util.HashMap;
-
 import org.apache.log4j.Logger;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.server.EvaluationModelChecker;
 import edu.uchicago.cs.ucare.dmck.server.FileWatcher;
@@ -17,11 +15,11 @@ public class CassSAMC extends EvaluationModelChecker {
 
   private static final Logger LOG = Logger.getLogger(CassSAMC.class);
 
-  public CassSAMC(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash, int numReboot,
-      String globalStatePathDir, String packetRecordDir, String cacheDir, WorkloadDriver workloadDriver,
-      String ipcDir) {
-    super(dmckName, fileWatcher, numNode, numCrash, numReboot, globalStatePathDir, packetRecordDir, cacheDir,
-        workloadDriver, ipcDir);
+  public CassSAMC(String dmckName, FileWatcher fileWatcher, int numNode, int numCrash,
+      int numReboot, String globalStatePathDir, String packetRecordDir, String cacheDir,
+      WorkloadDriver workloadDriver, String ipcDir) {
+    super(dmckName, fileWatcher, numNode, numCrash, numReboot, globalStatePathDir, packetRecordDir,
+        cacheDir, workloadDriver, ipcDir);
   }
 
   @SuppressWarnings("unchecked")
@@ -44,7 +42,7 @@ public class CassSAMC extends EvaluationModelChecker {
     }
 
     // SAMC2 : Msg-alwaysdis
-    if (this.enableMsgAlwaysDis) {
+    if (reductionAlgorithms.contains("msg_always_dis")) {
       if (e1Verb.equals("PAXOS_COMMIT_RESPONSE")
           || e2Verb.equals("PAXOS_COMMIT_RESPONSE") && (e1.getToId() == e2.getToId())) {
         recordPolicyEffectiveness("msgAlwaysDis");
@@ -53,16 +51,16 @@ public class CassSAMC extends EvaluationModelChecker {
     }
 
     // SAMC3 : Msg-alwaysdis
-    if (this.enableMsgAlwaysDis) {
-      if (isPaxosCommand(e1Verb) && e1Verb.equals(e2Verb) && (e1.getToId() == e2.getToId()) && (e1Key == e2Key)
-          && (e1Ballot.compareTo(e2Ballot) > 0)) {
+    if (reductionAlgorithms.contains("msg_always_dis")) {
+      if (isPaxosCommand(e1Verb) && e1Verb.equals(e2Verb) && (e1.getToId() == e2.getToId())
+          && (e1Key == e2Key) && (e1Ballot.compareTo(e2Ballot) > 0)) {
         recordPolicyEffectiveness("msgAlwaysDis");
         return false;
       }
     }
 
     // SAMC4 : LMI-discard && Msg-alwaysdis
-    if (this.enableMsgAlwaysDis) {
+    if (reductionAlgorithms.contains("msg_always_dis")) {
       if (e1Verb.equals("PAXOS_PREPARE_RESPONSE") && e2Verb.equals("PAXOS_PREPARE_RESPONSE")
           && (e1.getToId() == e2.getToId()) && (e1Key == e2Key)) {
         String e1Response = e1Payload.get("response");
@@ -75,35 +73,41 @@ public class CassSAMC extends EvaluationModelChecker {
     }
 
     // SAMC5 : Msg-ww-disjoint
-    if (this.enableMsgWWDisjoint) {
-      if (e1Verb.equals("PAXOS_PREPARE") && e2Verb.equals("PAXOS_PREPARE_RESPONSE") && (e1.getToId() == e2.getToId())) {
+    if (reductionAlgorithms.contains("msg_ww_disjoint")) {
+      if (e1Verb.equals("PAXOS_PREPARE") && e2Verb.equals("PAXOS_PREPARE_RESPONSE")
+          && (e1.getToId() == e2.getToId())) {
         recordPolicyEffectiveness("msgWWDisjoint");
         return false;
       }
-      if (e1Verb.equals("PAXOS_PREPARE_RESPONSE") && e2Verb.equals("PAXOS_PREPARE") && (e1.getToId() == e2.getToId())) {
+      if (e1Verb.equals("PAXOS_PREPARE_RESPONSE") && e2Verb.equals("PAXOS_PREPARE")
+          && (e1.getToId() == e2.getToId())) {
         recordPolicyEffectiveness("msgWWDisjoint");
         return false;
       }
-      if (e1Verb.equals("PAXOS_PROPOSE") && e2Verb.equals("PAXOS_PROPOSE_RESPONSE") && (e1.getToId() == e2.getToId())) {
+      if (e1Verb.equals("PAXOS_PROPOSE") && e2Verb.equals("PAXOS_PROPOSE_RESPONSE")
+          && (e1.getToId() == e2.getToId())) {
         recordPolicyEffectiveness("msgWWDisjoint");
         return false;
       }
-      if (e1Verb.equals("PAXOS_PROPOSE_RESPONSE") && e2Verb.equals("PAXOS_PROPOSE") && (e1.getToId() == e2.getToId())) {
+      if (e1Verb.equals("PAXOS_PROPOSE_RESPONSE") && e2Verb.equals("PAXOS_PROPOSE")
+          && (e1.getToId() == e2.getToId())) {
         recordPolicyEffectiveness("msgWWDisjoint");
         return false;
       }
-      if (e1Verb.equals("PAXOS_COMMIT") && e2Verb.equals("PAXOS_PROPOSE_RESPONSE") && (e1.getToId() == e2.getToId())) {
+      if (e1Verb.equals("PAXOS_COMMIT") && e2Verb.equals("PAXOS_PROPOSE_RESPONSE")
+          && (e1.getToId() == e2.getToId())) {
         recordPolicyEffectiveness("msgWWDisjoint");
         return false;
       }
-      if (e1Verb.equals("PAXOS_PROPOSE_RESPONSE") && e2Verb.equals("PAXOS_COMMIT") && (e1.getToId() == e2.getToId())) {
+      if (e1Verb.equals("PAXOS_PROPOSE_RESPONSE") && e2Verb.equals("PAXOS_COMMIT")
+          && (e1.getToId() == e2.getToId())) {
         recordPolicyEffectiveness("msgWWDisjoint");
         return false;
       }
     }
 
     // SAMC6 : Msg-ww-disjoint
-    if (this.enableMsgWWDisjoint) {
+    if (reductionAlgorithms.contains("msg_ww_disjoint")) {
       if (e1Verb.equals("PAXOS_PREPARE_RESPONSE") && e2Verb.equals("PAXOS_PROPOSE_RESPONSE")
           && (e1.getToId() == e2.getToId())) {
         recordPolicyEffectiveness("msgWWDisjoint");
@@ -117,7 +121,7 @@ public class CassSAMC extends EvaluationModelChecker {
     }
 
     // SAMC7 : LMI && Msg-alwaysdis
-    if (this.enableMsgAlwaysDis) {
+    if (reductionAlgorithms.contains("msg_always_dis")) {
       if (e1Verb.equals("PAXOS_PROPOSE_RESPONSE") && e2Verb.equals("PAXOS_PROPOSE_RESPONSE")
           && (e1.getToId() == e2.getToId())) {
         recordPolicyEffectiveness("msgAlwaysDis");
@@ -135,18 +139,20 @@ public class CassSAMC extends EvaluationModelChecker {
   }
 
   @Override
-  public boolean isCRSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, Transition event) {
+  public boolean isCRSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState,
+      Transition event) {
     return true;
   }
 
   @Override
-  public boolean isRSSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, Transition event) {
+  public boolean isRSSDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState,
+      Transition event) {
     return true;
   }
 
   @Override
-  public boolean isCCDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState, NodeCrashTransition crash1,
-      NodeCrashTransition crash2) {
+  public boolean isCCDependent(boolean[] wasNodeOnline, LocalState[] wasLocalState,
+      NodeCrashTransition crash1, NodeCrashTransition crash2) {
     return true;
   }
 
@@ -165,7 +171,8 @@ public class CassSAMC extends EvaluationModelChecker {
   }
 
   private boolean isPaxosCommand(String verb) {
-    return verb.equals("PAXOS_PREPARE") || verb.equals("PAXOS_PROPOSE") || verb.equals("PAXOS_COMMIT");
+    return verb.equals("PAXOS_PREPARE") || verb.equals("PAXOS_PROPOSE")
+        || verb.equals("PAXOS_COMMIT");
   }
 
   private boolean isPaxosResponse(String verb) {

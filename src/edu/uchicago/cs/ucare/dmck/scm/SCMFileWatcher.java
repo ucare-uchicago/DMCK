@@ -1,7 +1,6 @@
 package edu.uchicago.cs.ucare.dmck.scm;
 
 import java.util.Properties;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.server.FileWatcher;
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
@@ -21,10 +20,10 @@ public class SCMFileWatcher extends FileWatcher {
       int vote = Integer.parseInt(ev.getProperty("vote"));
       long hashId = commonHashId(eventId);
 
-      LOG.info("Receive msg " + filename + " : hashId-" + hashId + " from node-" + sendNode + " to node-" + recvNode
-          + " vote-" + vote);
-      appendReceivedUpdates("New Event: filename=" + filename + " sendNode=" + sendNode + " recvNode=" + recvNode
-          + " vote=" + vote + " eventId=" + eventId);
+      LOG.info("Receive msg " + filename + " : hashId-" + hashId + " from node-" + sendNode
+          + " to node-" + recvNode + " vote-" + vote);
+      appendReceivedUpdates("New Event: filename=" + filename + " sendNode=" + sendNode
+          + " recvNode=" + recvNode + " vote=" + vote + " eventId=" + eventId);
 
       Event event = new Event(hashId);
       event.addKeyValue(Event.FROM_ID, sendNode);
@@ -43,6 +42,13 @@ public class SCMFileWatcher extends FileWatcher {
     }
 
     removeProceedFile(filename);
+  }
+
+  @Override
+  protected void sequencerEnablingSignal(Event packet) {
+    // Since current DMCK integration with SCM has not supported sequencer yet,
+    // DMCK should just use common enabling signal function for now.
+    commonEnablingSignal(packet);
   }
 
 }

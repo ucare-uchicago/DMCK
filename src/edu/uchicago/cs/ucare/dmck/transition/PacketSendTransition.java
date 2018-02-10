@@ -4,10 +4,8 @@ import java.io.Serializable;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
 
@@ -18,13 +16,14 @@ public class PacketSendTransition extends Transition implements Serializable {
 
   public static final String ACTION = "packetsend";
   private static final short ACTION_HASH = (short) ACTION.hashCode();
-  public static final Comparator<PacketSendTransition> COMPARATOR = new Comparator<PacketSendTransition>() {
-    public int compare(PacketSendTransition o1, PacketSendTransition o2) {
-      Long i1 = o1.getPacket().getId();
-      Long i2 = o2.getPacket().getId();
-      return i1.compareTo(i2);
-    }
-  };
+  public static final Comparator<PacketSendTransition> COMPARATOR =
+      new Comparator<PacketSendTransition>() {
+        public int compare(PacketSendTransition o1, PacketSendTransition o2) {
+          Long i1 = o1.getPacket().getId();
+          Long i2 = o2.getPacket().getId();
+          return i1.compareTo(i2);
+        }
+      };
 
   protected ModelCheckingServerAbstract dmck;
   protected Event packet;
@@ -32,6 +31,7 @@ public class PacketSendTransition extends Transition implements Serializable {
   public PacketSendTransition(ModelCheckingServerAbstract dmck, Event packet) {
     this.dmck = dmck;
     this.packet = packet;
+    this.id = packet.getToId();
   }
 
   @Override
@@ -40,7 +40,7 @@ public class PacketSendTransition extends Transition implements Serializable {
       LOG.debug("Trying to commit obsolete packet");
     }
     try {
-      boolean result = dmck.commitAndWait(packet);
+      boolean result = dmck.commitAndWait(this);
       return result;
     } catch (InterruptedException e) {
       LOG.error(e.getMessage());
@@ -84,7 +84,8 @@ public class PacketSendTransition extends Transition implements Serializable {
     return "packetsend tid=" + getTransitionId() + " " + packet.toString();
   }
 
-  public static PacketSendTransition[] buildTransitions(ModelCheckingServerAbstract dmck, Event[] packets) {
+  public static PacketSendTransition[] buildTransitions(ModelCheckingServerAbstract dmck,
+      Event[] packets) {
     PacketSendTransition[] packetTransitions = new PacketSendTransition[packets.length];
     for (int i = 0; i < packets.length; ++i) {
       packetTransitions[i] = new PacketSendTransition(dmck, packets[i]);

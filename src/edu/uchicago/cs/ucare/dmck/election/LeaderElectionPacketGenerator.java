@@ -1,7 +1,6 @@
 package edu.uchicago.cs.ucare.dmck.election;
 
 import java.util.HashMap;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.example.election.ElectionMessage;
 
@@ -41,7 +40,8 @@ public class LeaderElectionPacketGenerator {
   }
 
   public int getHash(ElectionMessage msg, int toId) {
-    int hash = leaderElectionHashCodeWithoutId(msg.getSender(), toId, msg.getRole(), msg.getLeader());
+    int hash =
+        leaderElectionHashCodeWithoutId(msg.getSender(), toId, msg.getRole(), msg.getLeader());
     Integer count = packetCount.get(hash);
     if (count == null) {
       count = 0;

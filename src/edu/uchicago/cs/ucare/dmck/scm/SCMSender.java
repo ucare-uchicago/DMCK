@@ -3,7 +3,6 @@ package edu.uchicago.cs.ucare.dmck.scm;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.IOException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,8 +53,8 @@ public class SCMSender {
 
   public static void sendMessage() {
     try {
-      Runtime.getRuntime()
-          .exec("mv " + messageLocation + "/new/" + msgName + " " + messageLocation + "/send/" + msgName);
+      Runtime.getRuntime().exec(
+          "mv " + messageLocation + "/new/" + msgName + " " + messageLocation + "/send/" + msgName);
       LOG.info("sender-" + msgId + " has sent its message " + msgName);
     } catch (Exception e) {
       LOG.error("sender-" + msgId + " has not sent its message " + msgName);
@@ -71,7 +70,8 @@ public class SCMSender {
       writer.println("vote=" + vote);
       writer.close();
 
-      Runtime.getRuntime().exec("mv " + ipcDmckDir + "/new/" + msgName + " " + ipcDmckDir + "/send/" + msgName);
+      Runtime.getRuntime()
+          .exec("mv " + ipcDmckDir + "/new/" + msgName + " " + ipcDmckDir + "/send/" + msgName);
 
       // wait for dmck signal
       File ackFile = new File(ipcDmckDir + "/ack/" + msgName);

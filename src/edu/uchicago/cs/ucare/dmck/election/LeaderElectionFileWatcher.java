@@ -1,7 +1,6 @@
 package edu.uchicago.cs.ucare.dmck.election;
 
 import java.util.Properties;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.server.FileWatcher;
 import edu.uchicago.cs.ucare.dmck.server.ModelCheckingServerAbstract;
@@ -22,10 +21,11 @@ public class LeaderElectionFileWatcher extends FileWatcher {
       long eventId = Long.parseLong(filename.substring(3));
       long hashId = commonHashId(eventId);
 
-      LOG.debug("Process new File " + filename + " : hashId-" + hashId + " sendNode-" + sendNode + " sendRole-" + role
-          + " recvNode-" + recvNode + " leader-" + leader);
-      appendReceivedUpdates("New Event: filename=" + filename + " sendNode=" + sendNode + " recvNode=" + recvNode
-          + " sendRole=" + role + " leader=" + leader + " hashId=" + hashId);
+      LOG.debug("Process new File " + filename + " : hashId-" + hashId + " sendNode-" + sendNode
+          + " sendRole-" + role + " recvNode-" + recvNode + " leader-" + leader);
+      appendReceivedUpdates(
+          "New Event: filename=" + filename + " sendNode=" + sendNode + " recvNode=" + recvNode
+              + " sendRole=" + role + " leader=" + leader + " hashId=" + hashId);
 
       // create eventPacket and store it to DMCK queue
       Event packet = new Event(hashId);
@@ -42,10 +42,10 @@ public class LeaderElectionFileWatcher extends FileWatcher {
       int leader = Integer.parseInt(ev.getProperty("leader"));
       String electionTable = ev.getProperty("electionTable");
 
-      LOG.debug("Update state node-" + sendNode + " role: " + role + " leader: " + leader + " electionTable: "
-          + electionTable);
-      appendReceivedUpdates("New Update: filename=" + filename + " sendNode=" + sendNode + " sendRole=" + role
-          + " leader=" + leader + " electionTable=" + electionTable);
+      LOG.debug("Update state node-" + sendNode + " role: " + role + " leader: " + leader
+          + " electionTable: " + electionTable);
+      appendReceivedUpdates("New Update: filename=" + filename + " sendNode=" + sendNode
+          + " sendRole=" + role + " leader=" + leader + " electionTable=" + electionTable);
 
       dmck.localStates[sendNode].setKeyValue("role", role);
       dmck.localStates[sendNode].setKeyValue("leader", leader);
@@ -53,6 +53,14 @@ public class LeaderElectionFileWatcher extends FileWatcher {
     }
 
     removeProceedFile(filename);
+  }
+
+  @Override
+  protected void sequencerEnablingSignal(Event packet) {
+    // Since current DMCK integration with Sample-LE has not supported sequencer
+    // yet,
+    // DMCK should just use common enabling signal function for now.
+    commonEnablingSignal(packet);
   }
 
 }

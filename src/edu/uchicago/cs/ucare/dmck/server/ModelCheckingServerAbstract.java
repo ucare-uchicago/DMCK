@@ -21,10 +21,8 @@ import java.util.ListIterator;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import edu.uchicago.cs.ucare.dmck.event.Event;
 import edu.uchicago.cs.ucare.dmck.raft.RaftWorkloadDriver;
 import edu.uchicago.cs.ucare.dmck.transition.AbstractNodeCrashTransition;
@@ -42,7 +40,6 @@ import edu.uchicago.cs.ucare.example.election.LeaderElectionMain;
 public abstract class ModelCheckingServerAbstract implements ModelCheckingServer {
 
   private static String PATH_FILE = "path";
-  private static String LOCAL_FILE = "local";
   private static String DEBUG_FILE = "debug.log";
   private static String PERF_FILE = "performance.log";
   private static String RESULT_FILE = "result";
@@ -66,21 +63,15 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
   protected int testId;
 
-  protected boolean isInitGlobalState;
-  protected int initialGlobalState;
-  protected int globalState;
-
   protected String testRecordDirPath;
   protected String allEventsDBDirPath;
   protected String idRecordDirPath;
   protected String pathRecordFilePath;
-  protected String localRecordFilePath;
   protected String performanceRecordFilePath;
   protected String debugRecordFilePath;
   protected String resultFilePath;
   protected File allEventsDBDir;
   protected FileOutputStream pathRecordFile;
-  protected FileOutputStream localRecordFile;
   protected FileOutputStream performanceRecordFile;
   protected FileOutputStream debugRecordFile;
   protected FileOutputStream resultFile;
@@ -107,7 +98,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   protected boolean tcpParadigm;
 
   // dmck vars for Cass
-  public HashMap<Integer, String> isApplied;
+  public HashMap<Integer, String> workloadHasApplied;
 
   // dmck vars for Raft
   protected int leaderElectionTimeout;
@@ -140,10 +131,22 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   public int currentStep;
   public Timestamp lastTimeEnabledEvent;
   public Timestamp lastTimeNewEventOrStateUpdate;
+  public Timestamp startTimePathExecution;
+  public Timestamp endTimePathExecution;
+
+  // quick event release
+  public boolean useSequencer;
+  public boolean quickEventReleaseMode;
+  public boolean isQuickEventStep;
+  public int[] senderSequencer;
+  public int[] receiverSequencer;
+  public LocalState[] perEventStateBatch;
+  public String[] stateUpdateBook;
 
   @SuppressWarnings("unchecked")
-  public ModelCheckingServerAbstract(String dmckName, FileWatcher fileWatcher, int numNode, String testRecordDirPath,
-      String workingDirPath, WorkloadDriver workloadDriver, String ipcDir) {
+  public ModelCheckingServerAbstract(String dmckName, FileWatcher fileWatcher, int numNode,
+      String testRecordDirPath, String workingDirPath, WorkloadDriver workloadDriver,
+      String ipcDir) {
     LOG = LoggerFactory.getLogger(ModelCheckingServerAbstract.class + "." + dmckName);
     this.dmckName = dmckName;
     packetQueue = new LinkedBlockingQueue<Event>();
@@ -156,7 +159,6 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     this.workloadDriver = workloadDriver;
     this.verifier = workloadDriver.verifier;
     pathRecordFile = null;
-    localRecordFile = null;
     performanceRecordFile = null;
     debugRecordFile = null;
     resultFile = null;
@@ -188,17 +190,26 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       configInputStream.close();
 
       // mandatory config
-      initSteadyStateTimeout = Integer.parseInt(dmckConf.getProperty("initSteadyStateTimeout"));
-      steadyStateTimeout = Integer.parseInt(dmckConf.getProperty("steadyStateTimeout"));
-      waitEndExploration = Integer.parseInt(dmckConf.getProperty("waitEndExploration"));
+      initSteadyStateTimeout = Integer.parseInt(dmckConf.getProperty("init_steady_state_timeout"));
+      steadyStateTimeout = Integer.parseInt(dmckConf.getProperty("steady_state_timeout"));
+      waitEndExploration = Integer.parseInt(dmckConf.getProperty("wait_end_exploration"));
 
       // optional config
-      workloadInjectionWaitingTime = Integer.parseInt(dmckConf.getProperty("waitBeforeWorkloadInjection", "0"));
-      tcpParadigm = dmckConf.getProperty("tcpParadigm", "true").equals("true");
+      workloadInjectionWaitingTime =
+          Integer.parseInt(dmckConf.getProperty("wait_before_workload_injection", "0"));
+      useSequencer = dmckConf.getProperty("use_sequencer", "false").equals("true");
+      quickEventReleaseMode = dmckConf.getProperty("quick_event_release", "false").equals("true");
+      tcpParadigm = dmckConf.getProperty("tcp_paradigm", "true").equals("true");
       if (dmckName.equals("raftModelChecker")) {
-        leaderElectionTimeout = Integer.parseInt(dmckConf.getProperty("leaderElectionTimeout"));
-        timeoutEventIterations = Integer.parseInt(dmckConf.getProperty("timeoutEventIterations"));
-        snapshotWaitingTime = Integer.parseInt(dmckConf.getProperty("snapshotWaitingTime"));
+        leaderElectionTimeout = Integer.parseInt(dmckConf.getProperty("leader_election_timeout"));
+        timeoutEventIterations = Integer.parseInt(dmckConf.getProperty("timeout_event_iterations"));
+        snapshotWaitingTime = Integer.parseInt(dmckConf.getProperty("snapshot_waiting_time"));
+      }
+
+      // sanity check
+      if (quickEventReleaseMode && !useSequencer) {
+        LOG.error("DMCK expects use_sequencer=true, if quick_event_release=true.");
+        System.exit(1);
       }
 
     } catch (Exception e) {
@@ -252,7 +263,6 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
   public void offerPacket(Event event) {
     messagesQueues[(int) event.getValue("sendNode")][(int) event.getValue("recvNode")].add(event);
-    LOG.info("Intercept event " + event.toString() + " to messagesQueue");
   }
 
   public void offerLocalEvent(Event event) {
@@ -269,11 +279,14 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     }
   }
 
-  public void updateSAMCQueue() {
+  public void updateSAMCQueueWithoutLog() {
     getOutstandingEventTransition(currentEnabledTransitions);
     adjustCrashAndReboot(currentEnabledTransitions);
-    printTransitionQueues(currentEnabledTransitions);
-    collectDebugData();
+  }
+
+  public void updateSAMCQueue(LocalState[] currentGS) {
+    updateSAMCQueueWithoutLog();
+    collectDebugData(currentGS);
   }
 
   public void updateSAMCQueueAfterEventExecution(Transition transition) {
@@ -284,7 +297,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
         Transition t = iter.next();
         if (t instanceof PacketSendTransition) {
           PacketSendTransition p = (PacketSendTransition) t;
-          if (p.getPacket().getFromId() == crash.getId() || p.getPacket().getToId() == crash.getId()) {
+          if (p.getPacket().getFromId() == crash.getId()
+              || p.getPacket().getToId() == crash.getId()) {
             p.getPacket().setObsolete(true);
             p.getPacket().setObsoleteBy(crash.getId());
           }
@@ -374,41 +388,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     transitionList.addAll(buffer);
   }
 
-  public void printTransitionQueues(LinkedList<Transition> transitionList) {
-    String eventStr = "";
-    int counter = 1;
-    for (Transition t : transitionList) {
-      if (t != null) {
-        // LOG.info(counter + ". " + t.toString());
-        eventStr += counter + ". " + t.toString() + "\n";
-      } else {
-        // LOG.info(counter + ". null event");
-        eventStr += counter + ". null event\n";
-      }
-      counter++;
-    }
-    LOG.info("-----------------------------");
-    LOG.info("Events in DMCK Queue : " + transitionList.size() + "\n" + eventStr);
-    LOG.info("-----------------------------");
-  }
-
-  public void printPacketQueues(LinkedList<Event> packetList) {
-    LOG.debug("-----------------------------");
-    LOG.debug("Packets in DMCK Queue : " + packetList.size());
-    int counter = 1;
-    for (Event p : packetList) {
-      if (p != null) {
-        LOG.debug(counter + ". " + p.toString());
-      } else {
-        LOG.debug(counter + ". " + "null packet");
-      }
-      counter++;
-    }
-    LOG.debug("-----------------------------");
-  }
-
   public void setTestId(int testId) {
-    LOG.debug("This test has id = " + testId);
+    LOG.debug("Path ID=" + testId);
     this.testId = testId;
     idRecordDirPath = testRecordDirPath + "/" + testId;
     File testRecordDir = new File(idRecordDirPath);
@@ -416,10 +397,51 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       testRecordDir.mkdir();
     }
     pathRecordFilePath = idRecordDirPath + "/" + PATH_FILE;
-    localRecordFilePath = idRecordDirPath + "/" + LOCAL_FILE;
     debugRecordFilePath = idRecordDirPath + "/" + DEBUG_FILE;
     performanceRecordFilePath = idRecordDirPath + "/" + PERF_FILE;
     resultFilePath = idRecordDirPath + "/" + RESULT_FILE;
+  }
+
+  public boolean addLocalStatesUpdate(int id, LocalState newState) {
+    String s = newState.toString();
+    if (quickEventReleaseMode) {
+      if (stateUpdateBook[id].contains(s)) {
+        return false;
+      }
+      stateUpdateBook[id] += s;
+      LOG.debug("currentStateUpdateBook at node-" + id + "=" + stateUpdateBook[id]);
+      LOG.debug("new state=" + s);
+    }
+    return true;
+  }
+
+  public void addOrIgnoreLocalStatesUpdate(int id, LocalState newState) {
+    if (addLocalStatesUpdate(id, newState)) {
+      for (String key : newState.getAllKeys()) {
+        localStates[id].setKeyValue(key, newState.getValue(key));
+      }
+    } else {
+      LOG.debug("Ignore Local State Update at node-" + id + "=" + newState.toString());
+    }
+  }
+
+  public void addOrIgnorePerBatchUpdates() {
+    for (int id = 0; id < numNode; id++) {
+      if (perEventStateBatch[id].getAllKeys().length > 0) {
+        addOrIgnoreLocalStatesUpdate(id, perEventStateBatch[id]);
+      }
+      perEventStateBatch[id] = new LocalState();
+    }
+  }
+
+  public void addStateToEventBatch(int id, LocalState newState) {
+    if (quickEventReleaseMode) {
+      for (String key : newState.getAllKeys()) {
+        perEventStateBatch[id].setKeyValue(key, newState.getValue(key));
+      }
+    } else {
+      addOrIgnoreLocalStatesUpdate(id, newState);
+    }
   }
 
   public void updateLocalState(int id, int state) {
@@ -427,7 +449,16 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     LOG.debug("Node " + id + " update its local state to be " + state);
   }
 
-  public void saveResult(String result) {
+  public void recordEventToPathFile(String event) {
+    try {
+      pathRecordFile.write((event + "\n").getBytes());
+    } catch (IOException e) {
+      LOG.error("", e);
+    }
+  }
+
+  public void saveResult(boolean verifiedResult, String desc) {
+    String result = verifiedResult + " ; " + desc + "\n";
     try {
       if (resultFile == null) {
         resultFile = new FileOutputStream(resultFilePath);
@@ -438,25 +469,9 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     }
   }
 
-  public void updateGlobalState() {
-    int[] tmp = new int[numNode];
-    for (int i = 0; i < numNode; ++i) {
-      tmp[i] = isNodeOnline[i] ? localState[i] : 0;
-    }
-    globalState = Arrays.hashCode(tmp);
-    LOG.debug("System update its global state to be " + globalState);
-  }
-
-  public int getGlobalState() {
-    return globalState;
-  }
-
   protected void initGlobalState() {
-    updateGlobalState();
-    initialGlobalState = globalState;
     try {
       pathRecordFile = new FileOutputStream(pathRecordFilePath);
-      localRecordFile = new FileOutputStream(localRecordFilePath);
       performanceRecordFile = new FileOutputStream(performanceRecordFilePath);
       debugRecordFile = new FileOutputStream(debugRecordFilePath);
     } catch (FileNotFoundException e) {
@@ -510,6 +525,9 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   }
 
   public boolean startEnsemble() {
+    // Performance metrics
+    startTimePathExecution = new Timestamp(System.currentTimeMillis());
+
     for (int i = 0; i < numNode; ++i) {
       setNodeOnline(i, true);
     }
@@ -560,20 +578,6 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     return vectorClocks[sender][receiver];
   }
 
-  public void saveLocalState() {
-    String tmp = "";
-    for (int i = 0; i < numNode; ++i) {
-      tmp += !isNodeOnline[i] ? 0 : localState[i];
-      tmp += ",";
-    }
-    tmp += "\n";
-    try {
-      localRecordFile.write(tmp.getBytes());
-    } catch (IOException e) {
-      LOG.error("", e);
-    }
-  }
-
   public boolean hasReproducedBug() {
     if (expectedResultFilePath != null) {
       try {
@@ -589,13 +593,13 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     return false;
   }
 
-  public void collectDebugData() {
+  public void collectDebugData(LocalState[] curGlobalState) {
     String content = "Update from Target System:\n";
     content += fileWatcher.getReceivedUpdates();
 
     content += "Global States:\n";
     for (int n = 0; n < numNode; n++) {
-      content += "n-" + n + ": " + localStates[n].toString() + "\n";
+      content += "n-" + n + ": " + curGlobalState[n].toString() + "\n";
     }
 
     content += "Events in Queue:\n";
@@ -609,6 +613,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       counter++;
     }
     content += "------------------\n";
+    LOG.info(content);
     try {
       debugRecordFile.write(content.getBytes());
     } catch (IOException e) {
@@ -617,8 +622,12 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   }
 
   public void collectDebugNextTransition(Transition transition) {
-    String content = "Next Event: " + transition.toString() + "\n";
-    content += "------------------\n";
+    String content = "Next Event: " + transition.toString();
+    if (isQuickEventStep) {
+      content += " --> IS QUICK EVENT STEP";
+    }
+    content += "\n------------------\n";
+    LOG.info(content);
     try {
       debugRecordFile.write(content.getBytes());
     } catch (IOException e) {
@@ -645,11 +654,12 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     }
   }
 
-  public void collectPerformanceMetrics() {
+  public void collectPerformancePerEventMetrics() {
     if (currentStep > 0) {
       // Performance evaluation: Collect Round-trip time for DMCK in enabling an event
       // and receiving next event(s) or/and node state update(s)
-      long maxRoundTripTime = lastTimeNewEventOrStateUpdate.getTime() - lastTimeEnabledEvent.getTime();
+      long maxRoundTripTime =
+          lastTimeNewEventOrStateUpdate.getTime() - lastTimeEnabledEvent.getTime();
 
       // If there is no new event or state that came after an event is enabled, then
       // maxRoundTripTime will be < 0 milliseconds. At this condition, we can assume
@@ -666,6 +676,22 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       }
     }
     currentStep++;
+  }
+
+  public void collectPerformancePerPathMetrics() {
+    // Performance evaluation: Collect time spent to execute a single path
+    endTimePathExecution = new Timestamp(System.currentTimeMillis());
+    long totalPathExecutionTime = endTimePathExecution.getTime() - startTimePathExecution.getTime();
+
+    String content = "-------\n";
+    content += "SUMMARY\n";
+    content += "-------\n";
+    content += "total-execution-path-time=" + totalPathExecutionTime + "ms;\n";
+    try {
+      performanceRecordFile.write(content.getBytes());
+    } catch (Exception e) {
+      LOG.error("", e);
+    }
   }
 
   public void updateVectorClock(Event packet) {
@@ -703,60 +729,85 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     }
   }
 
-  public boolean commit(Event packet) {
+  protected void removeEventFromQueue(LinkedList<Transition> dmckQueue, Transition event) {
+    boolean existInQueue = false;
+    for (int index = 0; index < dmckQueue.size(); index++) {
+      if (event instanceof PacketSendTransition
+          && dmckQueue.get(index) instanceof PacketSendTransition
+          && event.getTransitionId() == dmckQueue.get(index).getTransitionId()) {
+        existInQueue = true;
+      } else if (event instanceof NodeCrashTransition) {
+        if (dmckQueue.get(index) instanceof AbstractNodeCrashTransition) {
+          existInQueue = true;
+        } else if (dmckQueue.get(index) instanceof NodeCrashTransition
+            && dmckQueue.get(index).getId() == event.getId()) {
+          existInQueue = true;
+        }
+      } else if (event instanceof NodeStartTransition) {
+        if (dmckQueue.get(index) instanceof AbstractNodeStartTransition) {
+          existInQueue = true;
+        } else if (dmckQueue.get(index) instanceof NodeStartTransition
+            && dmckQueue.get(index).getId() == event.getId()) {
+          existInQueue = true;
+        }
+      }
+      if (existInQueue) {
+        dmckQueue.remove(index);
+        break;
+      }
+    }
+    if (!existInQueue) {
+      LOG.error("Event=" + event.toString() + " does not exist in DMCK Queue!");
+    }
+  }
+
+  public boolean commit(PacketSendTransition event) {
     // if the destination node / origin node is crashed, and the event is
     // still not obsolete,
     // set it to obsolete since it is not valid anymore
     boolean result;
-    if (!packet.isObsolete()) {
+    if (!event.getPacket().isObsolete()) {
       try {
-
-        PrintWriter writer = new PrintWriter(ipcDir + "/new/" + packet.getValue(Event.FILENAME), "UTF-8");
-        writer.println("eventId=" + packet.getId());
-        writer.println("execute=true");
-        writer.close();
-
-        LOG.info("Enable event with ID : " + packet.getId());
-
-        Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " " + ipcDir + "/ack/"
-            + packet.getValue(Event.FILENAME));
+        // Enable event.
+        fileWatcher.enableEvent(event);
 
         // Performance evaluation
-        collectPerformanceMetrics();
+        collectPerformancePerEventMetrics();
         lastTimeEnabledEvent = new Timestamp(System.currentTimeMillis());
 
-        updateVectorClock(packet);
+        updateVectorClock(event.getPacket());
 
         result = true;
       } catch (Exception e) {
-        LOG.error("Error when committing event=" + packet.toString());
+        LOG.error("Error when committing event=" + event.toString());
         result = false;
       }
       if (result) {
         synchronized (numPacketSentToId) {
-          numPacketSentToId[packet.getToId()]++;
+          numPacketSentToId[event.getPacket().getToId()]++;
         }
         return true;
       }
     } else {
-      if (packet.getToId() == packet.getObsoleteBy()) {
+      if (event.getPacket().getToId() == event.getPacket().getObsoleteBy()) {
         // Enable an event, but DMCK does not record it
+        String filename = String.valueOf(event.getPacket().getValue(Event.FILENAME));
         try {
-          PrintWriter writer = new PrintWriter(ipcDir + "/new/" + packet.getValue(Event.FILENAME), "UTF-8");
-          writer.println("eventId=" + packet.getId());
+          PrintWriter writer = new PrintWriter(ipcDir + "/new/" + filename, "UTF-8");
+          writer.println("eventId=" + event.getPacket().getId());
           writer.println("execute=false");
           writer.close();
 
-          LOG.info("Enable obsolete event with ID : " + packet.getId());
+          LOG.info("Enable obsolete event with ID : " + event.getTransitionId());
 
-          Runtime.getRuntime().exec("mv " + ipcDir + "/new/" + packet.getValue(Event.FILENAME) + " " + ipcDir + "/ack/"
-              + packet.getValue(Event.FILENAME));
+          Runtime.getRuntime()
+              .exec("mv " + ipcDir + "/new/" + filename + " " + ipcDir + "/ack/" + filename);
 
           // Performance evaluation
-          collectPerformanceMetrics();
+          collectPerformancePerEventMetrics();
           lastTimeEnabledEvent = new Timestamp(System.currentTimeMillis());
         } catch (Exception e) {
-          LOG.error("Error in creating commit file : " + packet.getValue(Event.FILENAME));
+          LOG.error("Error in creating commit file : " + filename);
         }
       }
 
@@ -825,23 +876,28 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       Thread.sleep(steadyStateTimeout / timeoutFraction);
       timeoutCounter++;
     }
-
     setNodeSteady(id, true);
   }
 
-  public boolean commitAndWait(Event packet) throws InterruptedException {
-    setNodeSteady(packet.getToId(), false);
-    boolean result = false;
-    if (commit(packet)) {
-      result = true;
-    }
-    if (result) {
-      waitNodeSteady(packet.getToId());
+  public boolean commitAndWait(PacketSendTransition event) throws InterruptedException {
+    int recvNode = event.getPacket().getToId();
+    setNodeSteady(recvNode, false);
+    if (commit(event)) {
+      if (isQuickEventStep) {
+        waitForCausalNewEvents(event);
+      } else {
+        waitNodeSteady(recvNode);
+      }
       return true;
     } else {
-      setNodeSteady(packet.getToId(), true);
+      setNodeSteady(recvNode, true);
       return false;
     }
+  }
+
+  public void waitForCausalNewEvents(PacketSendTransition event) throws InterruptedException {
+    // This function will only be accommodated in ReductionAlgorithmModelChecker
+    waitNodeSteady(event.getPacket().getToId());
   }
 
   @SuppressWarnings("unchecked")
@@ -849,7 +905,6 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     LOG.debug("Test reset");
     fileWatcher.resetExecutionPathStats();
     messagesQueues = new ConcurrentLinkedQueue[numNode][numNode];
-    testId = -1;
     currentStep = 0;
     numCurrentCrash = 0;
     numCurrentReboot = 0;
@@ -858,26 +913,26 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     numQueueMidWorkload = numMidWorkload;
     numQueueInitWorkload = numInitWorkload;
     localState = new int[numNode];
+    senderSequencer = new int[numNode];
+    receiverSequencer = new int[numNode];
+    stateUpdateBook = new String[numNode];
+    perEventStateBatch = new LocalState[numNode];
     timeoutEventCounter = new int[numNode];
     initTimeoutEnabling = new boolean[numNode];
     for (int i = 0; i < numNode; i++) {
       timeoutEventCounter[i] = 0;
       initTimeoutEnabling[i] = false;
+      senderSequencer[i] = 0;
+      receiverSequencer[i] = 0;
+      stateUpdateBook[i] = "";
+      perEventStateBatch[i] = new LocalState();
     }
+    isQuickEventStep = false;
     waitForNextLE = false;
     waitedForNextLEInDiffTermCounter = 0;
-    globalState = 0;
-    isInitGlobalState = false;
     if (pathRecordFile != null) {
       try {
         pathRecordFile.close();
-      } catch (IOException e) {
-        LOG.error("", e);
-      }
-    }
-    if (localRecordFile != null) {
-      try {
-        localRecordFile.close();
       } catch (IOException e) {
         LOG.error("", e);
       }
@@ -930,7 +985,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
     // system specific
     if (dmckName.equals("cassChecker")) {
-      this.isApplied = new HashMap<Integer, String>();
+      this.workloadHasApplied = new HashMap<Integer, String>();
     }
   }
 
@@ -964,6 +1019,19 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     return initialLS;
   }
 
+  protected int waitForExpectedEvent(int retryCounter) {
+    if (!isQuickEventStep) {
+      retryCounter++;
+      try {
+        Thread.sleep(steadyStateTimeout / 2);
+      } catch (Exception e) {
+        LOG.error("", e);
+      }
+    }
+    updateSAMCQueueWithoutLog();
+    return retryCounter;
+  }
+
   protected Transition transformInstructionToTransition(String[] instruction) {
     InstructionTransition i = null;
     if (instruction[0].equals("packetsend")) {
@@ -986,8 +1054,9 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     } else if (instruction[0].equals("stop")) {
       i = new ExitInstructionTransaction();
     } else {
-      LOG.error("Instruction=" + instruction[0] + " is unknown. Please double check the guided path or"
-          + " update ModelCheckingServerAbstract-transformInstructionToTransition function");
+      LOG.error(
+          "Instruction=" + instruction[0] + " is unknown. Please double check the guided path or"
+              + " update ModelCheckingServerAbstract-transformInstructionToTransition function");
       return null;
     }
 
@@ -1021,15 +1090,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       if (transition != null) {
         break;
       }
-      if (steadyStateTimeout > 0) {
-        retryCounter++;
-        try {
-          Thread.sleep(steadyStateTimeout / 2);
-        } catch (Exception e) {
-          LOG.error("", e);
-        }
-      }
-      updateSAMCQueue();
+      retryCounter = waitForExpectedEvent(retryCounter);
     }
 
     if (transition instanceof SleepTransition) {
@@ -1042,10 +1103,13 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     for (int i = 0; i < currentEnabledTransitions.size(); i++) {
       // replace abstract with real one based on id
       Transition eventInQueue = currentEnabledTransitions.get(i);
-      if ((transition instanceof NodeCrashTransition && eventInQueue instanceof AbstractNodeCrashTransition)
-          || (transition instanceof NodeStartTransition && eventInQueue instanceof AbstractNodeStartTransition)) {
+      if ((transition instanceof NodeCrashTransition
+          && eventInQueue instanceof AbstractNodeCrashTransition)
+          || (transition instanceof NodeStartTransition
+              && eventInQueue instanceof AbstractNodeStartTransition)) {
         NodeOperationTransition nodeOp = (NodeOperationTransition) transition;
-        AbstractNodeOperationTransition abstractNodeOpInQueue = (AbstractNodeOperationTransition) eventInQueue;
+        AbstractNodeOperationTransition abstractNodeOpInQueue =
+            (AbstractNodeOperationTransition) eventInQueue;
         nodeOp.setVectorClock(abstractNodeOpInQueue.getPossibleVectorClock(nodeOp.getId()));
         currentEnabledTransitions.set(i, transition);
         eventInQueue = currentEnabledTransitions.get(i);
@@ -1055,7 +1119,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
         break;
       }
     }
-    return currentEnabledTransitions.remove(id);
+    return currentEnabledTransitions.get(id);
   }
 
   // raft specific
@@ -1109,8 +1173,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
         waitForNextLE = true;
       }
 
-      LOG.info(
-          "Node " + i + " state: " + localStates[i].getRaftStateName() + " term: " + localStates[i].getValue("term"));
+      LOG.info("Node " + i + " state: " + localStates[i].getRaftStateName() + " term: "
+          + localStates[i].getValue("term"));
     }
     if (!allNodesHasTheSameTerm()) {
       diffTerm = true;
@@ -1152,7 +1216,8 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   protected boolean allNodesHasTheSameTerm() {
     if (dmckName.equals("raftModelChecker")) {
       for (int i = 0; i < numNode; i++) {
-        if (i > 0 && (int) localStates[i].getValue("term") != (int) localStates[i - 1].getValue("term")) {
+        if (i > 0
+            && (int) localStates[i].getValue("term") != (int) localStates[i - 1].getValue("term")) {
           return false;
         }
       }

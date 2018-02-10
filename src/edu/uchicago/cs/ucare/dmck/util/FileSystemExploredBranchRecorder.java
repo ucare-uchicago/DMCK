@@ -6,16 +6,14 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /*
- * I use dir representing node that I have explored. If there is .finished under which dir, 
- * it means that I have explored all possible path below that node
- * e.g. initDir = /tmp/record, /tmp/record/1/2/.finished means I have explored all possible
- * branch under 2 (i.e. 2/3/4/.., 2/4/3/..., ...). And /tmp/record/.finished means I am
- * finished exploring all possible branch
+ * I use dir representing node that I have explored. If there is .finished under which dir, it means
+ * that I have explored all possible path below that node e.g. initDir = /tmp/record,
+ * /tmp/record/1/2/.finished means I have explored all possible branch under 2 (i.e. 2/3/4/..,
+ * 2/4/3/..., ...). And /tmp/record/.finished means I am finished exploring all possible branch
  */
 public class FileSystemExploredBranchRecorder implements ExploredBranchRecorder {
 

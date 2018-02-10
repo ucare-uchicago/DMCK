@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.lang.reflect.Constructor;
 import java.util.Properties;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +77,8 @@ public class DMCKRunner {
 
       // optional configuration in target-sys.conf
       ipcDir = targetSysConfig.getProperty("ipc_dir", "/tmp/ipc");
-      verifierClass = targetSysConfig.getProperty("verifier", "edu.uchicago.cs.ucare.dmck.server.SpecVerifier");
+      verifierClass =
+          targetSysConfig.getProperty("verifier", "edu.uchicago.cs.ucare.dmck.server.SpecVerifier");
       directedInitialPath = targetSysConfig.getProperty("initial_path", "");
       expectedResultPath = targetSysConfig.getProperty("expected_result_path", "");
       numCrash = Integer.parseInt(targetSysConfig.getProperty("num_crash", "0"));
@@ -95,27 +95,31 @@ public class DMCKRunner {
   private static void initializeDMCK() {
     try {
       // prepare Workload Driver that starts each target system node
-      Class<? extends WorkloadDriver> wdClass = (Class<? extends WorkloadDriver>) Class.forName(workloadDriverClass);
-      Constructor<? extends WorkloadDriver> wdConstructor = wdClass.getConstructor(Integer.TYPE, String.class,
-          String.class, String.class, String.class);
-      workloadDriver = wdConstructor.newInstance(numNode, workingDir, ipcDir, dmckDir, targetSysDir);
+      Class<? extends WorkloadDriver> wdClass =
+          (Class<? extends WorkloadDriver>) Class.forName(workloadDriverClass);
+      Constructor<? extends WorkloadDriver> wdConstructor = wdClass.getConstructor(Integer.TYPE,
+          String.class, String.class, String.class, String.class);
+      workloadDriver =
+          wdConstructor.newInstance(numNode, workingDir, ipcDir, dmckDir, targetSysDir);
 
       // prepare File Watcher that receive the event information from the Interception
       // Layer
-      Class<? extends FileWatcher> fwClass = (Class<? extends FileWatcher>) Class.forName(fileWatcherClass);
-      Constructor<? extends FileWatcher> fwConstructor = fwClass.getConstructor(String.class,
-          ModelCheckingServerAbstract.class);
+      Class<? extends FileWatcher> fwClass =
+          (Class<? extends FileWatcher>) Class.forName(fileWatcherClass);
+      Constructor<? extends FileWatcher> fwConstructor =
+          fwClass.getConstructor(String.class, ModelCheckingServerAbstract.class);
       fileWatcher = fwConstructor.newInstance(ipcDir, dmck);
 
       // prepare Verifier that check the global states correctness
-      Class<? extends SpecVerifier> vClass = (Class<? extends SpecVerifier>) Class.forName(verifierClass);
+      Class<? extends SpecVerifier> vClass =
+          (Class<? extends SpecVerifier>) Class.forName(verifierClass);
       Constructor<? extends SpecVerifier> vConstructor = vClass.getConstructor();
       verifier = vConstructor.newInstance();
       workloadDriver.setVerifier(verifier);
 
       // determine the DMCK exploring strategy
-      Class<? extends ModelCheckingServerAbstract> dmckStrategyClass = (Class<? extends ModelCheckingServerAbstract>) Class
-          .forName(explorationStrategy);
+      Class<? extends ModelCheckingServerAbstract> dmckStrategyClass =
+          (Class<? extends ModelCheckingServerAbstract>) Class.forName(explorationStrategy);
       LOG.info("DMCK exploration strategy=" + explorationStrategy);
 
       if (GuideModelChecker.class.isAssignableFrom(dmckStrategyClass)) {
@@ -125,17 +129,18 @@ public class DMCKRunner {
         }
         LOG.info("DMCK follows path in " + directedInitialPath);
         File pathFile = new File(directedInitialPath);
-        Constructor<? extends ModelCheckingServerAbstract> guideDMCKConstructor = dmckStrategyClass.getConstructor(
-            String.class, FileWatcher.class, Integer.TYPE, String.class, File.class, String.class, WorkloadDriver.class,
-            String.class);
-        dmck = guideDMCKConstructor.newInstance(dmckName, fileWatcher, numNode, testRecordDir, pathFile, workingDir,
-            workloadDriver, ipcDir);
+        Constructor<? extends ModelCheckingServerAbstract> guideDMCKConstructor =
+            dmckStrategyClass.getConstructor(String.class, FileWatcher.class, Integer.TYPE,
+                String.class, File.class, String.class, WorkloadDriver.class, String.class);
+        dmck = guideDMCKConstructor.newInstance(dmckName, fileWatcher, numNode, testRecordDir,
+            pathFile, workingDir, workloadDriver, ipcDir);
       } else {
-        Constructor<? extends ModelCheckingServerAbstract> dmckConstructor = dmckStrategyClass.getConstructor(
-            String.class, FileWatcher.class, Integer.TYPE, Integer.TYPE, Integer.TYPE, String.class, String.class,
-            String.class, WorkloadDriver.class, String.class);
-        dmck = dmckConstructor.newInstance(dmckName, fileWatcher, numNode, numCrash, numReboot, testRecordDir,
-            traversalRecordDir, workingDir, workloadDriver, ipcDir);
+        Constructor<? extends ModelCheckingServerAbstract> dmckConstructor =
+            dmckStrategyClass.getConstructor(String.class, FileWatcher.class, Integer.TYPE,
+                Integer.TYPE, Integer.TYPE, String.class, String.class, String.class,
+                WorkloadDriver.class, String.class);
+        dmck = dmckConstructor.newInstance(dmckName, fileWatcher, numNode, numCrash, numReboot,
+            testRecordDir, traversalRecordDir, workingDir, workloadDriver, ipcDir);
       }
 
       // connect all the components together

@@ -6,7 +6,8 @@ public class RaftWorkloadDriver extends WorkloadDriver {
 
   private Process[] node;
 
-  public RaftWorkloadDriver(int numNode, String workingDir, String ipcDir, String samcDir, String targetSysDir) {
+  public RaftWorkloadDriver(int numNode, String workingDir, String ipcDir, String samcDir,
+      String targetSysDir) {
     super(numNode, workingDir, ipcDir, samcDir, targetSysDir);
     node = new Process[numNode];
   }
