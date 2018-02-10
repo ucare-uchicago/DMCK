@@ -653,6 +653,15 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
       initialPaths.add(initialPath);
       addPathToFinishedInitialPath(initialPath);
+
+      // add new initial path in debug.log
+      String debugNewPath = String.format("New CRS/RSS dependent Initial Path %d acquired from path %d:\n",
+          initialPath.getId(),
+          initialPath.getParentId());
+      for (Transition t : initialPath) {
+        debugNewPath += t.toString() + "\n";
+      }
+      collectDebug(debugNewPath);
     }
   }
 
@@ -850,7 +859,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       }
 
       // add new initial path in debug.log
-      String debugNewPath = "New Initial Path:\n";
+      String debugNewPath = String.format("New Initial Path %d acquired from path %d:\n",
+          newInitialPath.getId(),
+          newInitialPath.getParentId());
       for (Transition t : newInitialPath) {
         debugNewPath += t.toString() + "\n";
       }
@@ -1114,7 +1125,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         addPathToFinishedInitialPath(newPath.getPath());
 
         // add new initial path in debug.log
-        String debugNewPath = "New Important Paths:\n";
+        String debugNewPath = String.format("New Important Path %d acquired from path %d:\n",
+            newPath.getPath().getId(),
+            newPath.getPath().getParentId());
         for (Transition t : newPath.getPath()) {
           debugNewPath += t.toString() + "\n";
         }
