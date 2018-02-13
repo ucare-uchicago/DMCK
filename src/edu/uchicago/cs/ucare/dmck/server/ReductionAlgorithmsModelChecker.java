@@ -900,7 +900,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   // save collection of paths event IDs to file
-  protected boolean savePaths(LinkedList<Path> pathsQueue, String fileName) {
+  protected boolean savePaths(Collection<Path> pathsQueue, String fileName) {
     if (pathsQueue.size() > 0) {
       try {
         BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
@@ -1019,49 +1019,43 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   protected void saveGeneratedInitialPaths() {
-    try {
-      if (currentInitialPath != null) {
-        BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
-            new FileOutputStream(new File(idRecordDirPath + "/currentInitialPath"))));
-        bw.write(pathToString(currentInitialPath));
-        bw.close();
+    if (currentInitialPath != null) {
+      // save as single element list for generality and ease of read
+      ArrayList<Path> tmp = new ArrayList<Path>();
+      tmp.add(currentInitialPath);
+      savePaths(tmp, "currentInitialPath");
+    }
+
+    if (reductionAlgorithms.contains("parallelism")) {
+      // to save high priority initial path
+      if (savePaths(currentImportantInitialPaths, "importantInitialPathsInQueue")) {
+        importantInitialPaths.addAll(currentImportantInitialPaths);
+        currentImportantInitialPaths.clear();
+      }
+    }
+
+    // to save normal priority initial path
+    if (savePaths(currentInitialPaths, "initialPathsInQueue")) {
+      initialPaths.addAll(currentInitialPaths);
+      currentInitialPaths.clear();
+
+      printPaths("Initial Paths", initialPaths);
+    }
+
+    if (reductionAlgorithms.contains("parallelism")) {
+      // to save low priority initial path
+      if (savePaths(currentUnnecessaryInitialPaths, "unnecessaryInitialPathsInQueue")) {
+        unnecessaryInitialPaths.addAll(currentUnnecessaryInitialPaths);
+        currentUnnecessaryInitialPaths.clear();
       }
 
-      if (reductionAlgorithms.contains("parallelism")) {
-        // to save high priority initial path
-        if (savePaths(currentImportantInitialPaths, "importantInitialPathsInQueue")) {
-          importantInitialPaths.addAll(currentImportantInitialPaths);
-          currentImportantInitialPaths.clear();
-        }
-      }
+      printPaths("Important Initial Paths", importantInitialPaths);
+      printPaths("Low Priority Initial Paths", unnecessaryInitialPaths);
+    }
 
-      // to save normal priority initial path
-      if (savePaths(currentInitialPaths, "initialPathsInQueue")) {
-        initialPaths.addAll(currentInitialPaths);
-        currentInitialPaths.clear();
-
-        printPaths("Initial Paths", initialPaths);
-      }
-
-      if (reductionAlgorithms.contains("parallelism")) {
-        // to save low priority initial path
-        if (savePaths(currentUnnecessaryInitialPaths, "unnecessaryInitialPathsInQueue")) {
-          unnecessaryInitialPaths.addAll(currentUnnecessaryInitialPaths);
-          currentUnnecessaryInitialPaths.clear();
-        }
-
-        printPaths("Important Initial Paths", importantInitialPaths);
-        printPaths("Low Priority Initial Paths", unnecessaryInitialPaths);
-      }
-
-      if (saveEventIDsPaths(currentFinishedInitialPaths, "finishedInitialPaths")) {
-        finishedInitialPaths.addAll(currentFinishedInitialPaths);
-        currentFinishedInitialPaths.clear();
-      }
-    } catch (FileNotFoundException e) {
-      LOG.error("", e);
-    } catch (IOException e) {
-      LOG.error("", e);
+    if (saveEventIDsPaths(currentFinishedInitialPaths, "finishedInitialPaths")) {
+      finishedInitialPaths.addAll(currentFinishedInitialPaths);
+      currentFinishedInitialPaths.clear();
     }
   }
 
