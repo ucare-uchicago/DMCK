@@ -365,9 +365,18 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         if (initialPathFile.exists()) {
           BufferedReader br =
               new BufferedReader(new InputStreamReader(new FileInputStream(initialPathFile)));
-          String path = null;
+          StringBuffer fileContents = new StringBuffer();
+          String path;
           while ((path = br.readLine()) != null) {
-            path = path.trim();
+            fileContents.append(path);
+          }
+          br.close();
+
+          Gson gson = new Gson();
+          PathMeta[] arrPathMeta = gson.fromJson(fileContents.toString(), PathMeta[].class);
+
+          for (PathMeta pathMeta : arrPathMeta) {
+            path = pathMeta.getPathString();
             boolean hasRemovedPath = false;
             if (reductionAlgorithms.contains("parallelism")) {
               for (Path p : importantInitialPaths) {
