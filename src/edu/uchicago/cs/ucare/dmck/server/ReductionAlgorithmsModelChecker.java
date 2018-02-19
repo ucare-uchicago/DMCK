@@ -1738,9 +1738,11 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
       // Get List of Prev Events in Queue
       ArrayList<String> prevQueue = new ArrayList<String>();
-      for (Transition ev : currentEnabledTransitions) {
-        String absEv = getAbstractEvent(ev);
-        prevQueue.add(absEv);
+      if (isSAMC) {
+        for (Transition ev : currentEnabledTransitions) {
+          String absEv = getAbstractEvent(ev);
+          prevQueue.add(absEv);
+        }
       }
 
       // Let DMCK predict the global state changes
