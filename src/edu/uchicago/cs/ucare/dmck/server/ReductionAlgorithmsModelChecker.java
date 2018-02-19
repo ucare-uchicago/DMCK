@@ -22,10 +22,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Properties;
-
 import com.almworks.sqlite4java.SQLiteException;
 import com.google.gson.Gson;
-
 import edu.uchicago.cs.ucare.dmck.transition.AbstractEventConsequence;
 import edu.uchicago.cs.ucare.dmck.transition.AbstractGlobalStates;
 import edu.uchicago.cs.ucare.dmck.transition.AbstractNodeCrashTransition;
@@ -664,9 +662,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       addPathToFinishedInitialPath(initialPath);
 
       // add new initial path in debug.log
-      String debugNewPath = String.format("New CRS/RSS dependent Initial Path %d acquired from path %d:\n",
-          initialPath.getId(),
-          initialPath.getParentId());
+      String debugNewPath =
+          String.format("New CRS/RSS dependent Initial Path %d acquired from path %d:\n",
+              initialPath.getId(), initialPath.getParentId());
       for (Transition t : initialPath) {
         debugNewPath += t.toString() + "\n";
       }
@@ -675,6 +673,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   public static String getAbstractLocalState(LocalState ls) {
+    if (abstractGlobalStateKeys == null) {
+      return null;
+    }
     String result = "[";
     boolean isFirst = true;
     for (String key : abstractGlobalStateKeys) {
@@ -695,6 +696,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
   public static String getAbstractEvent(Transition ev) {
     String result = "";
+    if (ReductionAlgorithmsModelChecker.nonAbstractEventKeys == null) {
+      return result;
+    }
     if (ev instanceof PacketSendTransition) {
       result = "abstract-message: ";
       PacketSendTransition msg = (PacketSendTransition) ev;
@@ -739,6 +743,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   public static boolean isIdenticalAbstractLocalStates(LocalState ls1, LocalState ls2) {
+    if (abstractGlobalStateKeys == null) {
+      return false;
+    }
     for (String key : abstractGlobalStateKeys) {
       if (ls1.getValue(key) == null && ls2.getValue(key) == null) {
         continue;
@@ -869,8 +876,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
       // add new initial path in debug.log
       String debugNewPath = String.format("New Initial Path %d acquired from path %d:\n",
-          newInitialPath.getId(),
-          newInitialPath.getParentId());
+          newInitialPath.getId(), newInitialPath.getParentId());
       for (Transition t : newInitialPath) {
         debugNewPath += t.toString() + "\n";
       }
@@ -1129,8 +1135,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
         // add new initial path in debug.log
         String debugNewPath = String.format("New Important Path %d acquired from path %d:\n",
-            newPath.getPath().getId(),
-            newPath.getPath().getParentId());
+            newPath.getPath().getId(), newPath.getPath().getParentId());
         for (Transition t : newPath.getPath()) {
           debugNewPath += t.toString() + "\n";
         }
