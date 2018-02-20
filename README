@@ -24,20 +24,21 @@ In this DMCK version, we provide two dummy systems
 to give simple examples of how DMCK interacts with
 the target distributed systems: (1) Simple Concurrent
 Messages (SCM); and (2) Sample Leader Election (SampleLE).
-You can also find 3 other real systems that we have integrated
+You can also find 2 other real systems that we have integrated
 with the DMCK to reproduce the DC bug in each system:
-(1) Cassandra; (2) ZooKeeper; and (3) Raft - Logcabin.
+(1) Cassandra; and (2) ZooKeeper.
 
 ------------------------
 How to compile the code?
 ------------------------
 Let's start with compiling the DMCK and the SCM system.
 
-1. Copy the target-sys.conf.sample to target-sys.conf 
+1. Make sure you have installed the Java-Oracle-8.
+2. Copy the target-sys.conf.sample to target-sys.conf 
    in DMCK_dir/scm/ directory
-2. Adjust the path file parameters in the target-sys.conf
-3. Go to DMCK_dir path and execute ./compile scm
-4. You will find the working_dir location that is specified
+3. Adjust the path file parameters in the target-sys.conf
+4. Go to DMCK_dir path and execute ./compile scm
+5. You will find the working_dir location that is specified
    in the target-sys.conf (in default, the working_dir
    can be found in /tmp/scm directory) is generated there.
 
