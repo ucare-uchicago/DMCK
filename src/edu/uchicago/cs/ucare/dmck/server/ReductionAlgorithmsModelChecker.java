@@ -86,6 +86,9 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   // record policy effectiveness
   Hashtable<String, Integer> policyRecord;
 
+  // Quick event release.
+  final long hangTimeout = 10000;
+
   // for pathId
   private int lastPathId = 1;
   private int lastDiscardedPathId = -10;
@@ -1499,6 +1502,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         log += "Found in eventHistory, ags=" + counter + "\n";
         log += "Here is the EventHistory AGS=" + eventHistory.get(counter).toString();
         LOG.debug(log);
+        Timestamp startToWait = new Timestamp(System.currentTimeMillis());
         while (waitLonger) {
           for (Transition queuedEvent : currentEnabledTransitions) {
             if (queuedEvent instanceof PacketSendTransition) {
@@ -1513,6 +1517,14 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             }
           }
           updateSAMCQueueWithoutLog();
+
+          // Check whether the DMCK hangs or not.
+          Timestamp curTime = new Timestamp(System.currentTimeMillis());
+          long totalWaitTime = curTime.getTime() - startToWait.getTime();
+          if (totalWaitTime > hangTimeout) {
+            retryCurrentPath(event, true);
+            return;
+          }
         }
         LOG.debug("DMCK has intercepted all causal new events that are expected.");
       } else {
@@ -1528,6 +1540,33 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     } else {
       return prevLocalStates.getLast();
     }
+  }
+
+  public void retryCurrentPath(Transition event, boolean retryNow) {
+    LOG.error("ERROR: Expected to execute " + event.toString()
+        + ", but the event was not in DMCK Queue.");
+    recordEventToPathFile("Expected event cannot be found in DMCK Queue. "
+        + "DMCK was looking for event with id=" + event.toString());
+    if (!initialPathSecondAttempt.contains(currentInitialPath.toPathMeta())) {
+      if (retryNow) {
+        importantInitialPaths.addFirst(currentInitialPath);
+        LOG.warn(
+            "Try this initial path once again right now. Total Important Priority Initial Path="
+                + (importantInitialPaths.size() + currentImportantInitialPaths.size())
+                + " Total Initial Path Second Attempt=" + initialPathSecondAttempt.size());
+        initialPathSecondAttempt.add(currentInitialPath.toPathMeta());
+      } else {
+        unnecessaryInitialPaths.addFirst(currentInitialPath);
+        LOG.warn(
+            "Try this initial path once again, but at low priority. Total Low Priority Initial Path="
+                + (unnecessaryInitialPaths.size() + currentUnnecessaryInitialPaths.size())
+                + " Total Initial Path Second Attempt=" + initialPathSecondAttempt.size());
+        initialPathSecondAttempt.add(currentInitialPath.toPathMeta());
+      }
+    }
+    loadNextInitialPath(true, false);
+    LOG.warn("---- Quit of Path Execution because an error ----");
+    resetTest();
   }
 
   class PathTraversalWorker extends Thread {
@@ -1564,21 +1603,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             retryCounter = waitForExpectedEvent(retryCounter);
           }
           if (nextEvent == null) {
-            LOG.error("ERROR: Expected to execute " + expectedEvent
-                + ", but the event was not in DMCK Queue.");
-            recordEventToPathFile("Expected event cannot be found in DMCK Queue. "
-                + "DMCK was looking for event with id=" + expectedEvent.toString());
-            if (!initialPathSecondAttempt.contains(currentInitialPath.toPathMeta())) {
-              currentUnnecessaryInitialPaths.addFirst(currentInitialPath);
-              LOG.warn(
-                  "Try this initial path once again, but at low priority. Total Low Priority Initial Path="
-                      + (unnecessaryInitialPaths.size() + currentUnnecessaryInitialPaths.size())
-                      + " Total Initial Path Second Attempt=" + initialPathSecondAttempt.size());
-              initialPathSecondAttempt.add(currentInitialPath.toPathMeta());
-            }
-            loadNextInitialPath(true, false);
-            LOG.warn("---- Quit of Path Execution because an error ----");
-            resetTest();
+            retryCurrentPath(nextEvent, false);
             return;
           } else {
             // 3a. Execute the real event.
