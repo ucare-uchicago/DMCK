@@ -2,6 +2,7 @@ package edu.uchicago.cs.ucare.dmck.server;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.util.LinkedList;
 import java.util.ListIterator;
 import com.almworks.sqlite4java.SQLiteException;
@@ -126,18 +127,21 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
           new LinkedList<LinkedList<Transition>>();
       while (true) {
         executeMidWorkload();
-        updateSAMCQueue(localStates);
+        updateSAMCQueueWithoutLog();
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
         if (terminationPoint && hasWaited) {
+          collectDebugData(localStates);
           LOG.info("---- End of a Path Execution ----");
 
-          // Performance evaluation
+          // Performance evaluation to calculate path execution time.
+          endTimePathExecution = new Timestamp(System.currentTimeMillis());
           collectPerformancePerEventMetrics();
-          collectPerformancePerPathMetrics();
 
-          boolean verifiedResult = verifier.verify();
-          String detail = verifier.verificationDetail();
-          saveResult(verifiedResult, detail);
+          // Verification Phase.
+          verify();
+
+          // Evaluation Phase.
+          startTimeEvaluation = new Timestamp(System.currentTimeMillis());
           recordTestId();
           exploredBranchRecorder.markBelowSubtreeFinished();
           int currentStep = 0;
@@ -157,6 +161,9 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
               break;
             }
           }
+          endTimeEvaluation = new Timestamp(System.currentTimeMillis());
+
+          collectPerformancePerPathMetrics();
           LOG.info("---- End of Path Evaluation ----");
           if (!hasExploredAll) {
             resetTest();
@@ -182,27 +189,32 @@ public abstract class TreeTravelModelChecker extends ModelCheckingServerAbstract
         }
         pastEnabledTransitionList
             .addFirst((LinkedList<Transition>) currentEnabledTransitions.clone());
-        Transition transition;
+        Transition nextEvent;
         boolean recordPath = true;
         if (hasDirectedInitialPath && !hasFinishedDirectedInitialPath) {
-          transition = nextInitialTransition();
+          nextEvent = nextInitialTransition();
           recordPath = false;
         } else {
-          transition = nextTransition(currentEnabledTransitions);
+          nextEvent = nextTransition(currentEnabledTransitions);
         }
-        if (transition != null) {
+        if (nextEvent != null) {
+          // Collect Logs
+          collectDebugData(localStates);
           if (recordPath) {
-            exploredBranchRecorder.createChild(transition.getTransitionId());
-            exploredBranchRecorder.traverseDownTo(transition.getTransitionId());
-            exploredBranchRecorder.noteThisNode(".packet", transition.toString());
+            exploredBranchRecorder.createChild(nextEvent.getTransitionId());
+            exploredBranchRecorder.traverseDownTo(nextEvent.getTransitionId());
+            exploredBranchRecorder.noteThisNode(".packet", nextEvent.toString());
           }
-          LOG.info("[NEXT TRANSITION] " + transition.toString());
-          collectDebugNextTransition(transition);
-          if (transition.apply()) {
-            recordEventToPathFile(transition.toString());
-            updateSAMCQueueAfterEventExecution(transition);
+          collectDebugNextTransition(nextEvent);
+
+          // Remove real next event from DMCK queue
+          removeEventFromQueue(currentEnabledTransitions, nextEvent);
+
+          if (nextEvent.apply()) {
+            recordEventToPathFile(nextEvent.toString());
+            updateSAMCQueueAfterEventExecution(nextEvent);
           } else {
-            LOG.warn(transition.toString() + " IS NOT EXECUTED!");
+            LOG.warn(nextEvent.toString() + " IS NOT EXECUTED!");
           }
         } else {
           if (!hasWaited) {

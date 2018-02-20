@@ -1229,13 +1229,20 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   @Override
   public void collectPerformancePerPathMetrics() {
     // Performance evaluation: Collect time spent to execute a single path
-    endTimePathExecution = new Timestamp(System.currentTimeMillis());
+    long totalInitializationTime = endTimeTSInit.getTime() - startTimeTSInit.getTime();
     long totalPathExecutionTime = endTimePathExecution.getTime() - startTimePathExecution.getTime();
+    long totalVerificationTime = endTimeVerification.getTime() - startTimeVerification.getTime();
+    long totalEvaluationTime = endTimeEvaluation.getTime() - startTimeEvaluation.getTime();
 
     String content = "-------\n";
     content += "SUMMARY\n";
     content += "-------\n";
+    content += "total-initialization-time=" + totalInitializationTime + "ms;\n";
     content += "total-execution-path-time=" + totalPathExecutionTime + "ms;\n";
+    content += "total-verification-time=" + totalVerificationTime + "ms;\n";
+    content += "total-evaluation-time=" + totalEvaluationTime + "ms;\n";
+    content += "sum-up-single-path-execution-time=" + (totalInitializationTime
+        + totalPathExecutionTime + totalVerificationTime + totalEvaluationTime) + "ms;\n";
     content += "total-ags-in-eventHistory=" + eventHistory.size() + ";\n";
     try {
       performanceRecordFile.write(content.getBytes());
@@ -1592,25 +1599,32 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           collectDebugData(localStates);
           LOG.info("---- End of Path Execution ----");
 
-          // Performance evaluation
+          // Performance evaluation to calculate path execution time.
           endTimePathExecution = new Timestamp(System.currentTimeMillis());
           collectPerformancePerEventMetrics();
-          collectPerformancePerPathMetrics();
 
-          boolean verifiedResult = verifier.verify();
-          String detail = verifier.verificationDetail();
-          saveResult(verifiedResult, detail);
-          exploredBranchRecorder.markBelowSubtreeFinished();
-          calculateDependencyGraph();
           String currentFinishedPath = "Finished execution path\n";
           for (Transition transition : currentExploringPath) {
             currentFinishedPath += transition.toString() + "\n";
           }
           LOG.info(currentFinishedPath);
+
+          // Verification phase
+          verify();
+
+          // Evaluation phase
+          startTimeEvaluation = new Timestamp(System.currentTimeMillis());
+          exploredBranchRecorder.markBelowSubtreeFinished();
+          calculateDependencyGraph();
           Path finishedExploringPath = (Path) currentExploringPath.clone();
           convertExecutedAbstractTransitionToReal(finishedExploringPath);
           addPathToFinishedInitialPath(finishedExploringPath);
           evaluateExecutedPath();
+          endTimeEvaluation = new Timestamp(System.currentTimeMillis());
+
+          // Collect DMCK Performance summary metrics.
+          collectPerformancePerPathMetrics();
+
           loadNextInitialPath(true, true);
           LOG.info("---- End of Path Evaluation ----");
           resetTest();
@@ -1692,7 +1706,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     }
 
     protected void updateIsQuickEventStep() {
-      if (quickEventReleaseMode) {
+      if (isSAMC && quickEventReleaseMode) {
         predictedLS =
             findLocalStateChange(prevLocalStates.getLast(), currentExploringPath.getLast());
         isQuickEventStep = predictedLS != null;

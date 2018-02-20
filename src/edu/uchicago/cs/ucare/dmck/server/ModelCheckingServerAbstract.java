@@ -131,8 +131,14 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   public int currentStep;
   public Timestamp lastTimeEnabledEvent;
   public Timestamp lastTimeNewEventOrStateUpdate;
+  public Timestamp startTimeTSInit;
+  public Timestamp endTimeTSInit;
   public Timestamp startTimePathExecution;
   public Timestamp endTimePathExecution;
+  public Timestamp startTimeVerification;
+  public Timestamp endTimeVerification;
+  public Timestamp startTimeEvaluation;
+  public Timestamp endTimeEvaluation;
 
   // quick event release
   public boolean useSequencer;
@@ -526,7 +532,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
   public boolean startEnsemble() {
     // Performance metrics
-    startTimePathExecution = new Timestamp(System.currentTimeMillis());
+    startTimeTSInit = new Timestamp(System.currentTimeMillis());
 
     for (int i = 0; i < numNode; ++i) {
       setNodeOnline(i, true);
@@ -680,13 +686,20 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
   public void collectPerformancePerPathMetrics() {
     // Performance evaluation: Collect time spent to execute a single path
-    endTimePathExecution = new Timestamp(System.currentTimeMillis());
+    long totalInitializationTime = endTimeTSInit.getTime() - startTimeTSInit.getTime();
     long totalPathExecutionTime = endTimePathExecution.getTime() - startTimePathExecution.getTime();
+    long totalVerificationTime = endTimeVerification.getTime() - startTimeVerification.getTime();
+    long totalEvaluationTime = endTimeEvaluation.getTime() - startTimeEvaluation.getTime();
 
     String content = "-------\n";
     content += "SUMMARY\n";
     content += "-------\n";
+    content += "total-initialization-time=" + totalInitializationTime + "ms;\n";
     content += "total-execution-path-time=" + totalPathExecutionTime + "ms;\n";
+    content += "total-verification-time=" + totalVerificationTime + "ms;\n";
+    content += "total-evaluation-time=" + totalEvaluationTime + "ms;\n";
+    content += "sum-up-single-path-execution-time=" + (totalInitializationTime
+        + totalPathExecutionTime + totalVerificationTime + totalEvaluationTime) + "ms;\n";
     try {
       performanceRecordFile.write(content.getBytes());
     } catch (Exception e) {
@@ -835,12 +848,18 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
         isStarted = true;
         initGlobalState();
         LOG.debug("First system steady state, start dmck thread.");
+
+        // Performance metrics to calculate path execution time.
+        startTimePathExecution = new Timestamp(System.currentTimeMillis());
         modelChecking.start();
       }
     }
   }
 
   public void waitOnFirstSteadyStates() {
+    // Performance metrics to calculate initialization time.
+    endTimeTSInit = new Timestamp(System.currentTimeMillis());
+
     waitOnSteadyStatesByTimeout(initSteadyStateTimeout);
   }
 
@@ -1151,6 +1170,14 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     }
 
     return queue.isEmpty();
+  }
+
+  protected void verify() {
+    startTimeVerification = new Timestamp(System.currentTimeMillis());
+    boolean verifiedResult = verifier.verify();
+    String detail = verifier.verificationDetail();
+    saveResult(verifiedResult, detail);
+    endTimeVerification = new Timestamp(System.currentTimeMillis());
   }
 
   protected void waitForNextLE() {

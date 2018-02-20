@@ -2,6 +2,7 @@ package edu.uchicago.cs.ucare.dmck.server;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.util.LinkedList;
 import java.util.Random;
 import com.almworks.sqlite4java.SQLiteException;
@@ -65,12 +66,7 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
       int i = random.nextInt(cloneQueue.size());
       Transition cloneTransition = cloneQueue.remove(i);
       if (!exploredBranchRecorder.isSubtreeBelowChildFinished(cloneTransition.getTransitionId())) {
-        for (int j = 0; j < transitions.size(); j++) {
-          Transition transition = transitions.get(j);
-          if (cloneTransition.getTransitionId() == transition.getTransitionId()) {
-            return transitions.remove(j);
-          }
-        }
+        return cloneTransition;
       }
     }
     return null;
@@ -118,20 +114,26 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
       boolean hasWaited = waitEndExploration == 0;
       while (true) {
         executeMidWorkload();
-        updateSAMCQueue(localStates);
+        updateSAMCQueueWithoutLog();
         boolean terminationPoint = checkTerminationPoint(currentEnabledTransitions);
         if (terminationPoint && hasWaited) {
+          collectDebugData(localStates);
           LOG.info("---- End of Path Execution ----");
 
-          // Performance evaluation
+          // Performance evaluation to calculate path execution time.
+          endTimePathExecution = new Timestamp(System.currentTimeMillis());
           collectPerformancePerEventMetrics();
-          collectPerformancePerPathMetrics();
 
-          boolean verifiedResult = verifier.verify();
-          String detail = verifier.verificationDetail();
-          saveResult(verifiedResult, detail);
+          // Verification phase.
+          verify();
+
+          // Evaluation Phase.
+          startTimeEvaluation = new Timestamp(System.currentTimeMillis());
           recordTestId();
           exploredBranchRecorder.markBelowSubtreeFinished();
+          endTimeEvaluation = new Timestamp(System.currentTimeMillis());
+
+          collectPerformancePerPathMetrics();
           LOG.info("---- End of Path Evaluation ----");
           resetTest();
           break;
@@ -151,37 +153,44 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
           continue;
         }
         hasWaited = waitEndExploration == 0;
-        Transition transition;
+        Transition nextEvent;
         // take next path based on initial path or current policy
         boolean recordPath = true;
         if (hasDirectedInitialPath && !hasFinishedDirectedInitialPath) {
-          transition = nextInitialTransition();
+          nextEvent = nextInitialTransition();
           recordPath = false;
         } else {
-          transition = nextTransition(currentEnabledTransitions);
+          nextEvent = nextTransition(currentEnabledTransitions);
         }
-        if (transition != null) {
-          collectDebugNextTransition(transition);
+        if (nextEvent != null) {
+          // Collect Logs
+          collectDebugData(localStates);
           if (recordPath) {
-            exploredBranchRecorder.createChild(transition.getTransitionId());
-            exploredBranchRecorder.traverseDownTo(transition.getTransitionId());
-            exploredBranchRecorder.noteThisNode(".packets", transition.toString(), false);
+            exploredBranchRecorder.createChild(nextEvent.getTransitionId());
+            exploredBranchRecorder.traverseDownTo(nextEvent.getTransitionId());
+            exploredBranchRecorder.noteThisNode(".packets", nextEvent.toString(), false);
           }
-          if (transition instanceof AbstractNodeOperationTransition) {
+
+          // Transform abstract event to real event.
+          if (nextEvent instanceof AbstractNodeOperationTransition) {
             AbstractNodeOperationTransition nodeOperationTransition =
-                (AbstractNodeOperationTransition) transition;
-            transition =
-                ((AbstractNodeOperationTransition) transition).getRealNodeOperationTransition();
-            if (transition == null) {
+                (AbstractNodeOperationTransition) nextEvent;
+            nextEvent =
+                ((AbstractNodeOperationTransition) nextEvent).getRealNodeOperationTransition();
+            if (nextEvent == null) {
               currentEnabledTransitions.add(nodeOperationTransition);
               continue;
             }
-            nodeOperationTransition.setId(((NodeOperationTransition) transition).getId());
+            nodeOperationTransition.setId(((NodeOperationTransition) nextEvent).getId());
           }
-          LOG.info("[NEXT TRANSITION] " + transition.toString());
-          if (transition.apply()) {
-            recordEventToPathFile(transition.toString());
-            updateSAMCQueueAfterEventExecution(transition);
+          collectDebugNextTransition(nextEvent);
+
+          // Remove real next event from DMCK queue
+          removeEventFromQueue(currentEnabledTransitions, nextEvent);
+
+          if (nextEvent.apply()) {
+            recordEventToPathFile(nextEvent.toString());
+            updateSAMCQueueAfterEventExecution(nextEvent);
           }
         } else if (exploredBranchRecorder.getCurrentDepth() == 0) {
           hasFinishedAllExploration = true;

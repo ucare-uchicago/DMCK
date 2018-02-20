@@ -19,7 +19,6 @@ public class DfsTreeTravelModelChecker extends TreeTravelModelChecker {
     while (iter.hasNext()) {
       Transition transition = iter.next();
       if (!exploredBranchRecorder.isSubtreeBelowChildFinished(transition.getTransitionId())) {
-        iter.remove();
         return transition;
       }
     }
