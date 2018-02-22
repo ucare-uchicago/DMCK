@@ -661,7 +661,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       initialPath.setParentId(initialPath.getId());
       initialPath.setId(nextPathId());
 
-      initialPaths.add(initialPath);
+      currentInitialPaths.add(initialPath);
       addPathToFinishedInitialPath(initialPath);
 
       // add new initial path in debug.log
@@ -839,11 +839,11 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
   protected boolean addNewInitialPath(LocalState[] wasLocalStates, Path initialPath,
       Transition oldTransition, Transition newTransition) {
-    // mark the initial path plus the old event as explored
+    // Mark the initial path plus the old event as explored.
     Path oldPath = (Path) initialPath.clone();
 
-    // this path is skipable and only memorized for historical purpose. We assign negative pathId
-    // here because we will not explore this path in the future.
+    // This path is skip-able and only memorized for historical purpose.
+    // DMCK assigns negative pathId here because DMCK will not explore this path in the future.
     oldPath.setParentId(initialPath.getId());
     oldPath.setId(nextDiscardedPathId());
 
@@ -872,7 +872,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
       newInitialPath.setParentId(initialPath.getId());
       newInitialPath.setId(nextPathId());
 
-      initialPaths.add(newInitialPath);
+      currentInitialPaths.add(newInitialPath);
       if (!reductionAlgorithms.contains("parallelism")) {
         addPathToFinishedInitialPath(newInitialPath);
       }
