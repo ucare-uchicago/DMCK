@@ -1080,7 +1080,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   protected void evaluateParallelismInitialPaths() {
     boolean evaluateAllInitialPaths = true;
     LinkedList<ParallelPath> transformedInitialPaths = new LinkedList<ParallelPath>();
-    for (Path path : initialPaths) {
+    for (Path path : currentInitialPaths) {
       ParallelPath newPath = new ParallelPath(path, dependencies);
       transformedInitialPaths.add(newPath);
     }
@@ -1145,7 +1145,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
         collectDebug(debugNewPath);
       }
     }
-    initialPaths.clear();
+    currentInitialPaths.clear();
   }
 
   protected void evaluateExecutedPath() {
@@ -1154,7 +1154,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     saveEventHistory();
 
     backtrackExecutedPath();
-    printPaths("Initial Paths", initialPaths);
 
     if (reductionAlgorithms.contains("parallelism")) {
       evaluateParallelismInitialPaths();
@@ -1522,8 +1521,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           Timestamp curTime = new Timestamp(System.currentTimeMillis());
           long totalWaitTime = curTime.getTime() - startToWait.getTime();
           if (totalWaitTime > hangTimeout) {
-            retryCurrentPath(event, true);
-            return;
+            LOG.error("DMCK hangs in waiting for next causal events");
+            System.exit(1);
           }
         }
         LOG.debug("DMCK has intercepted all causal new events that are expected.");

@@ -311,7 +311,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
       Transition lastEvent) {
     if (lastEvent instanceof NodeCrashTransition
         || lastEvent instanceof AbstractNodeCrashTransition) {
-      LinkedList<Path> initialPathsClone = (LinkedList<Path>) initialPaths.clone();
+      LinkedList<Path> initialPathsClone = (LinkedList<Path>) currentInitialPaths.clone();
       Iterator<Path> initialPathsCloneIterator = initialPathsClone.iterator();
       while (initialPathsCloneIterator.hasNext()) {
         Path comparePath = initialPathsCloneIterator.next();
@@ -321,15 +321,15 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
             NodeCrashTransition lastCrashCompare = (NodeCrashTransition) lastEventOfComparePath;
             if (isSymmetric(wasLocalStates, lastCrashCompare)) {
               LOG.debug(
-                  "Remove an Initial Path from initialPaths because it has symmetrical crash.");
-              initialPaths.remove(comparePath);
+                  "Remove an Initial Path from currentInitialPaths because it has symmetrical crash.");
+              currentInitialPaths.remove(comparePath);
             }
           }
         }
       }
     } else if (lastEvent instanceof NodeStartTransition
         || lastEvent instanceof AbstractNodeStartTransition) {
-      LinkedList<Path> initialPathsClone = (LinkedList<Path>) initialPaths.clone();
+      LinkedList<Path> initialPathsClone = (LinkedList<Path>) currentInitialPaths.clone();
       Iterator<Path> initialPathsCloneIterator = initialPathsClone.iterator();
       while (initialPathsCloneIterator.hasNext()) {
         Path comparePath = initialPathsCloneIterator.next();
@@ -339,8 +339,8 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
             NodeStartTransition lastStartCompare = (NodeStartTransition) lastEventOfComparePath;
             if (isSymmetric(wasLocalStates, lastStartCompare)) {
               LOG.debug(
-                  "Remove an Initial Path from initialPaths because it has symmetrical reboot.");
-              initialPaths.remove(comparePath);
+                  "Remove an Initial Path from currentInitialPaths because it has symmetrical reboot.");
+              currentInitialPaths.remove(comparePath);
             }
           }
         }
@@ -359,7 +359,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
       LocalState[] oldLocalStates = prevLocalStates.removeLast();
       Path tmpPath = currentExploringPath.clone();
 
-      // reevaluate InitialPaths with CRS and RSS
+      // reevaluate currentInitialPaths with CRS and RSS
       reevaluateInitialPaths(tmpPath, copyLocalState(oldLocalStates), lastTransition);
 
       // check lastTransition instance, if it is crash or reboot on X
