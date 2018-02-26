@@ -89,6 +89,46 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   // Quick event release.
   final long hangTimeout = 10000;
 
+  // Performance metrics.
+  protected Timestamp startTimeDependencyCalculation;
+  protected Timestamp endTimeDependencyCalculation;
+  protected Timestamp startTimeCloneAndConversion;
+  protected Timestamp endTimeCloneAndConversion;
+  protected Timestamp startTimeEvalExecutedPath;
+  protected Timestamp endTimeEvalExecutedPath;
+  protected Timestamp startTimeSavingData;
+  protected Timestamp endTimeSavingData;
+  protected Timestamp startTimeBacktrack;
+  protected Timestamp endTimeBacktrack;
+  protected Timestamp startTimeParallelism;
+  protected Timestamp endTimeParallelism;
+  protected Timestamp startTimeSaveGeneratedPaths;
+  protected Timestamp endTimeSaveGeneratedPaths;
+
+  protected Timestamp startTimeSaveCurInitPath;
+  protected Timestamp endTimeSaveCurInitPath;
+  protected Timestamp startTimeSaveParPaths;
+  protected Timestamp endTimeSaveParPaths;
+  protected Timestamp startTimeSaveNormalPaths;
+  protected Timestamp endTimeSaveNormalPaths;
+  protected Timestamp startTimeSaveLowPrioPaths;
+  protected Timestamp endTimeSaveLowPrioPaths;
+  protected Timestamp startTimeSaveFinishedPath;
+  protected Timestamp endTimeSaveFinishedPath;
+
+  protected Timestamp startTimeSaveLowPrioPathsCollectingMeta;
+  protected Timestamp endTimeSaveLowPrioPathsCollectingMeta;
+  protected Timestamp startTimeSaveLowPrioPathsCreateJson;
+  protected Timestamp endTimeSaveLowPrioPathsCreateJson;
+  protected Timestamp startTimeSaveLowPrioPathsWriteFile;
+  protected Timestamp endTimeSaveLowPrioPathsWriteFile;
+  protected Timestamp startTimeSaveLowPrioPathsAfterOp;
+  protected Timestamp endTimeSaveLowPrioPathsAfterOp;
+
+  protected int curHighPriorityPaths;
+  protected int curNormalPriorityPaths;
+  protected int curLowPriorityPaths;
+
   // for pathId
   private int lastPathId = 1;
   private int lastDiscardedPathId = -10;
@@ -921,6 +961,11 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   protected boolean savePaths(Collection<Path> pathsQueue, String fileName) {
     if (pathsQueue.size() > 0) {
       try {
+        boolean collectMetrics = fileName.equals("unnecessaryInitialPathsInQueue");
+        if (collectMetrics) {
+          startTimeSaveLowPrioPathsCollectingMeta = new Timestamp(System.currentTimeMillis());
+        }
+
         BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
             new FileOutputStream(new File(idRecordDirPath + "/" + fileName))));
         Iterator<Path> pathsQueueIter = pathsQueue.iterator();
@@ -931,10 +976,27 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           meta.add(path.toPathMeta());
         }
 
+        if (collectMetrics) {
+          endTimeSaveLowPrioPathsCollectingMeta = new Timestamp(System.currentTimeMillis());
+        }
+
+        if (collectMetrics) {
+          startTimeSaveLowPrioPathsCreateJson = new Timestamp(System.currentTimeMillis());
+        }
         Gson gson = new Gson();
         String paths = gson.toJson(meta);
+        if (collectMetrics) {
+          endTimeSaveLowPrioPathsCreateJson = new Timestamp(System.currentTimeMillis());
+        }
+
+        if (collectMetrics) {
+          startTimeSaveLowPrioPathsWriteFile = new Timestamp(System.currentTimeMillis());
+        }
         bw.write(paths);
         bw.close();
+        if (collectMetrics) {
+          endTimeSaveLowPrioPathsWriteFile = new Timestamp(System.currentTimeMillis());
+        }
 
         return true;
       } catch (FileNotFoundException e) {
@@ -1016,65 +1078,86 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
 
   // to log paths
   protected void printPaths(String pathsName, Collection<String> paths) {
-    String logs = pathsName + " consists of " + paths.size() + " paths:\n";
-    int i = 1;
-    for (String path : paths) {
-      logs += "Path " + i++ + ":\n" + path + "\n";
+    if (LOG.isDebugEnabled()) {
+      String logs = pathsName + " consists of " + paths.size() + " paths:\n";
+      int i = 1;
+      for (String path : paths) {
+        logs += "Path " + i++ + ":\n" + path + "\n";
+      }
+      LOG.debug(logs);
     }
-    LOG.info(logs);
   }
 
   protected void printPaths(String pathsName, LinkedList<Path> paths) {
-    String logs = pathsName + " consists of " + paths.size() + " paths:\n";
-    int i = 1;
-    for (Path path : paths) {
-      logs += "Path " + i++ + ":\n";
-      for (Transition transition : path) {
-        logs += transition.toString() + "\n";
+    if (LOG.isDebugEnabled()) {
+      String logs = pathsName + " consists of " + paths.size() + " paths:\n";
+      int i = 1;
+      for (Path path : paths) {
+        logs += "Path " + i++ + ":\n";
+        for (Transition transition : path) {
+          logs += transition.toString() + "\n";
+        }
       }
+      LOG.debug(logs);
     }
-    LOG.info(logs);
   }
 
   protected void saveGeneratedInitialPaths() {
+    curHighPriorityPaths = currentImportantInitialPaths.size();
+    curNormalPriorityPaths = currentInitialPaths.size();
+    curLowPriorityPaths = currentUnnecessaryInitialPaths.size();
+
+    startTimeSaveCurInitPath = new Timestamp(System.currentTimeMillis());
     if (currentInitialPath != null) {
       // save as single element list for generality and ease of read
       ArrayList<Path> tmp = new ArrayList<Path>();
       tmp.add(currentInitialPath);
       savePaths(tmp, "currentInitialPath");
     }
+    endTimeSaveCurInitPath = new Timestamp(System.currentTimeMillis());
 
+    startTimeSaveParPaths = new Timestamp(System.currentTimeMillis());
     if (reductionAlgorithms.contains("parallelism")) {
       // to save high priority initial path
       if (savePaths(currentImportantInitialPaths, "importantInitialPathsInQueue")) {
         importantInitialPaths.addAll(currentImportantInitialPaths);
         currentImportantInitialPaths.clear();
       }
+
+      printPaths("Important Initial Paths", importantInitialPaths);
     }
+    endTimeSaveParPaths = new Timestamp(System.currentTimeMillis());
 
     // to save normal priority initial path
+    startTimeSaveNormalPaths = new Timestamp(System.currentTimeMillis());
     if (savePaths(currentInitialPaths, "initialPathsInQueue")) {
       initialPaths.addAll(currentInitialPaths);
       currentInitialPaths.clear();
 
       printPaths("Initial Paths", initialPaths);
     }
+    endTimeSaveNormalPaths = new Timestamp(System.currentTimeMillis());
 
+    startTimeSaveLowPrioPaths = new Timestamp(System.currentTimeMillis());
     if (reductionAlgorithms.contains("parallelism")) {
       // to save low priority initial path
       if (savePaths(currentUnnecessaryInitialPaths, "unnecessaryInitialPathsInQueue")) {
+        startTimeSaveLowPrioPathsAfterOp = new Timestamp(System.currentTimeMillis());
         unnecessaryInitialPaths.addAll(currentUnnecessaryInitialPaths);
         currentUnnecessaryInitialPaths.clear();
+        endTimeSaveLowPrioPathsAfterOp = new Timestamp(System.currentTimeMillis());
       }
 
-      printPaths("Important Initial Paths", importantInitialPaths);
       printPaths("Low Priority Initial Paths", unnecessaryInitialPaths);
     }
+    endTimeSaveLowPrioPaths = new Timestamp(System.currentTimeMillis());
 
+    startTimeSaveFinishedPath = new Timestamp(System.currentTimeMillis());
     if (saveEventIDsPaths(currentFinishedInitialPaths, "finishedInitialPaths")) {
       finishedInitialPaths.addAll(currentFinishedInitialPaths);
       currentFinishedInitialPaths.clear();
     }
+    endTimeSaveFinishedPath = new Timestamp(System.currentTimeMillis());
   }
 
   protected void evaluateParallelismInitialPaths() {
@@ -1149,17 +1232,26 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   protected void evaluateExecutedPath() {
+    startTimeSavingData = new Timestamp(System.currentTimeMillis());
     saveAllExecutedEvents();
     saveEventConsequences();
     saveEventHistory();
+    endTimeSavingData = new Timestamp(System.currentTimeMillis());
 
+    startTimeBacktrack = new Timestamp(System.currentTimeMillis());
     backtrackExecutedPath();
+    endTimeBacktrack = new Timestamp(System.currentTimeMillis());
 
+
+    startTimeParallelism = new Timestamp(System.currentTimeMillis());
     if (reductionAlgorithms.contains("parallelism")) {
       evaluateParallelismInitialPaths();
     }
+    endTimeParallelism = new Timestamp(System.currentTimeMillis());
 
+    startTimeSaveGeneratedPaths = new Timestamp(System.currentTimeMillis());
     saveGeneratedInitialPaths();
+    endTimeSaveGeneratedPaths = new Timestamp(System.currentTimeMillis());
   }
 
   Hashtable<Transition, List<Transition>> dependencies =
@@ -1235,6 +1327,35 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     long totalPathExecutionTime = endTimePathExecution.getTime() - startTimePathExecution.getTime();
     long totalVerificationTime = endTimeVerification.getTime() - startTimeVerification.getTime();
     long totalEvaluationTime = endTimeEvaluation.getTime() - startTimeEvaluation.getTime();
+    long dependencyEvalTime =
+        endTimeDependencyCalculation.getTime() - startTimeDependencyCalculation.getTime();
+    long cloneAndConversionTime =
+        endTimeCloneAndConversion.getTime() - startTimeCloneAndConversion.getTime();
+    long evalExecutedPathTime =
+        endTimeEvalExecutedPath.getTime() - startTimeEvalExecutedPath.getTime();
+
+    long savingDataTime = endTimeSavingData.getTime() - startTimeSavingData.getTime();
+    long backtrackTime = endTimeBacktrack.getTime() - startTimeBacktrack.getTime();
+    long parallelismTime = endTimeParallelism.getTime() - startTimeParallelism.getTime();
+    long saveGeneratedPathsTime =
+        endTimeSaveGeneratedPaths.getTime() - startTimeSaveGeneratedPaths.getTime();
+
+    long curInit = endTimeSaveCurInitPath.getTime() - startTimeSaveCurInitPath.getTime();
+    long highPrio = endTimeSaveParPaths.getTime() - startTimeSaveParPaths.getTime();
+    long normalPrio = endTimeSaveNormalPaths.getTime() - startTimeSaveNormalPaths.getTime();
+    long lowPrio = endTimeSaveLowPrioPaths.getTime() - startTimeSaveLowPrioPaths.getTime();
+    long finishedPath = endTimeSaveFinishedPath.getTime() - startTimeSaveFinishedPath.getTime();
+
+    long lowPrioCollectMeta = endTimeSaveLowPrioPathsCollectingMeta.getTime()
+        - startTimeSaveLowPrioPathsCollectingMeta.getTime();
+    long lowPrioCreateJson =
+        endTimeSaveLowPrioPathsCreateJson.getTime() - startTimeSaveLowPrioPathsCreateJson.getTime();
+    long lowPrioWriteFile =
+        endTimeSaveLowPrioPathsWriteFile.getTime() - startTimeSaveLowPrioPathsWriteFile.getTime();
+    long lowPrioAfterOp =
+        endTimeSaveLowPrioPathsAfterOp.getTime() - startTimeSaveLowPrioPathsAfterOp.getTime();
+
+
 
     String content = "-------\n";
     content += "SUMMARY\n";
@@ -1243,6 +1364,25 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     content += "total-execution-path-time=" + totalPathExecutionTime + "ms;\n";
     content += "total-verification-time=" + totalVerificationTime + "ms;\n";
     content += "total-evaluation-time=" + totalEvaluationTime + "ms;\n";
+    content += "  dependency-evaluation=" + dependencyEvalTime + "ms;\n";
+    content += "  clone-and-converesion=" + cloneAndConversionTime + "ms;\n";
+    content += "  eval-executed-path=" + evalExecutedPathTime + "ms;\n";
+    content += "    saving-data=" + savingDataTime + "ms;\n";
+    content += "    backtrack=" + backtrackTime + "ms;\n";
+    content += "    parallelism=" + parallelismTime + "ms;\n";
+    content += "    save-generated-paths=" + saveGeneratedPathsTime + "ms;\n";
+    content += "      cur-init-path=" + curInit + "ms;\n";
+    content += "      high-priority-paths=" + highPrio + "ms;\n";
+    content += "      high-priority-paths-number=" + curHighPriorityPaths + ";\n";
+    content += "      norm-priority-paths=" + normalPrio + "ms;\n";
+    content += "      norm-priority-paths-number=" + curNormalPriorityPaths + ";\n";
+    content += "      low-priority-paths=" + lowPrio + "ms;\n";
+    content += "        collect-meta=" + lowPrioCollectMeta + "ms;\n";
+    content += "        create-json=" + lowPrioCreateJson + "ms;\n";
+    content += "        write-file=" + lowPrioWriteFile + "ms;\n";
+    content += "        after-op=" + lowPrioAfterOp + "ms;\n";
+    content += "      low-priority-paths-number=" + curLowPriorityPaths + ";\n";
+    content += "      finished-pat=" + finishedPath + "ms;\n";
     content += "sum-up-single-path-execution-time=" + (totalInitializationTime
         + totalPathExecutionTime + totalVerificationTime + totalEvaluationTime) + "ms;\n";
     content += "total-ags-in-eventHistory=" + eventHistory.size() + ";\n";
@@ -1542,6 +1682,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   public void retryCurrentPath(Transition event, boolean retryNow) {
+    collectDebugData(prevLocalStates.getLast());
     LOG.error("ERROR: Expected to execute " + event.toString()
         + ", but the event was not in DMCK Queue.");
     recordEventToPathFile("Expected event cannot be found in DMCK Queue. "
@@ -1639,11 +1780,17 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           // Evaluation phase
           startTimeEvaluation = new Timestamp(System.currentTimeMillis());
           exploredBranchRecorder.markBelowSubtreeFinished();
+          startTimeDependencyCalculation = new Timestamp(System.currentTimeMillis());
           calculateDependencyGraph();
+          endTimeDependencyCalculation = new Timestamp(System.currentTimeMillis());
+          startTimeCloneAndConversion = new Timestamp(System.currentTimeMillis());
           Path finishedExploringPath = (Path) currentExploringPath.clone();
           convertExecutedAbstractTransitionToReal(finishedExploringPath);
           addPathToFinishedInitialPath(finishedExploringPath);
+          endTimeCloneAndConversion = new Timestamp(System.currentTimeMillis());
+          startTimeEvalExecutedPath = new Timestamp(System.currentTimeMillis());
           evaluateExecutedPath();
+          endTimeEvalExecutedPath = new Timestamp(System.currentTimeMillis());
           endTimeEvaluation = new Timestamp(System.currentTimeMillis());
 
           // Collect DMCK Performance summary metrics.
