@@ -1602,7 +1602,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
             retryCounter = waitForExpectedEvent(retryCounter);
           }
           if (nextEvent == null) {
-            retryCurrentPath(nextEvent, false);
+            retryCurrentPath(expectedEvent, false);
             return;
           } else {
             // 3a. Execute the real event.
