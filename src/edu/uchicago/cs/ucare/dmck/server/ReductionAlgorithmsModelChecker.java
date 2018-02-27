@@ -116,15 +116,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   protected Timestamp startTimeSaveFinishedPath;
   protected Timestamp endTimeSaveFinishedPath;
 
-  protected Timestamp startTimeSaveLowPrioPathsCollectingMeta;
-  protected Timestamp endTimeSaveLowPrioPathsCollectingMeta;
-  protected Timestamp startTimeSaveLowPrioPathsCreateJson;
-  protected Timestamp endTimeSaveLowPrioPathsCreateJson;
-  protected Timestamp startTimeSaveLowPrioPathsWriteFile;
-  protected Timestamp endTimeSaveLowPrioPathsWriteFile;
-  protected Timestamp startTimeSaveLowPrioPathsAfterOp;
-  protected Timestamp endTimeSaveLowPrioPathsAfterOp;
-
   protected int curHighPriorityPaths;
   protected int curNormalPriorityPaths;
   protected int curLowPriorityPaths;
@@ -961,11 +952,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   protected boolean savePaths(Collection<Path> pathsQueue, String fileName) {
     if (pathsQueue.size() > 0) {
       try {
-        boolean collectMetrics = fileName.equals("unnecessaryInitialPathsInQueue");
-        if (collectMetrics) {
-          startTimeSaveLowPrioPathsCollectingMeta = new Timestamp(System.currentTimeMillis());
-        }
-
         BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
             new FileOutputStream(new File(idRecordDirPath + "/" + fileName))));
         Iterator<Path> pathsQueueIter = pathsQueue.iterator();
@@ -976,27 +962,10 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           meta.add(path.toPathMeta());
         }
 
-        if (collectMetrics) {
-          endTimeSaveLowPrioPathsCollectingMeta = new Timestamp(System.currentTimeMillis());
-        }
-
-        if (collectMetrics) {
-          startTimeSaveLowPrioPathsCreateJson = new Timestamp(System.currentTimeMillis());
-        }
         Gson gson = new Gson();
         String paths = gson.toJson(meta);
-        if (collectMetrics) {
-          endTimeSaveLowPrioPathsCreateJson = new Timestamp(System.currentTimeMillis());
-        }
-
-        if (collectMetrics) {
-          startTimeSaveLowPrioPathsWriteFile = new Timestamp(System.currentTimeMillis());
-        }
         bw.write(paths);
         bw.close();
-        if (collectMetrics) {
-          endTimeSaveLowPrioPathsWriteFile = new Timestamp(System.currentTimeMillis());
-        }
 
         return true;
       } catch (FileNotFoundException e) {
@@ -1142,10 +1111,8 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     if (reductionAlgorithms.contains("parallelism")) {
       // to save low priority initial path
       if (savePaths(currentUnnecessaryInitialPaths, "unnecessaryInitialPathsInQueue")) {
-        startTimeSaveLowPrioPathsAfterOp = new Timestamp(System.currentTimeMillis());
         unnecessaryInitialPaths.addAll(currentUnnecessaryInitialPaths);
         currentUnnecessaryInitialPaths.clear();
-        endTimeSaveLowPrioPathsAfterOp = new Timestamp(System.currentTimeMillis());
       }
 
       printPaths("Low Priority Initial Paths", unnecessaryInitialPaths);
@@ -1346,17 +1313,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     long lowPrio = endTimeSaveLowPrioPaths.getTime() - startTimeSaveLowPrioPaths.getTime();
     long finishedPath = endTimeSaveFinishedPath.getTime() - startTimeSaveFinishedPath.getTime();
 
-    long lowPrioCollectMeta = endTimeSaveLowPrioPathsCollectingMeta.getTime()
-        - startTimeSaveLowPrioPathsCollectingMeta.getTime();
-    long lowPrioCreateJson =
-        endTimeSaveLowPrioPathsCreateJson.getTime() - startTimeSaveLowPrioPathsCreateJson.getTime();
-    long lowPrioWriteFile =
-        endTimeSaveLowPrioPathsWriteFile.getTime() - startTimeSaveLowPrioPathsWriteFile.getTime();
-    long lowPrioAfterOp =
-        endTimeSaveLowPrioPathsAfterOp.getTime() - startTimeSaveLowPrioPathsAfterOp.getTime();
-
-
-
     String content = "-------\n";
     content += "SUMMARY\n";
     content += "-------\n";
@@ -1377,10 +1333,6 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
     content += "      norm-priority-paths=" + normalPrio + "ms;\n";
     content += "      norm-priority-paths-number=" + curNormalPriorityPaths + ";\n";
     content += "      low-priority-paths=" + lowPrio + "ms;\n";
-    content += "        collect-meta=" + lowPrioCollectMeta + "ms;\n";
-    content += "        create-json=" + lowPrioCreateJson + "ms;\n";
-    content += "        write-file=" + lowPrioWriteFile + "ms;\n";
-    content += "        after-op=" + lowPrioAfterOp + "ms;\n";
     content += "      low-priority-paths-number=" + curLowPriorityPaths + ";\n";
     content += "      finished-pat=" + finishedPath + "ms;\n";
     content += "sum-up-single-path-execution-time=" + (totalInitializationTime
