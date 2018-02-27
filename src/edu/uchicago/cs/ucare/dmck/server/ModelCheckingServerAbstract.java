@@ -39,13 +39,15 @@ import edu.uchicago.cs.ucare.example.election.LeaderElectionMain;
 
 public abstract class ModelCheckingServerAbstract implements ModelCheckingServer {
 
+  public static String DMCK_NAME;
+
+  protected static Logger LOG = LoggerFactory.getLogger(ModelCheckingServerAbstract.class);
+
   private static String PATH_FILE = "path";
   private static String DEBUG_FILE = "debug.log";
   private static String PERF_FILE = "performance.log";
   private static String RESULT_FILE = "result";
 
-  protected static Logger LOG = LoggerFactory.getLogger(ModelCheckingServerAbstract.class);
-  protected String dmckName;
   protected LinkedBlockingQueue<Event> packetQueue;
   protected boolean hasFinishedAllExploration;
 
@@ -154,7 +156,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       String testRecordDirPath, String workingDirPath, WorkloadDriver workloadDriver,
       String ipcDir) {
     LOG = LoggerFactory.getLogger(ModelCheckingServerAbstract.class + "." + dmckName);
-    this.dmckName = dmckName;
+    DMCK_NAME = dmckName;
     packetQueue = new LinkedBlockingQueue<Event>();
     hasFinishedAllExploration = false;
     this.numNode = numNode;
@@ -206,7 +208,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
       useSequencer = dmckConf.getProperty("use_sequencer", "false").equals("true");
       quickEventReleaseMode = dmckConf.getProperty("quick_event_release", "false").equals("true");
       tcpParadigm = dmckConf.getProperty("tcp_paradigm", "true").equals("true");
-      if (dmckName.equals("raftModelChecker")) {
+      if (DMCK_NAME.equals("raftModelChecker")) {
         leaderElectionTimeout = Integer.parseInt(dmckConf.getProperty("leader_election_timeout"));
         timeoutEventIterations = Integer.parseInt(dmckConf.getProperty("timeout_event_iterations"));
         snapshotWaitingTime = Integer.parseInt(dmckConf.getProperty("snapshot_waiting_time"));
@@ -279,7 +281,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
   public void executeMidWorkload() {
     if (hasMidWorkload) {
-      if (dmckName.equals("raftModelChecker")) {
+      if (DMCK_NAME.equals("raftModelChecker")) {
         executeRaftSnapshot();
       }
     }
@@ -1003,7 +1005,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
     localStates = getInitialGlobalStates();
 
     // system specific
-    if (dmckName.equals("cassChecker")) {
+    if (DMCK_NAME.equals("cassChecker")) {
       this.workloadHasApplied = new HashMap<Integer, String>();
     }
   }
@@ -1018,15 +1020,15 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
 
   public LocalState resetNodeState(int nodeId) {
     LocalState initialLS = new LocalState();
-    if (dmckName.equals("scmChecker")) {
+    if (DMCK_NAME.equals("scmChecker")) {
       initialLS.setKeyValue("vote", 0);
-    } else if (dmckName.equals("sampleLEModelChecker")) {
+    } else if (DMCK_NAME.equals("sampleLEModelChecker")) {
       initialLS.setKeyValue("role", LeaderElectionMain.LOOKING);
       initialLS.setKeyValue("leader", -1);
-    } else if (dmckName.equals("raftModelChecker")) {
+    } else if (DMCK_NAME.equals("raftModelChecker")) {
       initialLS.setKeyValue("state", -1);
       initialLS.setKeyValue("term", -1);
-    } else if (dmckName.startsWith("zkChecker")) {
+    } else if (DMCK_NAME.startsWith("zkChecker")) {
       initialLS.setKeyValue("state", 0);
       initialLS.setKeyValue("proposedLeader", (long) nodeId);
       initialLS.setKeyValue("proposedZxid", (long) -1);
@@ -1156,7 +1158,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   }
 
   protected boolean checkTerminationPoint(LinkedList<Transition> queue) {
-    if (dmckName.equals("raftModelChecker")) {
+    if (DMCK_NAME.equals("raftModelChecker")) {
       boolean isThereAnyHardCrash = false;
       for (LocalState ls : localStates) {
         if ((int) ls.getValue("state") == 3) {
@@ -1165,7 +1167,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
         }
       }
       return queue.isEmpty() || isThereAnyHardCrash;
-    } else if (dmckName.equals("zkChecker-ZAB")) {
+    } else if (DMCK_NAME.equals("zkChecker-ZAB")) {
       return queue.isEmpty() && numQueueInitWorkload <= 0;
     }
 
@@ -1228,7 +1230,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   }
 
   protected boolean atleastEachNodeExecuteOnes() {
-    if (dmckName.equals("raftModelChecker")) {
+    if (DMCK_NAME.equals("raftModelChecker")) {
       int unsetNode = 0;
       for (int i = 0; i < numNode; i++) {
         if ((int) localStates[i].getValue("state") < 0) {
@@ -1241,7 +1243,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   }
 
   protected boolean allNodesHasTheSameTerm() {
-    if (dmckName.equals("raftModelChecker")) {
+    if (DMCK_NAME.equals("raftModelChecker")) {
       for (int i = 0; i < numNode; i++) {
         if (i > 0
             && (int) localStates[i].getValue("term") != (int) localStates[i - 1].getValue("term")) {
@@ -1253,7 +1255,7 @@ public abstract class ModelCheckingServerAbstract implements ModelCheckingServer
   }
 
   public boolean hasOneLeader() {
-    if (dmckName.equals("raftModelChecker")) {
+    if (DMCK_NAME.equals("raftModelChecker")) {
       int totalLeader = 0;
       for (int i = 0; i < numNode; i++) {
         LOG.info("[STATE] node-" + i + ": " + localStates[i].getValue("state"));

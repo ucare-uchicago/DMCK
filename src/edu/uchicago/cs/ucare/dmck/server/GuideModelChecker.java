@@ -54,10 +54,10 @@ public class GuideModelChecker extends ModelCheckingServerAbstract {
         getOutstandingEventTransition(currentEnabledTransitions);
         updateSAMCQueue(localStates);
         // raft specific
-        if (dmckName.equals("raftModelChecker")) {
+        if (DMCK_NAME.equals("raftModelChecker")) {
           while (checkTerminationPoint(currentEnabledTransitions)) {
             try {
-              if (dmckName.equals("raftModelChecker") && waitForNextLE
+              if (DMCK_NAME.equals("raftModelChecker") && waitForNextLE
                   && waitedForNextLEInDiffTermCounter < 20) {
                 Thread.sleep(leaderElectionTimeout);
               }

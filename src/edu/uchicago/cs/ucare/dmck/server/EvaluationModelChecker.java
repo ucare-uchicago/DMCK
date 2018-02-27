@@ -86,7 +86,7 @@ public abstract class EvaluationModelChecker extends ReductionAlgorithmsModelChe
 
   protected boolean isPossibleConcurrent(Transition lastTransition, Transition currentTransition) {
     // hack solution for multiple client requests for Cassandra system
-    if (dmckName.equals("cassChecker") && lastTransition instanceof PacketSendTransition
+    if (DMCK_NAME.equals("cassChecker") && lastTransition instanceof PacketSendTransition
         && currentTransition instanceof PacketSendTransition) {
       PacketSendTransition lt = (PacketSendTransition) lastTransition;
       PacketSendTransition tt = (PacketSendTransition) currentTransition;

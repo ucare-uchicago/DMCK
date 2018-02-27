@@ -1290,7 +1290,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           if (compareResult == 1) {
             // hack solution for multiple client requests for
             // Cassandra system
-            if (dmckName.equals("cassChecker") && current instanceof PacketSendTransition
+            if (DMCK_NAME.equals("cassChecker") && current instanceof PacketSendTransition
                 && comparing instanceof PacketSendTransition) {
               PacketSendTransition lt = (PacketSendTransition) current;
               PacketSendTransition tt = (PacketSendTransition) comparing;
@@ -1802,7 +1802,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           break;
         } else if (terminationPoint) {
           try {
-            if (dmckName.equals("raftModelChecker") && waitForNextLE
+            if (DMCK_NAME.equals("raftModelChecker") && waitForNextLE
                 && waitedForNextLEInDiffTermCounter < 20) {
               Thread.sleep(leaderElectionTimeout);
             } else {
@@ -1831,7 +1831,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
           executeEvent(nextEvent, isDirectedEvent);
         } else if (exploredBranchRecorder.getCurrentDepth() == 0) {
           LOG.warn("Finished exploring all states");
-        } else if (dmckName.equals("zkChecker-ZAB") && numQueueInitWorkload > 0) {
+        } else if (DMCK_NAME.equals("zkChecker-ZAB") && numQueueInitWorkload > 0) {
           if (workloadRetry <= 0) {
             numQueueInitWorkload--;
             workloadRetry = 10;

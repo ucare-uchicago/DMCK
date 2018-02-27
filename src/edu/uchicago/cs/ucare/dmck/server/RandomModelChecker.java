@@ -139,7 +139,7 @@ public class RandomModelChecker extends ModelCheckingServerAbstract {
           break;
         } else if (terminationPoint) {
           try {
-            if (dmckName.equals("raftModelChecker") && waitForNextLE
+            if (DMCK_NAME.equals("raftModelChecker") && waitForNextLE
                 && waitedForNextLEInDiffTermCounter < 20) {
               Thread.sleep(leaderElectionTimeout);
             } else {
