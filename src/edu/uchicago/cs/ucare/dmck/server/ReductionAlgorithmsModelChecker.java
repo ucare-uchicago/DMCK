@@ -1634,7 +1634,7 @@ public abstract class ReductionAlgorithmsModelChecker extends ModelCheckingServe
   }
 
   public void retryCurrentPath(Transition event, boolean retryNow) {
-    collectDebugData(prevLocalStates.getLast());
+    collectDebugData(getLatestGlobalState());
     LOG.error("ERROR: Expected to execute " + event.toString()
         + ", but the event was not in DMCK Queue.");
     recordEventToPathFile("Expected event cannot be found in DMCK Queue. "
